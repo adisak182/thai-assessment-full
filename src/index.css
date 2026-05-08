@@ -1,0 +1,171 @@
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Brand Colors - Narathiwat Purple */
+  --color-primary: #7e22ce;   /* Purple 700 */
+  --color-primary-light: #a855f7; /* Purple 500 */
+  --color-primary-dark: #581c87;  /* Purple 900 */
+  --color-secondary: #fcd34d; /* Amber 300 (gold-ish for accents, matches logo) */
+  --color-secondary-dark: #fbbf24;
+  
+  /* Backgrounds */
+  --bg-gradient: linear-gradient(135deg, #f3e8ff 0%, #ffffff 100%);
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass-dark: rgba(255, 255, 255, 0.9);
+  
+  /* Text */
+  --text-main: #1f2937;
+  --text-muted: #4b5563;
+  --text-light: #ffffff;
+  
+  /* Shadows & Effects */
+  --shadow-glass: 0 8px 32px 0 rgba(126, 34, 206, 0.15);
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --border-glass: 1px solid rgba(255, 255, 255, 0.5);
+  
+  /* Animation */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Kanit', sans-serif;
+  background-image: var(--bg-gradient);
+  background-attachment: fixed;
+  color: var(--text-main);
+  min-height: 100vh;
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography Enhancements */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--border-glass);
+  border-radius: 20px;
+  box-shadow: var(--shadow-glass);
+}
+
+.glass-card {
+  background: var(--bg-glass-dark);
+  backdrop-filter: blur(16px);
+  border: var(--border-glass);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-bounce), box-shadow var(--transition-fast);
+}
+
+.glass-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 25px -5px rgba(126, 34, 206, 0.2);
+}
+
+/* Buttons */
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
+  color: var(--text-light);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform var(--transition-bounce), box-shadow var(--transition-fast);
+  box-shadow: 0 4px 14px 0 rgba(126, 34, 206, 0.39);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(126, 34, 206, 0.5);
+}
+
+.btn-secondary {
+  background: var(--color-secondary);
+  color: var(--color-primary-dark);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-family: 'Kanit', sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform var(--transition-bounce), box-shadow var(--transition-fast);
+  box-shadow: 0 4px 14px 0 rgba(251, 191, 36, 0.39);
+}
+
+.btn-secondary:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+
+/* Layout Utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* App Structure */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Mobile Responsiveness Overrides */
+@media (max-width: 768px) {
+  .container { padding: 0 16px !important; }
+  .glass-panel, .glass-card { padding: 20px 16px !important; }
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.4rem !important; }
+  h3 { font-size: 1.15rem !important; }
+  /* Override massive sizes in inline styles */
+  h1[style*='font-size'], div[style*='font-size: 4rem'], div[style*='font-size: 3rem'] { font-size: 2rem !important; }
+  /* Override fixed height cards and large grids */
+  div[style*='grid-template-columns'] { grid-template-columns: 1fr !important; }
+  /* Forms */
+  form > div[style*='flex-direction: row'] { flex-direction: column !important; }
+  form > div > div { min-width: 100% !important; margin-bottom: 12px; }
+  /* Stats Layouts */
+  .flex-stat-card { flex-direction: column !important; text-align: center; justify-content: center; }
+  /* Content reading font sizes */
+  p[style*='font-size: 1.1rem'], p[style*='font-size: 1.25rem'], p[style*='font-size: 1.2rem'] { font-size: 1rem !important; }
+}
+
