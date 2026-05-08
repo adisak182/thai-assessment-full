@@ -19,16 +19,11 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
     // Allow any localhost origin in development
-    if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    const allowedOrigins = process.env.ALLOWED_ORIGIN ? process.env.ALLOWED_ORIGIN.split(',').map(s => s.trim()) : ['*'];
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin) || origin.includes('localhost')) {
       callback(null, true);
     } else {
-      // In production, restrict to your actual domain
-      const allowed = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim());
-      if (allowed.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: Origin ${origin} not allowed`));
-      }
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
     }
   },
   credentials: true
