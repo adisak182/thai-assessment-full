@@ -158,6 +158,16 @@ export default function Level1Reading() {
               {currentQ.q}
             </h3>
 
+            {currentQ.image && (
+              <div style={{ marginBottom: '24px', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <img 
+                  src={currentQ.image} 
+                  alt="Question Illustration" 
+                  style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '300px', objectFit: 'cover' }} 
+                />
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {currentQ.options.map((option, index) => {
                 const isSelected = selectedOption === option;

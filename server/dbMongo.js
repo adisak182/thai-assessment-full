@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const connectMongoDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+
   try {
     const uri = process.env.MONGO_URI;
     if (!uri) {

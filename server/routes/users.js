@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
+import mongoose from 'mongoose';
+
 
 const router = express.Router();
 
@@ -109,7 +111,6 @@ router.get('/history', authenticate, async (req, res) => {
 });
 
 // ==================== GET LATEST SCORES PER LEVEL ====================
-import mongoose from 'mongoose'; // needed for ObjectId in aggregate
 
 router.get('/scores', authenticate, async (req, res) => {
   try {

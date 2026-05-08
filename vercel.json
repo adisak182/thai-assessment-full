@@ -1,5 +1,33 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "server/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/auth/(.*)",
+      "destination": "server/server.js"
+    },
+    {
+      "source": "/users/(.*)",
+      "destination": "server/server.js"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "server/server.js"
+    },
+    {
+      "source": "/health",
+      "destination": "server/server.js"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
