@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { BookOpen, Volume2, MessageCircle, Award, PenTool, ArrowRight, CheckCircle, XCircle, Trophy, Star } from 'lucide-react';
+import { BookOpen, Volume2, MessageCircle, Award, PenTool, ArrowRight, CheckCircle, XCircle, Trophy, Star, Lock } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 
@@ -175,6 +175,7 @@ export default function LevelDashboard() {
   const { user, fetchScores } = useUser();
 
   const [scores, setScores] = useState({ listening: 0, conversation: 0, reading: 0, writing: 0, totalScore: 0 });
+  const [completed, setCompleted] = useState({ listening: false, conversation: false, reading: false, writing: false });
   const [showPassedBanner, setShowPassedBanner] = useState(false);
   const [showL3Completion, setShowL3Completion] = useState(false);
   const [prevTotalScore, setPrevTotalScore] = useState(null);
@@ -195,16 +196,22 @@ export default function LevelDashboard() {
       const allScores = await fetchScores();
       const levelData = allScores[id] || {};
 
+      const hasListening    = !!levelData.listening;
+      const hasConversation = !!levelData.conversation;
+      const hasReading      = !!levelData.reading;
+      const hasWriting      = !!levelData.writing;
+
       const listening    = levelData.listening?.score    || 0;
       const conversation = levelData.conversation?.score || 0;
       const reading      = levelData.reading?.score      || 0;
       const writing      = levelData.writing?.score      || 0;
       const totalScore   = listening + conversation + reading + writing;
 
-      const allDone = levelData.listening && levelData.conversation && levelData.reading && levelData.writing;
+      const allDone = hasListening && hasConversation && hasReading && hasWriting;
       const passed = totalScore >= config.pass;
 
       setScores({ listening, conversation, reading, writing, totalScore });
+      setCompleted({ listening: hasListening, conversation: hasConversation, reading: hasReading, writing: hasWriting });
 
       // Only trigger modal if this is a new completion (score changed)
       if (allDone && passed && prevTotalScore !== null && totalScore !== prevTotalScore) {
@@ -218,35 +225,42 @@ export default function LevelDashboard() {
       setPrevTotalScore(totalScore);
     };
     loadData();
-  }, [id, user]);
+  }, [id, user, fetchScores, config.pass, levelNum, prevTotalScore]);
 
   const handleGoNextLevel = () => {
     setShowPassedBanner(false);
     navigate(`/level/${nextLevel}`);
   };
 
-  const modules = [];
+  const rawModules = [];
 
   if (id === '1') {
-    modules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังคำศัพท์ นิทาน และประกาศ', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' });
-    modules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบกับระบบ 5 สถานการณ์', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)' });
-    modules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความและตอบคำถามเพื่อประยุกต์ใช้ในสถานการณ์ต่างๆ', bg: 'linear-gradient(135deg, #10b981, #059669)' });
-    modules.push({ title: 'ทักษะการเขียน (เกมแฟลชการ์ด)', path: 'writing', icon: <PenTool size={32} />, desc: 'ดูภาพและฟังเสียงคำศัพท์ แล้วเลือกคำที่สะกดถูกต้อง', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' });
+    rawModules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังคำศัพท์ นิทาน และประกาศ', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', key: 'listening' });
+    rawModules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบกับระบบ 5 สถานการณ์', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)', key: 'conversation' });
+    rawModules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความและตอบคำถามเพื่อประยุกต์ใช้ในสถานการณ์ต่างๆ', bg: 'linear-gradient(135deg, #10b981, #059669)', key: 'reading' });
+    rawModules.push({ title: 'ทักษะการเขียน (เกมแฟลชการ์ด)', path: 'writing', icon: <PenTool size={32} />, desc: 'ดูภาพและฟังเสียงคำศัพท์ แล้วเลือกคำที่สะกดถูกต้อง', bg: 'linear-gradient(135deg, #f59e0b, #d97706)', key: 'writing' });
+  } else if (id === '2') {
+    rawModules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังคำศัพท์ สำนวน และบทความ', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', key: 'listening' });
+    rawModules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบกับระบบ 5 สถานการณ์', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)', key: 'conversation' });
+    rawModules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความ "6 โรค ที่มากับหน้าฝน" และตอบคำถาม 10 ข้อ', bg: 'linear-gradient(135deg, #10b981, #059669)', key: 'reading' });
+    rawModules.push({ title: 'ทักษะการเขียน', path: 'writing', icon: <PenTool size={32} />, desc: 'เขียนคำศัพท์ตามคำอ่าน และเรียงคำเป็นประโยค', bg: 'linear-gradient(135deg, #f59e0b, #d97706)', key: 'writing' });
+  } else if (id === '3') {
+    rawModules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังข่าว ประกาศ โฆษณา และวิเคราะห์สาร', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', key: 'listening' });
+    rawModules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบในสถานการณ์สัมภาษณ์งานและการแก้ปัญหา', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)', key: 'conversation' });
+    rawModules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความสังคมสูงวัย วิเคราะห์ระดับภาษา และโคลงสี่สุภาพ', bg: 'linear-gradient(135deg, #10b981, #059669)', key: 'reading' });
+    rawModules.push({ title: 'ทักษะการเขียน (การใช้ภาษา)', path: 'writing', icon: <PenTool size={32} />, desc: 'เรียงคำศัพท์ยาก เรียงประโยค และการเขียนตอบคำถาม', bg: 'linear-gradient(135deg, #f59e0b, #d97706)', key: 'writing' });
   }
 
-  if (id === '2') {
-    modules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังคำศัพท์ สำนวน และบทความ', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' });
-    modules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบกับระบบ 5 สถานการณ์', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)' });
-    modules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความ "6 โรค ที่มากับหน้าฝน" และตอบคำถาม 10 ข้อ', bg: 'linear-gradient(135deg, #10b981, #059669)' });
-    modules.push({ title: 'ทักษะการเขียน', path: 'writing', icon: <PenTool size={32} />, desc: 'เขียนคำศัพท์ตามคำอ่าน และเรียงคำเป็นประโยค', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' });
-  }
+  const modules = rawModules.map((mod, idx) => {
+    let isLocked = false;
+    let lockMsg = "";
 
-  if (id === '3') {
-    modules.push({ title: 'ทักษะการฟัง', path: 'listening', icon: <Volume2 size={32} />, desc: 'ทดสอบการฟังข่าว ประกาศ โฆษณา และวิเคราะห์สาร', bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)' });
-    modules.push({ title: 'ทักษะการพูด (สนทนาโต้ตอบ)', path: 'conversation', icon: <MessageCircle size={32} />, desc: 'ฝึกการสนทนาโต้ตอบในสถานการณ์สัมภาษณ์งานและการแก้ปัญหา', bg: 'linear-gradient(135deg, #3b82f6, #2563eb)' });
-    modules.push({ title: 'ทักษะการอ่าน (จับใจความ)', path: 'reading', icon: <BookOpen size={32} />, desc: 'อ่านบทความสังคมสูงวัย วิเคราะห์ระดับภาษา และโคลงสี่สุภาพ', bg: 'linear-gradient(135deg, #10b981, #059669)' });
-    modules.push({ title: 'ทักษะการเขียน (การใช้ภาษา)', path: 'writing', icon: <PenTool size={32} />, desc: 'เรียงคำศัพท์ยาก เรียงประโยค และการเขียนตอบคำถาม', bg: 'linear-gradient(135deg, #f59e0b, #d97706)' });
-  }
+    if (idx === 1 && !completed.listening) { isLocked = true; lockMsg = "กรุณาทำทักษะการฟังก่อน"; }
+    if (idx === 2 && !completed.conversation) { isLocked = true; lockMsg = "กรุณาทำทักษะการพูดก่อน"; }
+    if (idx === 3 && !completed.reading) { isLocked = true; lockMsg = "กรุณาทำทักษะการอ่านก่อน"; }
+
+    return { ...mod, isLocked, lockMsg };
+  });
 
   const passed = scores.totalScore >= config.pass;
   const pct = config.max > 0 ? Math.round((scores.totalScore / config.max) * 100) : 0;
@@ -275,7 +289,7 @@ export default function LevelDashboard() {
 
       <div className="glass-panel" style={{ padding: '32px', marginBottom: '32px', marginTop: '16px' }}>
         <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: 'var(--color-primary-dark)' }}>Level {id} Dashboard</h2>
-        <p style={{ color: 'var(--text-muted)' }}>เลือกแบบฝึกหัดหรือเนื้อหาการเรียนรู้ที่คุณต้องการ</p>
+        <p style={{ color: 'var(--text-muted)' }}>กรุณาทำแบบฝึกหัดตามลำดับขั้นตอน (ทีละข้อ) เพื่อปลดล็อกทักษะถัดไป</p>
 
         {/* Score summary */}
         <div style={{ marginTop: '24px', padding: '24px', background: 'rgba(255,255,255,0.5)', borderRadius: '16px', border: '1px solid rgba(0,0,0,0.05)' }}>
@@ -284,14 +298,15 @@ export default function LevelDashboard() {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '16px', marginBottom: '20px' }}>
             {[
-              { label: '🎧 การฟัง', score: scores.listening, max: 15, color: '#8b5cf6' },
-              { label: '💬 การพูด', score: scores.conversation, max: 5, color: '#3b82f6' },
-              { label: '📖 การอ่าน', score: scores.reading, max: config.readingMax, color: '#10b981' },
-              { label: '✍️ การเขียน', score: scores.writing, max: config.writingMax, color: '#f59e0b' },
+              { label: '🎧 การฟัง', score: scores.listening, max: 15, color: '#8b5cf6', done: completed.listening },
+              { label: '💬 การพูด', score: scores.conversation, max: 5, color: '#3b82f6', done: completed.conversation },
+              { label: '📖 การอ่าน', score: scores.reading, max: config.readingMax, color: '#10b981', done: completed.reading },
+              { label: '✍️ การเขียน', score: scores.writing, max: config.writingMax, color: '#f59e0b', done: completed.writing },
             ].map(s => (
-              <div key={s.label} style={{ background: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+              <div key={s.label} style={{ background: 'white', padding: '16px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.04)', position: 'relative' }}>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '8px' }}>{s.label}</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: s.color }}>{s.score}/{s.max}</div>
+                {s.done && <CheckCircle size={16} style={{ position: 'absolute', top: '8px', right: '8px', color: '#10b981' }} />}
               </div>
             ))}
           </div>
@@ -329,15 +344,35 @@ export default function LevelDashboard() {
       {/* Module cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         {modules.map(mod => (
-          <Link key={mod.path} to={`/level/${id}/${mod.path}`} style={{ textDecoration: 'none' }}>
-            <div className="glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: mod.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
-                {mod.icon}
+          <div key={mod.path}>
+            {mod.isLocked ? (
+              <div className="glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', height: '100%', opacity: 0.6, filter: 'grayscale(0.5)', cursor: 'not-allowed', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: '20px', right: '20px', color: '#9ca3af' }}>
+                  <Lock size={24} />
+                </div>
+                <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#9ca3af', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                  {mod.icon}
+                </div>
+                <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: '#6b7280' }}>{mod.title}</h3>
+                <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginBottom: '16px' }}>{mod.desc}</p>
+                <div style={{ marginTop: 'auto', color: '#ef4444', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  {mod.lockMsg}
+                </div>
               </div>
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--color-primary-dark)' }}>{mod.title}</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{mod.desc}</p>
-            </div>
-          </Link>
+            ) : (
+              <Link to={`/level/${id}/${mod.path}`} style={{ textDecoration: 'none' }}>
+                <div className="glass-card" style={{ padding: '30px', display: 'flex', flexDirection: 'column', height: '100%', transition: 'all 0.3s ease' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: mod.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
+                    {mod.icon}
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {mod.title} {completed[mod.key] && <CheckCircle size={20} color="#10b981" />}
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{mod.desc}</p>
+                </div>
+              </Link>
+            )}
+          </div>
         ))}
       </div>
     </div>
