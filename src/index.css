@@ -39,10 +39,9 @@ body {
   font-family: 'Kanit', sans-serif;
   background-color: #f5f3ff;
   background-image: 
-    radial-gradient(rgba(212, 175, 55, 0.15) 1px, transparent 1px),
-    radial-gradient(rgba(212, 175, 55, 0.15) 1px, transparent 1px);
-  background-position: 0 0, 20px 20px;
-  background-size: 40px 40px;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 0 L80 40 L40 80 L0 40 Z' fill='none' stroke='rgba(212,175,55,0.15)' stroke-width='1'/%3E%3Cpath d='M40 10 L70 40 L40 70 L10 40 Z' fill='none' stroke='rgba(212,175,55,0.08)' stroke-width='1'/%3E%3Cpath d='M40 20 L45 35 L60 40 L45 45 L40 60 L35 45 L20 40 L35 35 Z' fill='rgba(212,175,55,0.12)'/%3E%3Ccircle cx='0' cy='0' r='3' fill='rgba(212,175,55,0.12)'/%3E%3Ccircle cx='80' cy='0' r='3' fill='rgba(212,175,55,0.12)'/%3E%3Ccircle cx='0' cy='80' r='3' fill='rgba(212,175,55,0.12)'/%3E%3Ccircle cx='80' cy='80' r='3' fill='rgba(212,175,55,0.12)'/%3E%3Ccircle cx='40' cy='40' r='2' fill='rgba(212,175,55,0.2)'/%3E%3C/svg%3E"),
+    var(--bg-gradient);
+  background-position: center;
   background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
@@ -66,6 +65,8 @@ h1, h2, h3, h4, h5, h6 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: var(--border-glass);
+  border-top: 3px solid var(--color-secondary); /* Thai Gold Accent */
+  border-bottom: 3px solid var(--color-secondary); /* Thai Gold Accent */
   border-radius: 20px;
   box-shadow: var(--shadow-glass);
 }
