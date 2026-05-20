@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Volume2, ArrowRight, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -171,6 +171,21 @@ export default function Level1Listening() {
   const [hasListenedToStory, setHasListenedToStory] = useState(false);
   
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const audioRef = useRef(null);
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, [phase, currentIdx]);
   let currentQ = null;
   if (phase === 'vocab') currentQ = vocabQuestions[currentIdx];
   else if (phase === 'story') currentQ = storyQuestions[currentIdx];
@@ -178,9 +193,11 @@ export default function Level1Listening() {
 
   const playAudio = () => {
     if (!currentQ || (phase !== 'vocab' && phase !== 'announce')) return;
+    stopAudio();
     setIsPlaying(true);
     const prefix = phase === 'vocab' ? 'vocab' : 'announce';
     const audio = new Audio(`/audio/${prefix}_${currentQ.id}.mp3`);
+    audioRef.current = audio;
     audio.onended = () => setIsPlaying(false);
     audio.onerror = () => setIsPlaying(false);
     audio.play().catch(() => setIsPlaying(false));
@@ -199,7 +216,9 @@ export default function Level1Listening() {
       setHasListenedToStory(true);
       return;
     }
+    stopAudio();
     const audio = new Audio(`/audio/story_${chunkId}.mp3`);
+    audioRef.current = audio;
     audio.onended = () => {
       setStoryAudioIdx(chunkId + 1);
       playStoryChunk(chunkId + 1);

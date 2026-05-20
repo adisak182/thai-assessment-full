@@ -173,11 +173,26 @@ export default function Level2Listening() {
   const [hasFinishedArticle, setHasFinishedArticle] = useState(false);
   const audioRef = useRef(null);
 
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, [phase, currentIdx]);
+
   // Play single audio (vocab/idiom)
   const playAudio = (audioPath) => {
-    if (isPlaying) return;
+    stopAudio();
     setIsPlaying(true);
     const audio = new Audio(audioPath);
+    audioRef.current = audio;
     audio.onended = () => setIsPlaying(false);
     audio.onerror = () => setIsPlaying(false);
     audio.play().catch(() => setIsPlaying(false));
@@ -185,7 +200,7 @@ export default function Level2Listening() {
 
   // Play article sequence
   const playArticleSequence = (startIndex = 0) => {
-    if (isPlaying) return;
+    stopAudio();
     setIsPlaying(true);
     setArticlePartIndex(startIndex);
     
@@ -196,6 +211,7 @@ export default function Level2Listening() {
         return;
       }
       setArticlePartIndex(index);
+      stopAudio();
       const audio = new Audio(ARTICLE_AUDIO_PARTS[index]);
       audioRef.current = audio;
       
@@ -427,8 +443,8 @@ export default function Level2Listening() {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
           <button 
             onClick={() => {
-              if (isPlaying && audioRef.current) {
-                audioRef.current.pause();
+              if (isPlaying) {
+                stopAudio();
                 setIsPlaying(false);
               } else {
                 playArticleSequence(articlePartIndex >= ARTICLE_AUDIO_PARTS.length ? 0 : articlePartIndex);

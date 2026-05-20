@@ -174,6 +174,21 @@ export default function Level3Listening() {
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
   
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, [phase, currentIdx]);
 
   const playTTS = (text) => {
     if (!text || !window.speechSynthesis) {
@@ -205,10 +220,11 @@ export default function Level3Listening() {
   };
 
   const playAudio = (audioPath, fallbackText) => {
-    if (isPlaying) return;
+    stopAudio();
     setIsPlaying(true);
 
     const audio = new Audio(audioPath);
+    audioRef.current = audio;
     audio.onended = () => setIsPlaying(false);
     let errorHandled = false;
 

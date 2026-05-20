@@ -15,6 +15,21 @@ export default function ConversationModule() {
   const [showResult, setShowResult] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [scoreSubmitted, setScoreSubmitted] = useState(false);
+  const audioRef = useRef(null);
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, [currentScenario]);
 
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -86,7 +101,7 @@ export default function ConversationModule() {
   const tasks = scenarios[id] || scenarios[1];
 
   const handleSpeak = () => {
-    if (isPlaying) return;
+    stopAudio();
     setIsPlaying(true);
 
     let audioPath = `/audio/bot_q${currentScenario + 1}.mp3`;
@@ -97,6 +112,7 @@ export default function ConversationModule() {
     }
 
     const audio = new Audio(audioPath);
+    audioRef.current = audio;
 
     audio.onended = () => setIsPlaying(false);
     audio.onerror = (e) => {

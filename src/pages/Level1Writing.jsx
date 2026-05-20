@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Volume2, CheckCircle, XCircle, ArrowRight, RefreshCw, PenTool } from 'lucide-react';
 import { useUser } from '../context/UserContext';
@@ -74,14 +74,30 @@ export default function Level1Writing() {
   const [score, setScore] = useState(0);
   const [phase, setPhase] = useState('quiz'); // 'quiz', 'result'
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef(null);
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, [phase, currentIdx]);
 
   const questions = writingData[id] || writingData[1];
   const currentQ = questions[currentIdx];
 
   const playAudio = () => {
-    if (isPlaying) return;
+    stopAudio();
     setIsPlaying(true);
     const audio = new Audio(currentQ.audio);
+    audioRef.current = audio;
     audio.onended = () => setIsPlaying(false);
     audio.onerror = () => setIsPlaying(false);
     audio.play().catch(() => setIsPlaying(false));
