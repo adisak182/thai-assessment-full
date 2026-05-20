@@ -270,7 +270,7 @@ export default function Level3Listening() {
         <p style={{ fontSize: '1.2rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6' }}>
           จำนวน 15 ข้อ (15 คะแนน)<br />
           ผ่าน 35 ข้อ ใน 50 = ร้อยละ 70<br />
-          คำชี้แจง : ให้ผู้เรียนกดปุ่ม “ ฟังข่าว ” (ใส่รูปลำโพง) แล้วตอบคำถามให้ถูกต้อง
+          คำชี้แจง : ให้ผู้เรียนกดปุ่ม “ ฟังข่าว ” (<Volume2 size={20} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />) แล้วตอบคำถามให้ถูกต้อง
         </p>
         <button onClick={() => setPhase('news_intro')} className="btn-primary" style={{ padding: '16px 32px', fontSize: '1.2rem' }}>
           เริ่มทำแบบทดสอบ <ArrowRight size={24} style={{ marginLeft: '8px', display: 'inline' }} />
