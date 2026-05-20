@@ -54,7 +54,7 @@ body {
 
 /* Typography Enhancements */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Sarabun', sans-serif;
+  font-family: 'Kanit', sans-serif;
   color: var(--color-primary-dark);
   font-weight: 600;
   line-height: 1.2;
