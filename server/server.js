@@ -17,8 +17,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Connect to Database
-connectMongoDB();
+// Ensure Database Connection for every request (Serverless pattern)
+app.use(async (req, res, next) => {
+  try {
+    await connectMongoDB();
+    next();
+  } catch (error) {
+    res.status(500).json({ message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้: ' + error.message });
+  }
+});
 
 // Mount Routes
 app.use('/auth', authRoutes);
