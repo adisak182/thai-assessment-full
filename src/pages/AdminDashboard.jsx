@@ -23,7 +23,7 @@ export default function AdminDashboard() {
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', age: '', gender: '', role: 'user' });
+  const [editForm, setEditForm] = useState({ name: '', age: '', address: '', role: 'user' });
 
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
 
   const openEditModal = (u) => {
     setEditingUser(u);
-    setEditForm({ name: u.name, age: u.age || '', gender: u.gender || '', role: u.role || 'user' });
+    setEditForm({ name: u.name, age: u.age || '', address: u.address || '', role: u.role || 'user' });
   };
 
   const handleSaveEdit = async (e) => {
@@ -266,7 +266,7 @@ export default function AdminDashboard() {
                             {u.name} 
                             {u.role === 'admin' && <span style={{ fontSize: '0.7rem', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin</span>}
                           </div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>@{u.username} • {u.gender || 'ไม่ระบุ'} • {u.age ? u.age+' ปี' : 'ไม่ระบุอายุ'}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.address || 'ไม่ระบุที่อยู่'} • {u.age ? u.age+' ปี' : 'ไม่ระบุอายุ'}</div>
                         </div>
                       </div>
                     </td>
@@ -333,7 +333,7 @@ export default function AdminDashboard() {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    <strong>เพศ:</strong> {u.gender || '-'}
+                    <strong>ที่อยู่:</strong> {u.address || '-'}
                   </div>
                   <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
                     <strong>อายุ:</strong> {u.age || '-'} ปี
@@ -457,16 +457,13 @@ export default function AdminDashboard() {
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>เพศ</label>
-                  <select 
-                    value={editForm.gender} 
-                    onChange={e => setEditForm({...editForm, gender: e.target.value})} 
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ที่อยู่</label>
+                  <input 
+                    type="text"
+                    value={editForm.address} 
+                    onChange={e => setEditForm({...editForm, address: e.target.value})} 
                     style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
-                  >
-                    <option value="">ไม่ระบุ</option>
-                    <option value="ชาย">ชาย</option>
-                    <option value="หญิง">หญิง</option>
-                  </select>
+                  />
                 </div>
               </div>
               <div>

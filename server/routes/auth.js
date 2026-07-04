@@ -62,6 +62,58 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// ==================== START SESSION (GUEST / NO PASSWORD) ====================
+router.post('/start', async (req, res) => {
+  const { name, age, address } = req.body;
+  if (!name) {
+    return res.status(400).json({ message: 'กรุณากรอกชื่อ-สกุล' });
+  }
+
+  try {
+    let user = await User.findOne({ name, age: age || null, role: 'user' });
+
+    if (!user) {
+      const randomUsername = `user_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      const randomPassword = await bcrypt.hash(randomUsername, 10);
+      
+      user = new User({
+        username: randomUsername,
+        password: randomPassword,
+        name,
+        age: age || null,
+        address: address || null,
+        role: 'user'
+      });
+      await user.save();
+      await LevelProgress.create({ user_id: user._id });
+    } else {
+      // Update address if they provided a new one
+      if (address && user.address !== address) {
+        user.address = address;
+        await user.save();
+      }
+    }
+
+    const token = jwt.sign(
+      { userId: user._id, username: user.username, role: user.role },
+      process.env.JWT_SECRET || 'dev_secret',
+      { expiresIn: '30d' }
+    );
+
+    const safeUser = user.toJSON();
+    delete safeUser.password;
+
+    return res.json({
+      message: 'เข้าสู่ระบบสำเร็จ',
+      token,
+      user: safeUser
+    });
+  } catch (err) {
+    console.error('Start session error:', err);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
 // ==================== LOGIN ====================
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;

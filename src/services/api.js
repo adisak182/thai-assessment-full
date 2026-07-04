@@ -14,6 +14,19 @@ export const registerUser = async (data) => {
   return result; // { message, token, user }
 };
 
+export const startSession = async (data) => {
+  const response = await fetch(`${API_URL}/auth/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || 'เริ่มต้นใช้งานไม่สำเร็จ');
+  }
+  return result; // { message, token, user }
+};
+
 export const loginUser = async (credentials) => {
   const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',

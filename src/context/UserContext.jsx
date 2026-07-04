@@ -43,6 +43,14 @@ export const UserProvider = ({ children }) => {
     return result.user;
   };
 
+  const startSession = async (data) => {
+    const result = await api.startSession(data);
+    localStorage.setItem('jwt_token', result.token);
+    setToken(result.token);
+    setUser(result.user);
+    return result.user;
+  };
+
   const logout = () => {
     localStorage.removeItem('jwt_token');
     setToken(null);
@@ -99,6 +107,7 @@ export const UserProvider = ({ children }) => {
       apiError: null,
       login,
       register,
+      startSession,
       logout,
       updateUser,
       recordScore,

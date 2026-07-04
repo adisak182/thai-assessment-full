@@ -18,10 +18,10 @@ import ListeningModule from './pages/ListeningModule';
 import ReadingModule from './pages/ReadingModule';
 import WritingModule from './pages/WritingModule';
 import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+import StartPage from './pages/StartPage';
 import AdminDashboard from './pages/AdminDashboard';
 
-// Protected route: redirect to /login if not authenticated
+// Protected route: redirect to /start if not authenticated
 function ProtectedRoute({ children }) {
   const { token, loading } = useUser();
   if (loading) {
@@ -31,7 +31,7 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-  if (!token) return <Navigate to="/login" replace />;
+  if (!token) return <Navigate to="/start" replace />;
   return children;
 }
 
@@ -76,8 +76,8 @@ function AppLayout() {
               <span className="nav-text">{user.name ? user.name.split(' ')[0] : 'โปรไฟล์'}</span>
             </Link>
           ) : (
-            <Link to="/login" className="nav-item btn-primary" style={{ padding: '8px 16px', borderRadius: '20px', color: 'white', textDecoration: 'none' }}>
-              <span className="nav-text">เข้าสู่ระบบ</span>
+            <Link to="/start" className="nav-item btn-primary" style={{ padding: '8px 16px', borderRadius: '20px', color: 'white', textDecoration: 'none' }}>
+              <span className="nav-text">เริ่มต้นใช้งาน</span>
             </Link>
           )}
         </nav>
@@ -111,7 +111,7 @@ function App() {
       <Routes>
         {/* Public routes - no header */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/start" element={<StartPage />} />
         {/* All other routes go through AppLayout with header */}
         <Route path="/*" element={<AppLayout />} />
       </Routes>

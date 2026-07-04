@@ -112,11 +112,11 @@ router.delete('/users/:id', authenticateAdmin, async (req, res) => {
 // ==================== UPDATE USER ====================
 router.put('/users/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, age, gender, role } = req.body;
+  const { name, age, address, role } = req.body;
   try {
     const updated = await User.findByIdAndUpdate(
       id,
-      { name, age: age || null, gender: gender || null, role: role || 'user' }
+      { name, age: age || null, address: address || null, role: role || 'user' }
     );
     if (!updated) {
       return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
