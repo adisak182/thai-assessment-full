@@ -111,6 +111,19 @@ export const getScores = async (token) => {
   return result;
 };
 
+export const getRanking = async (token) => {
+  const response = await fetch(`${API_URL}/users/ranking`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || 'ดึงข้อมูลอันดับไม่สำเร็จ');
+  }
+  return result;
+};
+
 // ==================== ADMIN ROUTES ====================
 
 export const getAdminUsers = async (token) => {

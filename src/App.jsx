@@ -6,20 +6,16 @@ import './App.css';
 // Pages
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
-import LevelSelect from './pages/LevelSelect';
-import LevelDashboard from './pages/LevelDashboard';
-import ContentModule from './pages/ContentModule';
-import FlashcardsGame from './pages/FlashcardsGame';
-import QuizModule from './pages/QuizModule';
-import ReadAloudModule from './pages/ReadAloudModule';
-import ConversationModule from './pages/ConversationModule';
 import EditProfile from './pages/EditProfile';
-import ListeningModule from './pages/ListeningModule';
-import ReadingModule from './pages/ReadingModule';
-import WritingModule from './pages/WritingModule';
 import LoginPage from './pages/LoginPage';
 import StartPage from './pages/StartPage';
 import AdminDashboard from './pages/AdminDashboard';
+import SkillSelect from './pages/SkillSelect';
+import ListeningTest from './pages/ListeningTest';
+import SpeakingTest from './pages/SpeakingTest';
+import ReadingTest from './pages/ReadingTest';
+import WritingTest from './pages/WritingTest';
+import Ranking from './pages/Ranking';
 
 // Protected route: redirect to /start if not authenticated
 function ProtectedRoute({ children }) {
@@ -42,7 +38,7 @@ function AppLayout() {
     <div className="app-wrapper">
       {apiError === 'offline' && (
         <div style={{ background: '#fef2f2', borderBottom: '1px solid #fecaca', padding: '10px 24px', textAlign: 'center', fontSize: '0.9rem', color: '#dc2626', zIndex: 1000 }}>
-          ⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ — กรุณาตรวจสอบว่า Backend รันอยู่ที่ <code>localhost:3001</code> หรือไม่
+          ⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
         </div>
       )}
       <header className="glass-panel app-header">
@@ -61,11 +57,14 @@ function AppLayout() {
           <Link to="/" className="nav-item">
             <BookOpen size={20} /> <span className="nav-text">หน้าแรก</span>
           </Link>
-          <Link to="/levels" className="nav-item">
+          <Link to="/skills" className="nav-item">
             <Trophy size={20} /> <span className="nav-text">เริ่มประเมิน</span>
           </Link>
+          <Link to="/ranking" className="nav-item">
+            <Trophy size={20} /> <span className="nav-text">จัดอันดับ</span>
+          </Link>
           <Link to="/dashboard" className="nav-item">
-            <LayoutDashboard size={20} /> <span className="nav-text">สถิติของฉัน</span>
+            <LayoutDashboard size={20} /> <span className="nav-text">แดชบอร์ด</span>
           </Link>
           {user ? (
             <Link to="/profile" className="nav-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -87,18 +86,18 @@ function AppLayout() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/levels" element={<ProtectedRoute><LevelSelect /></ProtectedRoute>} />
+          <Route path="/ranking" element={<ProtectedRoute><Ranking /></ProtectedRoute>} />
+          <Route path="/skills" element={<ProtectedRoute><SkillSelect /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-          <Route path="/level/:id" element={<ProtectedRoute><LevelDashboard /></ProtectedRoute>} />
-          <Route path="/level/:id/content" element={<ProtectedRoute><ContentModule /></ProtectedRoute>} />
-          <Route path="/level/:id/flashcards" element={<ProtectedRoute><FlashcardsGame /></ProtectedRoute>} />
-          <Route path="/level/:id/quiz" element={<ProtectedRoute><QuizModule /></ProtectedRoute>} />
-          <Route path="/level/:id/read-aloud" element={<ProtectedRoute><ReadAloudModule /></ProtectedRoute>} />
-          <Route path="/level/:id/conversation" element={<ProtectedRoute><ConversationModule /></ProtectedRoute>} />
-          <Route path="/level/:id/listening" element={<ProtectedRoute><ListeningModule /></ProtectedRoute>} />
-          <Route path="/level/:id/reading" element={<ProtectedRoute><ReadingModule /></ProtectedRoute>} />
-          <Route path="/level/:id/writing" element={<ProtectedRoute><WritingModule /></ProtectedRoute>} />
+          <Route path="/test/listening" element={<ProtectedRoute><ListeningTest /></ProtectedRoute>} />
+          <Route path="/test/speaking" element={<ProtectedRoute><SpeakingTest /></ProtectedRoute>} />
+          <Route path="/test/reading" element={<ProtectedRoute><ReadingTest /></ProtectedRoute>} />
+          <Route path="/test/writing" element={<ProtectedRoute><WritingTest /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          {/* Legacy redirects */}
+          <Route path="/levels" element={<Navigate to="/skills" replace />} />
+          <Route path="/level/:id" element={<Navigate to="/skills" replace />} />
+          <Route path="/level/:id/*" element={<Navigate to="/skills" replace />} />
         </Routes>
       </main>
     </div>

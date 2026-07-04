@@ -31,7 +31,7 @@ export default function StartPage() {
         age: form.age, 
         address: form.address
       });
-      navigate('/levels');
+      navigate('/skills');
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการเริ่มต้นใช้งาน');
     } finally {

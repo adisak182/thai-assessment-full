@@ -1,287 +1,213 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import {
-  Trophy, BookOpen, MessageCircle, Volume2,
-  PenTool, Edit3, User as UserIcon, CheckCircle, XCircle, Clock
-} from 'lucide-react';
+import { Trophy, BookOpen, MessageCircle, Volume2, PenTool, Edit3, User as UserIcon, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 
-const SKILL_INFO = {
-  listening:    { label: 'ทักษะการฟัง',   color: '#8b5cf6', icon: <Volume2 size={28} /> },
-  conversation: { label: 'ทักษะการพูด',   color: '#3b82f6', icon: <MessageCircle size={28} /> },
-  reading:      { label: 'ทักษะการอ่าน',  color: '#10b981', icon: <BookOpen size={28} /> },
-  writing:      { label: 'ทักษะการเขียน', color: '#f59e0b', icon: <PenTool size={28} /> },
-};
-
-const LEVEL_MAX = {
-  1: { listening: 15, conversation: 5, reading: 5, writing: 5, total: 30, pass: 21 },
-  2: { listening: 15, conversation: 5, reading: 10, writing: 10, total: 40, pass: 28 },
-  3: { listening: 15, conversation: 5, reading: 15, writing: 15, total: 50, pass: 35 },
-};
+const SKILL_CONFIG = [
+  { key: 'listening',    label: 'ทักษะการฟัง',   icon: <Volume2 size={24} />,      color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', path: '/test/listening',  max: 25 },
+  { key: 'conversation', label: 'ทักษะการพูด',   icon: <MessageCircle size={24} />, color: '#3b82f6', bg: 'linear-gradient(135deg,#3b82f6,#2563eb)', path: '/test/speaking',   max: 15 },
+  { key: 'reading',      label: 'ทักษะการอ่าน',  icon: <BookOpen size={24} />,      color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#059669)', path: '/test/reading',    max: 30 },
+  { key: 'writing',      label: 'ทักษะการเขียน', icon: <PenTool size={24} />,       color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#d97706)', path: '/test/writing',    max: 30 },
+];
+const TOTAL_MAX = 100;
 
 function formatDate(isoStr) {
-  const d = new Date(isoStr);
-  return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(isoStr).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function ScoreBar({ score, max, color }) {
-  const pct = max > 0 ? Math.min(100, Math.round((score / max) * 100)) : 0;
+function ScoreBar({ pct, color }) {
   return (
-    <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: '999px', height: '8px', overflow: 'hidden', marginTop: '6px' }}>
-      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '999px', transition: 'width 0.6s ease' }} />
+    <div style={{ background: 'rgba(0,0,0,0.06)', borderRadius: '999px', height: '10px', overflow: 'hidden', marginTop: '8px' }}>
+      <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '999px', transition: 'width 0.8s ease' }} />
     </div>
   );
 }
 
 export default function Dashboard() {
-  const { user, fetchScores, fetchHistory, checkLevelPassed } = useUser();
-  const [allScores, setAllScores] = useState({});
+  const { user, fetchScores, fetchHistory } = useUser();
+  const [skillScores, setSkillScores] = useState({});
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       if (!user) return;
-      setAllScores(await fetchScores() || {});
-      setHistory(await fetchHistory() || []);
+      try {
+        const raw = await fetchScores() || {};
+        // Support both old level-based and new flat format
+        let flat = {};
+        if (raw.flat) {
+          flat = raw.flat;
+        } else if (raw['1'] || raw['2'] || raw['3']) {
+          // Old format: merge best score across levels
+          for (const sk of ['listening', 'conversation', 'reading', 'writing']) {
+            let best = null;
+            for (let lv = 1; lv <= 3; lv++) {
+              const s = raw[lv]?.[sk];
+              if (s && (best === null || s.score > best.score)) best = s;
+            }
+            if (best) flat[sk] = best;
+          }
+        } else {
+          flat = raw;
+        }
+        setSkillScores(flat);
+        setHistory(await fetchHistory() || []);
+      } catch (e) { /* ignore */ }
+      setLoading(false);
     };
-    loadData();
+    load();
   }, [user]);
 
   if (!user) return null;
 
-  // Compute grand total across all levels
-  let grandTotal = 0;
-  let grandMax = 0;
-  for (let lv = 1; lv <= 3; lv++) {
-    const ldata = allScores[lv] || {};
-    const meta = LEVEL_MAX[lv];
-    for (const skill of ['listening', 'conversation', 'reading', 'writing']) {
-      grandTotal += ldata[skill]?.score || 0;
-      grandMax += meta[skill];
-    }
-  }
+  const grandTotal = SKILL_CONFIG.reduce((s, sk) => s + (skillScores[sk.key]?.score || 0), 0);
+  const pct = Math.round((grandTotal / TOTAL_MAX) * 100);
+  const completedCount = SKILL_CONFIG.filter(sk => skillScores[sk.key] !== undefined).length;
 
-  const pct = grandMax > 0 ? Math.round((grandTotal / grandMax) * 100) : 0;
-  let status = 'ไม่ผ่าน';
-  let statusColor = '#ef4444';
-  let levelGrade = 'ปรับปรุง';
+  let grade = 'ปรับปรุง'; let gradeColor = '#ef4444';
+  if (pct >= 80) { grade = 'ดีมาก'; gradeColor = '#10b981'; }
+  else if (pct >= 60) { grade = 'ดี'; gradeColor = '#10b981'; }
+  else if (pct >= 50) { grade = 'พอใช้'; gradeColor = '#f59e0b'; }
 
-  if (pct >= 90) {
-    status = 'ผ่าน';
-    statusColor = '#10b981';
-    levelGrade = 'ดีเยี่ยม';
-  } else if (pct >= 80) {
-    status = 'ผ่าน';
-    statusColor = '#10b981';
-    levelGrade = 'ดีมาก';
-  } else if (pct >= 70) {
-    status = 'ผ่าน';
-    statusColor = '#10b981';
-    levelGrade = 'ดี';
-  }
+  const isPassed = pct >= 70;
+  const passStatus = isPassed ? 'ผ่าน' : 'ไม่ผ่าน';
+  const passColor = isPassed ? '#10b981' : '#ef4444';
 
   return (
-    <div className="animate-fade-in delay-100" style={{ padding: '32px 16px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="animate-fade-in delay-100" style={{ padding: '32px 16px', maxWidth: '960px', margin: '0 auto' }}>
 
       {/* Profile Header */}
       <div className="glass-panel" style={{ padding: '40px', marginBottom: '32px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '28px' }}>
-          <div style={{ width: '110px', height: '110px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-primary))', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: '4px solid white', boxShadow: 'var(--shadow-card)' }}>
-            {user.avatar
-              ? <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : <UserIcon size={56} />
-            }
+          <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'linear-gradient(135deg,var(--color-primary-light),var(--color-primary))', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: '4px solid white', boxShadow: 'var(--shadow-card)' }}>
+            {user.avatar ? <img src={user.avatar} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <UserIcon size={50} />}
           </div>
           <div>
-            <h2 style={{ fontSize: '2rem', marginBottom: '8px', color: 'var(--color-primary-dark)' }}>
-              {user.name || 'ไม่ระบุชื่อ'}
-            </h2>
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '1.9rem', marginBottom: '8px', color: 'var(--color-primary-dark)' }}>{user.name || 'ไม่ระบุชื่อ'}</h2>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '14px' }}>
               {user.age && <span style={{ background: 'var(--bg-glass)', padding: '4px 12px', borderRadius: '16px', fontSize: '0.9rem', color: 'var(--color-primary-dark)' }}>อายุ <b>{user.age}</b> ปี</span>}
-              {user.gender && <span style={{ background: 'var(--bg-glass)', padding: '4px 12px', borderRadius: '16px', fontSize: '0.9rem', color: 'var(--color-primary-dark)' }}>เพศ<b>{user.gender}</b></span>}
               {user.address && <span style={{ background: 'var(--bg-glass)', padding: '4px 12px', borderRadius: '16px', fontSize: '0.9rem', color: 'var(--color-primary-dark)' }}>📍 {user.address}</span>}
             </div>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <Link to="/profile" className="btn-secondary" style={{ padding: '8px 20px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                <Edit3 size={16} /> จัดการข้อมูลส่วนตัว
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <Link to="/profile" className="btn-secondary" style={{ padding: '8px 18px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={15} /> แก้ไขข้อมูล
               </Link>
               {user.role === 'admin' && (
-                <Link to="/admin" style={{ padding: '8px 20px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#fef2f2', color: '#ef4444', border: '1.5px solid #ef4444', borderRadius: '12px', fontWeight: '600' }}>
-                  <UserIcon size={16} /> หน้าผู้ดูแลระบบ
+                <Link to="/admin" style={{ padding: '8px 18px', fontSize: '0.9rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#fef2f2', color: '#ef4444', border: '1.5px solid #ef4444', borderRadius: '12px', fontWeight: '600' }}>
+                  <UserIcon size={15} /> ผู้ดูแลระบบ
                 </Link>
               )}
             </div>
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', background: 'var(--bg-glass)', padding: '28px 36px', borderRadius: '24px' }}>
-          <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '6px' }}>คะแนนรวมทุก Level</div>
-          <div style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', lineHeight: 1 }}>
-            <Trophy size={40} /> {grandTotal}
+        <div style={{ textAlign: 'center', background: 'var(--bg-glass)', padding: '28px 36px', borderRadius: '24px', minWidth: '180px' }}>
+          <div style={{ fontSize: '0.95rem', color: 'var(--text-muted)', marginBottom: '4px' }}>คะแนนรวม</div>
+          <div style={{ fontSize: '3.2rem', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', lineHeight: 1 }}>
+            <Trophy size={36} /> {grandTotal}
           </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>จาก {grandMax} คะแนน ({pct}%)</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '6px' }}>จาก {TOTAL_MAX} คะแนน ({pct}%)</div>
         </div>
       </div>
 
-      {/* Final Evaluation Banner */}
-      <div className="glass-panel" style={{ padding: '32px', marginBottom: '32px', background: 'linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.9))' }}>
-        <h3 style={{ fontSize: '1.5rem', color: 'var(--color-primary-dark)', marginBottom: '24px', textAlign: 'center' }}>
-          ผลการประเมินภาพรวม (ทุกระดับ)
-        </h3>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', marginBottom: '32px' }}>
-          <div style={{ textAlign: 'center', padding: '24px', background: 'var(--bg-glass)', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '8px' }}>คะแนนรวมร้อยละ</div>
+      {/* Overall summary */}
+      <div className="glass-panel" style={{ padding: '32px', marginBottom: '28px' }}>
+        <h3 style={{ fontSize: '1.4rem', color: 'var(--color-primary-dark)', marginBottom: '24px', textAlign: 'center' }}>ผลการประเมินภาพรวม (100 ข้อ)</h3>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', flexWrap: 'wrap', marginBottom: '28px' }}>
+          <div style={{ textAlign: 'center', padding: '20px 32px', background: 'var(--bg-glass)', borderRadius: '16px' }}>
+            <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ร้อยละ</div>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>{pct}%</div>
-            <div style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>({grandTotal} / {grandMax})</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '24px', background: 'var(--bg-glass)', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: `2px solid ${statusColor}` }}>
-            <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '8px' }}>ระดับการประเมิน</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: statusColor }}>{levelGrade}</div>
-            <div style={{ fontSize: '1.2rem', color: statusColor, fontWeight: '600', marginTop: '4px' }}>({status})</div>
+          <div style={{ textAlign: 'center', padding: '20px 32px', background: 'var(--bg-glass)', borderRadius: '16px', border: `2px solid ${gradeColor}` }}>
+            <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ระดับ</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: gradeColor }}>{grade}</div>
+          </div>
+          <div style={{ textAlign: 'center', padding: '20px 32px', background: 'var(--bg-glass)', borderRadius: '16px', border: `2px solid ${passColor}` }}>
+            <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ผลประเมิน</div>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passColor }}>{passStatus}</div>
+          </div>
+          <div style={{ textAlign: 'center', padding: '20px 32px', background: 'var(--bg-glass)', borderRadius: '16px' }}>
+            <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ทำแล้ว</div>
+            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{completedCount}/4</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ทักษะ</div>
           </div>
         </div>
 
-        {/* Score Breakdown Table */}
-        <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontSize: '0.95rem', background: 'white' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-primary)', color: 'white' }}>
-                <th style={{ padding: '16px', borderRadius: '12px 0 0 0' }}>ทักษะ</th>
-                <th style={{ padding: '16px' }}>พื้นฐาน (L1)</th>
-                <th style={{ padding: '16px' }}>ปานกลาง (L2)</th>
-                <th style={{ padding: '16px' }}>สูง (L3)</th>
-                <th style={{ padding: '16px', borderRadius: '0 12px 0 0' }}>รวม/ทักษะ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {['listening', 'conversation', 'reading', 'writing'].map((skill, idx) => {
-                const s1 = allScores[1]?.[skill]?.score || 0;
-                const s2 = allScores[2]?.[skill]?.score || 0;
-                const s3 = allScores[3]?.[skill]?.score || 0;
-                const totalSkill = s1 + s2 + s3;
-                const maxSkill = LEVEL_MAX[1][skill] + LEVEL_MAX[2][skill] + LEVEL_MAX[3][skill];
-                const info = SKILL_INFO[skill];
-                return (
-                  <tr key={skill} style={{ background: idx % 2 === 0 ? 'rgba(0,0,0,0.02)' : 'transparent', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                    <td style={{ padding: '14px', textAlign: 'left', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)' }}>
-                      {info.label}
-                    </td>
-                    <td style={{ padding: '14px', color: 'var(--text-muted)' }}>{s1} / {LEVEL_MAX[1][skill]}</td>
-                    <td style={{ padding: '14px', color: 'var(--text-muted)' }}>{s2} / {LEVEL_MAX[2][skill]}</td>
-                    <td style={{ padding: '14px', color: 'var(--text-muted)' }}>{s3} / {LEVEL_MAX[3][skill]}</td>
-                    <td style={{ padding: '14px', fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{totalSkill} / {maxSkill}</td>
-                  </tr>
-                );
-              })}
-              <tr style={{ background: 'rgba(168,85,247,0.1)', fontWeight: 'bold' }}>
-                <td style={{ padding: '16px', textAlign: 'left', borderRadius: '0 0 0 12px', color: 'var(--color-primary-dark)' }}>รวม/ระดับ</td>
-                <td style={{ padding: '16px' }}>{['listening','conversation','reading','writing'].reduce((acc, sk) => acc + (allScores[1]?.[sk]?.score || 0), 0)} / 30</td>
-                <td style={{ padding: '16px' }}>{['listening','conversation','reading','writing'].reduce((acc, sk) => acc + (allScores[2]?.[sk]?.score || 0), 0)} / 40</td>
-                <td style={{ padding: '16px' }}>{['listening','conversation','reading','writing'].reduce((acc, sk) => acc + (allScores[3]?.[sk]?.score || 0), 0)} / 50</td>
-                <td style={{ padding: '16px', borderRadius: '0 0 12px 0', color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{grandTotal} / 120</td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Overall progress bar */}
+        <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '6px' }}>
+            <span>ความคืบหน้ารวม</span><span>{grandTotal} / {TOTAL_MAX}</span>
+          </div>
+          <ScoreBar pct={pct} color="linear-gradient(90deg,var(--color-primary-light),var(--color-primary))" />
         </div>
       </div>
 
-      {/* Score by Level */}
-      {[1, 2, 3].map(lv => {
-        const ldata = allScores[lv] || {};
-        const meta = LEVEL_MAX[lv];
-        const levelTotal = ['listening','conversation','reading','writing'].reduce((s, sk) => s + (ldata[sk]?.score || 0), 0);
-        const passed = checkLevelPassed(lv);
-        const hasAny = Object.keys(ldata).length > 0;
-
-        return (
-          <div key={lv} className="glass-panel" style={{ padding: '32px', marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: passed ? 'linear-gradient(135deg,#10b981,#059669)' : hasAny ? 'linear-gradient(135deg,var(--color-primary-light),var(--color-primary))' : '#e5e7eb', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', fontWeight: 'bold', flexShrink: 0 }}>
-                  {lv}
+      {/* Per-skill breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '28px' }}>
+        {SKILL_CONFIG.map(sk => {
+          const s = skillScores[sk.key];
+          const score = s?.score ?? null;
+          const skPct = score !== null ? Math.round((score / sk.max) * 100) : 0;
+          const isDone = score !== null;
+          return (
+            <div key={sk.key} className="glass-card" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '14px', background: sk.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: `0 4px 12px ${sk.color}40` }}>
+                  {sk.icon}
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--color-primary-dark)' }}>
-                    Level {lv} — {['ระดับพื้นฐาน', 'ระดับกลาง', 'ระดับสูง'][lv - 1]}
-                  </h3>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    เกณฑ์ผ่าน: {meta.pass}/{meta.total} คะแนน
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: '600', color: 'var(--color-primary-dark)' }}>{sk.label}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>เต็ม {sk.max} คะแนน</div>
+                </div>
+                {isDone && <CheckCircle size={20} color="#10b981" />}
+              </div>
+              {isDone ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '4px' }}>
+                    <span>คะแนน</span><span>{score} / {sk.max} ({skPct}%)</span>
                   </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: passed ? '#10b981' : '#6b7280' }}>
-                  {levelTotal} / {meta.total}
-                </span>
-                {passed
-                  ? <CheckCircle size={24} color="#10b981" />
-                  : hasAny ? <XCircle size={24} color="#ef4444" /> : null
-                }
-              </div>
+                  <ScoreBar pct={skPct} color={sk.bg} />
+                  <Link to={sk.path} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '12px', fontSize: '0.82rem', color: sk.color, textDecoration: 'none', fontWeight: '600' }}>
+                    ทำใหม่ <ArrowRight size={14} />
+                  </Link>
+                </>
+              ) : (
+                <Link to={sk.path} style={{ display: 'block', textAlign: 'center', padding: '10px', background: sk.bg, color: 'white', borderRadius: '10px', textDecoration: 'none', fontWeight: '600', fontSize: '0.9rem', marginTop: '8px' }}>
+                  เริ่มทำแบบทดสอบ →
+                </Link>
+              )}
             </div>
-
-            {!hasAny ? (
-              <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0', margin: 0 }}>
-                ยังไม่มีคะแนนในระดับนี้
-              </p>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
-                {['listening', 'conversation', 'reading', 'writing'].map(skill => {
-                  const s = ldata[skill];
-                  const maxS = meta[skill];
-                  const info = SKILL_INFO[skill];
-                  return (
-                    <div key={skill} style={{ background: 'rgba(255,255,255,0.6)', padding: '18px 20px', borderRadius: '14px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: info.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          {info.icon}
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>{info.label}</div>
-                      </div>
-                      <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>
-                        {s ? s.score : '—'} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/ {maxS}</span>
-                      </div>
-                      {s && <ScoreBar score={s.score} max={maxS} color={info.color} />}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
       {/* History */}
       <div className="glass-panel" style={{ padding: '32px' }}>
-        <h3 style={{ fontSize: '1.4rem', color: 'var(--color-primary-dark)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Clock size={22} /> ประวัติการทำแบบทดสอบ (50 รายการล่าสุด)
+        <h3 style={{ fontSize: '1.3rem', color: 'var(--color-primary-dark)', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Clock size={20} /> ประวัติการทำแบบทดสอบ
         </h3>
-        {history.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '32px 0' }}>
-            ยังไม่มีประวัติการทำแบบทดสอบ — เริ่มทำข้อสอบเพื่อสะสมคะแนน!
-          </p>
+        {loading ? (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center' }}>กำลังโหลด...</p>
+        ) : history.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>ยังไม่มีประวัติ — เริ่มทำข้อสอบเพื่อสะสมคะแนนครับ!</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {history.map((h, i) => {
-              const info = SKILL_INFO[h.skill] || { label: h.skill, color: '#6b7280', icon: <BookOpen size={16} /> };
-              const pct = Math.round((h.score / h.max_score) * 100);
+              const info = SKILL_CONFIG.find(s => s.key === h.skill) || { label: h.skill, color: '#6b7280', icon: <BookOpen size={18} />, bg: '#6b7280' };
+              const hp = Math.round((h.score / h.max_score) * 100);
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 20px', background: 'rgba(255,255,255,0.6)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: info.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', background: 'rgba(255,255,255,0.6)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: info.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {info.icon}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '0.95rem' }}>
-                      Level {h.level} — {info.label}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>{formatDate(h.taken_at)}</div>
+                    <div style={{ fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '0.9rem' }}>{info.label}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{formatDate(h.taken_at)}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: pct >= 60 ? '#10b981' : '#ef4444' }}>
-                      {h.score}/{h.max_score}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pct}%</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 'bold', color: hp >= 60 ? '#10b981' : '#ef4444' }}>{h.score}/{h.max_score}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{hp}%</div>
                   </div>
                 </div>
               );

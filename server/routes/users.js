@@ -58,39 +58,32 @@ router.put('/me', authenticate, async (req, res) => {
 router.post('/score', authenticate, async (req, res) => {
   const { level, skill, score, maxScore } = req.body;
 
-  if (level == null || !skill || score == null || maxScore == null) {
+  if (!skill || score == null || maxScore == null) {
     return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
   }
 
   try {
+    // บันทึกลง ScoreHistory โดยใช้ level=1 เป็น default (ระบบใหม่ไม่แบ่ง level)
     await ScoreHistory.create({
       user_id: req.userId,
-      level,
+      level: level || 1,
       skill,
       score,
       max_score: maxScore
     });
 
-    // Fetch latest scores per skill for this level
+    // คำนวณคะแนนรวมทุกทักษะของผู้ใช้นี้ (เอาคะแนนสูงสุดของแต่ละทักษะ)
     const latestScores = await ScoreHistory.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(req.userId), level: Number(level) } },
+      { $match: { user_id: new mongoose.Types.ObjectId(req.userId) } },
       { $sort: { taken_at: -1 } },
-      { $group: { _id: '$skill', score: { $first: '$score' } } }
+      { $group: { _id: '$skill', score: { $max: '$score' } } }
     ]);
 
     const totalScore = latestScores.reduce((acc, curr) => acc + curr.score, 0);
-    const passThreshold = level === 1 ? 21 : level === 2 ? 28 : 35;
-    const passed = totalScore >= passThreshold ? 1 : 0;
+    // เกณฑ์ผ่าน: 70% ของ 100 คะแนนเต็ม = 70 คะแนน
+    const passed = totalScore >= 70;
 
-    const col = `level${level}_passed`;
-    let progress = await LevelProgress.findOne({ user_id: req.userId });
-    if (!progress) {
-      progress = new LevelProgress({ user_id: req.userId });
-    }
-    progress[col] = passed;
-    await progress.save();
-
-    return res.json({ message: 'บันทึกคะแนนสำเร็จ', totalScore, passed: passed === 1 });
+    return res.json({ message: 'บันทึกคะแนนสำเร็จ', totalScore, passed });
   } catch (err) {
     console.error('Save score error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
@@ -145,6 +138,63 @@ router.get('/scores', authenticate, async (req, res) => {
     return res.json({ scores, progress });
   } catch (err) {
     console.error('Get scores error:', err);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+// ==================== GET RANKING ====================
+router.get('/ranking', authenticate, async (req, res) => {
+  try {
+    const ranking = await ScoreHistory.aggregate([
+      // 1. หาคะแนนสูงสุดของแต่ละทักษะของแต่ละผู้ใช้ (ไม่สน level)
+      {
+        $group: {
+          _id: { user_id: '$user_id', skill: '$skill' },
+          maxScorePerSkill: { $max: '$score' }
+        }
+      },
+      // 2. รวมคะแนนของทุกทักษะของผู้ใช้แต่ละคน
+      {
+        $group: {
+          _id: '$_id.user_id',
+          totalScore: { $sum: '$maxScorePerSkill' }
+        }
+      },
+      // 3. เรียงลำดับจากมากไปน้อย
+      {
+        $sort: { totalScore: -1 }
+      },
+      // 4. จำกัดแค่ 100 อันดับแรก
+      {
+        $limit: 100
+      },
+      // 5. ดึงข้อมูล User (ชื่อ, avatar) มาแสดง
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          userId: '$_id',
+          name: { $arrayElemAt: ['$user.name', 0] },
+          avatar: { $arrayElemAt: ['$user.avatar', 0] },
+          role: { $arrayElemAt: ['$user.role', 0] },
+          totalScore: 1
+        }
+      }
+    ]);
+
+    // กรองเอาแอดมินออกถ้ามี (ถ้าต้องการ, ในที่นี้แค่ระบุ role)
+    const filteredRanking = ranking.filter(r => r.role !== 'admin');
+
+    return res.json(filteredRanking.slice(0, 100)); // เผื่อแอดมินหลุดมา
+  } catch (err) {
+    console.error('Get ranking error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
   }
 });

@@ -99,6 +99,11 @@ export const UserProvider = ({ children }) => {
     return result;
   };
 
+  const fetchRanking = async () => {
+    if (!token) return [];
+    return await api.getRanking(token);
+  };
+
   return (
     <UserContext.Provider value={{
       user,
@@ -113,6 +118,7 @@ export const UserProvider = ({ children }) => {
       recordScore,
       fetchHistory,
       fetchScores,
+      fetchRanking,
       checkLevelPassed,
       updateScore
     }}>
