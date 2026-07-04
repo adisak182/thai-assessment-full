@@ -92,6 +92,13 @@ export default function StartPage() {
           </form>
         </div>
       </div>
+      
+      {/* Admin Login Link */}
+      <div style={{ textAlign: 'center', marginTop: '24px' }}>
+        <a href="/login" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textDecoration: 'none' }}>
+          🔒 สำหรับเจ้าหน้าที่
+        </a>
+      </div>
     </div>
   );
 }
