@@ -160,7 +160,7 @@ export default function ReadingTest() {
       <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {q.options.map((opt, i) => (
-          <button key={i} onClick={() => pick(q.id, opt.correct, i)}
+          <button key={i} onClick={() => pick(q.id, opt.correct, i)} className="option-btn"
             style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${selIdx[q.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[q.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: selIdx[q.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
             {opt.text}
           </button>
@@ -213,7 +213,7 @@ export default function ReadingTest() {
             <p style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '0.95rem', flex: 1, minWidth: '200px' }}>{q.statement}</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               {[{ label: 'ข้อเท็จจริง', val: 'fact' }, { label: 'ข้อคิดเห็น', val: 'opinion' }].map(({ label, val }) => (
-                <button key={val} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))}
+                <button key={val} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))} className="option-btn"
                   style={{ padding: '8px 14px', borderRadius: '20px', border: `2px solid ${tfAnswers[q.id] === val ? '#10b981' : 'rgba(0,0,0,0.1)'}`, background: tfAnswers[q.id] === val ? 'rgba(16,185,129,0.1)' : 'white', color: tfAnswers[q.id] === val ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.85rem', transition: 'all 0.2s' }}>
                   {label}
                 </button>
@@ -253,7 +253,7 @@ export default function ReadingTest() {
               <p style={{ fontWeight: '600', color: '#1e3a8a', fontStyle: 'italic', marginBottom: '10px' }}>ข้อ {m.id}. "{m.verse}"</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {matchData.map(opt => (
-                  <button key={opt.id} onClick={() => setMatchSel(prev => ({ ...prev, [m.id]: opt.meaning }))}
+                  <button key={opt.id} onClick={() => setMatchSel(prev => ({ ...prev, [m.id]: opt.meaning }))} className="option-btn"
                     style={{ padding: '10px 14px', borderRadius: '10px', border: `2px solid ${currentSel === opt.meaning ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: currentSel === opt.meaning ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem', transition: 'all 0.2s' }}>
                     {opt.meaning}
                   </button>

@@ -303,7 +303,7 @@ export default function ListeningTest() {
           {q.options.map((opt, i) => {
             const isSelected = selected === i;
             return (
-              <button key={i} onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct }))}
+              <button key={i} onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct }))} className="option-btn"
                 style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${isSelected ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: isSelected ? 'rgba(168,85,247,0.1)' : 'white', color: isSelected ? 'var(--color-primary-dark)' : '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: isSelected ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
                 {opt.text}
               </button>
@@ -321,7 +321,7 @@ export default function ListeningTest() {
         <p style={{ margin: 0, color: 'var(--color-primary-dark)', fontWeight: '500', flex: 1, minWidth: '200px' }}>{q.statement}</p>
         <div style={{ display: 'flex', gap: '10px' }}>
           {[{ label: '✓ ถูก', val: true }, { label: '✗ ผิด', val: false }].map(({ label, val }) => (
-            <button key={label} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))}
+            <button key={label} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))} className="option-btn"
               style={{ padding: '8px 18px', borderRadius: '30px', border: `2px solid ${ans === val ? (val ? '#10b981' : '#ef4444') : 'rgba(0,0,0,0.1)'}`, background: ans === val ? (val ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)') : 'white', color: ans === val ? (val ? '#059669' : '#dc2626') : '#6b7280', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'inherit' }}>
               {label}
             </button>
@@ -386,7 +386,7 @@ export default function ListeningTest() {
                   const isSelected = answers[q.id] !== undefined && answers[q.id] === opt.correct && answers[`_sel_${q.id}`] === i;
                   return (
                     <button key={i}
-                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))}
+                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
                       style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
                       {opt.text}
                     </button>
@@ -431,7 +431,7 @@ export default function ListeningTest() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {q.options.map((opt, i) => (
                   <button key={i}
-                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))}
+                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
                     style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
                     {opt.text}
                   </button>

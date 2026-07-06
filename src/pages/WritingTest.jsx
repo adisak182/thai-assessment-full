@@ -146,7 +146,7 @@ export default function WritingTest() {
       <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {q.options.map((opt, i) => (
-          <button key={i} onClick={() => setMcqSel(prev => ({ ...prev, [q.id]: { correct: opt.correct, idx: i } }))}
+          <button key={i} onClick={() => setMcqSel(prev => ({ ...prev, [q.id]: { correct: opt.correct, idx: i } }))} className="option-btn"
             style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${mcqSel[q.id]?.idx === i ? color : 'rgba(0,0,0,0.08)'}`, background: mcqSel[q.id]?.idx === i ? `${color}18` : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: mcqSel[q.id]?.idx === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
             {opt.text}
           </button>
@@ -201,7 +201,7 @@ export default function WritingTest() {
             <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>ข้อ {q.id}. {q.sentence.replace('_______', '[ _______ ]')}</p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               {WORD_BANK.map(w => (
-                <button key={w} onClick={() => setFillSel(prev => ({ ...prev, [q.id]: w }))}
+                <button key={w} onClick={() => setFillSel(prev => ({ ...prev, [q.id]: w }))} className="option-btn"
                   style={{ padding: '8px 18px', borderRadius: '20px', border: `2px solid ${fillSel[q.id] === w ? '#f59e0b' : 'rgba(0,0,0,0.1)'}`, background: fillSel[q.id] === w ? 'rgba(245,158,11,0.12)' : 'white', color: fillSel[q.id] === w ? '#92400e' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
                   {w}
                 </button>
