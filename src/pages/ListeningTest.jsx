@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Volume2, CheckCircle, XCircle, ArrowRight, Trophy, RefreshCw, Headphones, Play } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
+import ExamTimer from '../components/ExamTimer';
 
 // ===== QUESTION DATA =====
 // Section A: Vocab flashcards (ข้อ 1-3) - 2 options
@@ -277,8 +278,10 @@ export default function ListeningTest() {
     setSubmitting(false);
   };
 
+  const [timerKey, setTimerKey] = useState(0); // reset timer on retry
+
   const handleClose = () => navigate('/skills');
-  const handleRetry = () => { setAnswers({}); setTfAnswers({}); setShowResult(false); };
+  const handleRetry = () => { setAnswers({}); setTfAnswers({}); setShowResult(false); setTimerKey(k => k + 1); };
 
   const SectionHeader = ({ num, title, icon }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '40px' }}>
@@ -336,7 +339,7 @@ export default function ListeningTest() {
       {showResult && <ResultModal score={calcScore()} total={totalQ} onClose={handleClose} onRetry={handleRetry} />}
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <Link to="/skills" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← กลับหน้าเลือกทักษะ</Link>
           <h1 style={{ margin: 0, color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -350,6 +353,9 @@ export default function ListeningTest() {
           </div>
         </div>
       </div>
+
+      {/* Timer: 25 ข้อ × 30 วินาที = 750 วินาที */}
+      <ExamTimer key={timerKey} totalSeconds={750} onTimeUp={handleSubmit} />
 
       {/* คำชี้แจง */}
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '32px', borderLeft: '4px solid var(--color-primary)', background: 'rgba(168,85,247,0.04)' }}>

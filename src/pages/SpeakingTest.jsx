@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle, Volume2, Play, Mic, MicOff, CheckCircle, ArrowRight, Trophy, XCircle, RefreshCw } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
+import ExamTimer from '../components/ExamTimer';
 
 // ===== QUESTION DATA =====
 
@@ -164,9 +165,11 @@ export default function SpeakingTest() {
     );
   };
 
+  const [timerKey, setTimerKey] = useState(0);
+
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
-      {showResult && <ResultModal score={score} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setChecked({}); setShowResult(false); }} />}
+      {showResult && <ResultModal score={score} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setChecked({}); setShowResult(false); setTimerKey(k => k + 1); }} />}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
@@ -183,6 +186,9 @@ export default function SpeakingTest() {
           </div>
         </div>
       </div>
+
+      {/* Timer: 15 ข้อ × 30 วินาที = 450 วินาที */}
+      <ExamTimer key={timerKey} totalSeconds={450} onTimeUp={handleSubmit} />
 
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '32px', borderLeft: '4px solid #3b82f6', background: 'rgba(59,130,246,0.04)' }}>
         <strong style={{ color: 'var(--color-primary-dark)' }}>คำชี้แจง:</strong>

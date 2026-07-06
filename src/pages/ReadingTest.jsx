@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BookOpen, Trophy, XCircle, ArrowRight, RefreshCw, CheckCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
+import ExamTimer from '../components/ExamTimer';
 
 // ===== QUESTION DATA =====
 
@@ -169,11 +170,13 @@ export default function ReadingTest() {
     </div>
   );
 
+  const [timerKey, setTimerKey] = useState(0);
+
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
-      {showResult && <ResultModal score={calcScore()} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setShowResult(false); }} />}
+      {showResult && <ResultModal score={calcScore()} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setShowResult(false); setTimerKey(k => k + 1); }} />}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <Link to="/skills" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '500', marginBottom: '8px', display: 'block' }}>← กลับหน้าเลือกทักษะ</Link>
           <h1 style={{ margin: 0, color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -187,6 +190,9 @@ export default function ReadingTest() {
           </div>
         </div>
       </div>
+
+      {/* Timer: 30 ข้อ × 30 วินาที = 900 วินาที */}
+      <ExamTimer key={timerKey} totalSeconds={900} onTimeUp={handleSubmit} />
 
       {/* Section A */}
       <SectionHeader num="A" title='มารยาทการฟังและการดู (ข้อ 41-45)' sub="อ่านบทความแล้วตอบคำถาม" />
