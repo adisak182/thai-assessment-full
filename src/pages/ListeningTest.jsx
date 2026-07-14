@@ -124,7 +124,7 @@ const annColdQ = [
 ];
 
 // Section H: Ad questions (ข้อ 22-23)
-const AD_AUDIO = '/audio/ad_supplement.mp3';
+const AD_AUDIO = '/audio/ad_new.m4a';
 const adQ = [
   { id: 22, question: 'ข้อ 22. คำพูดในข้อใดมีลักษณะเป็น การโฆษณาเกินจริง ?',
     options: [
