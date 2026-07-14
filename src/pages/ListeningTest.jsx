@@ -36,7 +36,7 @@ const announcementQ = [
 ];
 
 // Section C: Story questions (ข้อ 7-9)
-const STORY_AUDIO = '/audio/story_donkey_merchant.mp3';
+const STORY_AUDIO = '/audio/story_donkey_merchant_new.m4a';
 const STORY_IMG = '/images/story_donkey_merchant_1777621288896.png';
 const storyQ = [
   { id: 7, question: 'ข้อ 7. พ่อค้าบรรทุกสิ่งใดไว้บนหลังลาในครั้งแรก ?',
