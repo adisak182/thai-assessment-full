@@ -95,7 +95,7 @@ const proverbQ = [
 ];
 
 // Section F: Article T/F (ข้อ 15-19) - true/false
-const ARTICLE_AUDIO = '/audio/article_screen_kids.mp3';
+const ARTICLE_AUDIO = '/audio/record6_new.m4a';
 const tfQ = [
   { id: 15, statement: 'ข้อ 15. การใช้สื่อไม่มีผลเสียต่อสุขภาพ', correct: false },
   { id: 16, statement: 'ข้อ 16. เด็กที่ติดจอสามารถควบคุมอารมณ์ได้', correct: false },
