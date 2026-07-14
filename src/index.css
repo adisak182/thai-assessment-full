@@ -78,6 +78,7 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 16px;
   box-shadow: var(--shadow-card);
   transition: transform var(--transition-bounce), box-shadow var(--transition-fast);
+  padding: 24px;
 }
 
 .glass-card:hover {

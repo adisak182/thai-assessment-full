@@ -78,18 +78,18 @@ function ResultModal({ score, total, onClose, onRetry }) {
         <p style={{ color: '#6b7280', marginBottom: '28px' }}>{passed ? 'คุณทำทักษะการเขียนได้ดีมากครับ!' : 'ลองทำใหม่อีกครั้งนะครับ'}</p>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
           <div style={{ padding: '16px 28px', background: 'rgba(245,158,11,0.08)', borderRadius: '16px', border: '2px solid rgba(245,158,11,0.2)' }}>
-            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
+            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#d97706', lineHeight: 1 }}>{score}</div>
-            <div style={{ fontSize: '0.9rem', color: '#9ca3af' }}>จาก {total}</div>
+            <div style={{ fontSize: '1.1rem', color: '#9ca3af' }}>จาก {total}</div>
           </div>
           <div style={{ padding: '16px 28px', background: passed ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', borderRadius: '16px', border: `2px solid ${passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
+            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <button onClick={onRetry} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px' }}>ทำใหม่</button>
-          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowRight size={18} /> ออก</button>
+          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}><ArrowRight size={18} /> ออก</button>
         </div>
       </div>
     </div>
@@ -133,22 +133,22 @@ export default function WritingTest() {
     setSubmitting(false);
   };
 
-  const inputStyle = { width: '100%', padding: '12px 16px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none', fontSize: '1rem', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.2s' };
+  const inputStyle = { width: '100%', padding: '14px 20px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none', fontSize: '1.1rem', fontFamily: 'inherit', boxSizing: 'border-box', transition: 'border-color 0.2s' };
 
   const SectionHeader = ({ num, title, sub }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '40px' }}>
       <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>{num}</div>
-      <div><h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3>{sub && <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{sub}</p>}</div>
+      <div><h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3>{sub && <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>{sub}</p>}</div>
     </div>
   );
 
   const MCQCard = ({ q, color = '#f59e0b' }) => (
     <div style={{ marginBottom: '16px' }}>
       <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {q.options.map((opt, i) => (
           <button key={i} onClick={() => setMcqSel(prev => ({ ...prev, [q.id]: { correct: opt.correct, idx: i } }))} className="option-btn"
-            style={{ padding: '12px 16px', borderRadius: '10px', border: `2px solid ${mcqSel[q.id]?.idx === i ? color : 'rgba(0,0,0,0.08)'}`, background: mcqSel[q.id]?.idx === i ? `${color}18` : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: mcqSel[q.id]?.idx === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '0.95rem' }}>
+            style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${mcqSel[q.id]?.idx === i ? color : 'rgba(0,0,0,0.08)'}`, background: mcqSel[q.id]?.idx === i ? `${color}18` : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: mcqSel[q.id]?.idx === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
             {opt.text}
           </button>
         ))}
@@ -170,7 +170,7 @@ export default function WritingTest() {
           </h1>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ตอบแล้ว {answeredCount} / {totalQ}</div>
+          <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ตอบแล้ว {answeredCount} / {totalQ}</div>
           <div style={{ height: '8px', width: '150px', borderRadius: '999px', background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#f59e0b,#d97706)', borderRadius: '999px', transition: 'width 0.3s' }} />
           </div>
@@ -196,19 +196,19 @@ export default function WritingTest() {
       {/* Section B: Fill in the blank */}
       <SectionHeader num="B" title="เติมคำในช่องว่างให้สมบูรณ์ (ข้อ 73-75)" sub="เลือกคำจากคลังคำด้านล่างมาเติมให้ถูกต้อง" />
       <div className="glass-panel" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px', padding: '12px', background: 'rgba(245,158,11,0.06)', borderRadius: '10px' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', width: '100%', marginBottom: '4px' }}>คลังคำ:</span>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px', padding: '12px', background: 'rgba(245,158,11,0.06)', borderRadius: '10px' }}>
+          <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', fontWeight: '600', width: '100%', marginBottom: '4px' }}>คลังคำ:</span>
           {WORD_BANK.map(w => (
-            <span key={w} style={{ padding: '4px 14px', borderRadius: '20px', background: 'white', border: '1.5px solid rgba(245,158,11,0.3)', color: '#92400e', fontWeight: '600', fontSize: '0.9rem' }}>{w}</span>
+            <span key={w} style={{ padding: '4px 14px', borderRadius: '20px', background: 'white', border: '1.5px solid rgba(245,158,11,0.3)', color: '#92400e', fontWeight: '600', fontSize: '1.1rem' }}>{w}</span>
           ))}
         </div>
         {fillQ.map(q => (
           <div key={q.id} style={{ marginBottom: '20px' }}>
             <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>ข้อ {q.id}. {q.sentence.replace('_______', '[ _______ ]')}</p>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               {WORD_BANK.map(w => (
                 <button key={w} onClick={() => setFillSel(prev => ({ ...prev, [q.id]: w }))} className="option-btn"
-                  style={{ padding: '8px 18px', borderRadius: '20px', border: `2px solid ${fillSel[q.id] === w ? '#f59e0b' : 'rgba(0,0,0,0.1)'}`, background: fillSel[q.id] === w ? 'rgba(245,158,11,0.12)' : 'white', color: fillSel[q.id] === w ? '#92400e' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
+                  style={{ padding: '10px 22px', borderRadius: '20px', border: `2px solid ${fillSel[q.id] === w ? '#f59e0b' : 'rgba(0,0,0,0.1)'}`, background: fillSel[q.id] === w ? 'rgba(245,158,11,0.12)' : 'white', color: fillSel[q.id] === w ? '#92400e' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
                   {w}
                 </button>
               ))}
@@ -234,10 +234,10 @@ export default function WritingTest() {
       <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {rearrangeQ.map(q => (
           <div key={q.id}>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
               <span style={{ fontWeight: '600', color: 'var(--color-primary-dark)' }}>ข้อ {q.id}. คำที่มี:</span>
               {q.words.map((w, i) => (
-                <span key={i} style={{ padding: '3px 12px', borderRadius: '6px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#92400e', fontWeight: '600', fontSize: '0.9rem' }}>{w}</span>
+                <span key={i} style={{ padding: '3px 12px', borderRadius: '6px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#92400e', fontWeight: '600', fontSize: '1.1rem' }}>{w}</span>
               ))}
             </div>
             <input type="text" value={rearrangeSel[q.id] || ''} onChange={e => setRearrangeSel(prev => ({ ...prev, [q.id]: e.target.value }))}
@@ -255,7 +255,7 @@ export default function WritingTest() {
       {/* Section F: Passage MCQ */}
       <SectionHeader num="F" title="อ่านบทความแล้วตอบคำถาม (ข้อ 91-100)" sub="เลือกคำตอบที่ถูกต้องจากบทความ" />
       <div className="glass-panel" style={{ padding: '20px', marginBottom: '16px', background: 'rgba(245,158,11,0.04)', borderLeft: '4px solid #f59e0b' }}>
-        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '0.95rem' }}>{PASSAGE_F}</p>
+        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '1.1rem' }}>{PASSAGE_F}</p>
       </div>
       <div className="glass-panel" style={{ padding: '24px' }}>
         {sectionFQ.map(q => <MCQCard key={q.id} q={q} />)}
@@ -263,10 +263,10 @@ export default function WritingTest() {
 
       <div style={{ marginTop: '40px', textAlign: 'center' }}>
         <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
-          style={{ padding: '16px 48px', fontSize: '1.1rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', boxShadow: '0 8px 20px rgba(245,158,11,0.4)', opacity: submitting ? 0.7 : 1 }}>
+          style={{ padding: '16px 48px', fontSize: '1.1rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '14px', background: 'linear-gradient(135deg,#f59e0b,#d97706)', boxShadow: '0 8px 20px rgba(245,158,11,0.4)', opacity: submitting ? 0.7 : 1 }}>
           {submitting ? <><RefreshCw size={20} className="spin" /> บันทึก...</> : <><Trophy size={20} /> ส่งคำตอบและดูผล</>}
         </button>
-        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '0.9rem' }}>ตอบแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '1.1rem' }}>ตอบแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
       </div>
     </div>
   );

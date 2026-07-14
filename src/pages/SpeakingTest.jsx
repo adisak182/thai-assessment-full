@@ -44,7 +44,7 @@ function AudioBtn({ src, label = 'ฟังคำถาม' }) {
   };
   useEffect(() => () => ref.current?.pause(), []);
   return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(59,130,246,0.12)', color: playing ? 'white' : '#2563eb', fontWeight: '600', cursor: 'pointer', fontSize: '0.95rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
+    <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(59,130,246,0.12)', color: playing ? 'white' : '#2563eb', fontWeight: '600', cursor: 'pointer', fontSize: '1.1rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
       {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
     </button>
   );
@@ -65,18 +65,18 @@ function ResultModal({ score, total, onClose, onRetry }) {
         <p style={{ color: '#6b7280', marginBottom: '28px' }}>{passed ? 'คุณทำทักษะการพูดสำเร็จแล้วครับ!' : 'ลองทำใหม่ได้เลยนะครับ'}</p>
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
           <div style={{ padding: '16px 28px', background: 'rgba(59,130,246,0.08)', borderRadius: '16px', border: '2px solid rgba(59,130,246,0.2)' }}>
-            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
+            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#2563eb', lineHeight: 1 }}>{score}</div>
-            <div style={{ fontSize: '0.9rem', color: '#9ca3af' }}>จาก {total}</div>
+            <div style={{ fontSize: '1.1rem', color: '#9ca3af' }}>จาก {total}</div>
           </div>
           <div style={{ padding: '16px 28px', background: passed ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', borderRadius: '16px', border: `2px solid ${passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
+            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <button onClick={onRetry} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px' }}>ทำใหม่</button>
-          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <ArrowRight size={18} /> ออก
           </button>
         </div>
@@ -108,7 +108,7 @@ export default function SpeakingTest() {
   const SectionHeader = ({ num, title, icon }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '40px' }}>
       <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>{num}</div>
-      <div><h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{icon}</p></div>
+      <div><h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>{icon}</p></div>
     </div>
   );
 
@@ -116,7 +116,7 @@ export default function SpeakingTest() {
     const done = checked[q.id];
     return (
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', borderLeft: done ? '4px solid #10b981' : '4px solid transparent', transition: 'all 0.3s' }}>
-        {q.situation && <div style={{ display: 'inline-block', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', borderRadius: '20px', color: '#2563eb', fontSize: '0.8rem', fontWeight: '600', marginBottom: '10px' }}>สถานการณ์: {q.situation}</div>}
+        {q.situation && <div style={{ display: 'inline-block', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', borderRadius: '20px', color: '#2563eb', fontSize: '1.1rem', fontWeight: '600', marginBottom: '10px' }}>สถานการณ์: {q.situation}</div>}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
           <AudioBtn src={q.audio} label="ฟังคำถาม" />
           <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', flex: 1, minWidth: '200px', lineHeight: '1.6' }}>
@@ -124,15 +124,15 @@ export default function SpeakingTest() {
           </p>
         </div>
         <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', marginBottom: '16px' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💡 แนวทางการตอบ: {q.hint}</span>
+          <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>💡 แนวทางการตอบ: {q.hint}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '0.85rem', fontWeight: '500', flex: 1 }}>
+          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '1.1rem', fontWeight: '500', flex: 1 }}>
             <Mic size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             พูดตอบเข้าไมค์ด้วยตนเอง
           </div>
           <button onClick={() => setChecked(prev => ({ ...prev, [q.id]: !done }))}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
             <CheckCircle size={16} /> {done ? 'ตอบแล้ว' : 'ทำเครื่องหมาย'}
           </button>
         </div>
@@ -146,18 +146,18 @@ export default function SpeakingTest() {
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', borderLeft: done ? '4px solid #10b981' : '4px solid transparent', transition: 'all 0.3s' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
           <AudioBtn src={q.audio} label="ฟังต้นแบบ" />
-          <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '1.05rem' }}>ข้อ {q.id}.</p>
+          <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '1.15rem' }}>ข้อ {q.id}.</p>
         </div>
         <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '16px' }}>
           <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#1e3a8a', lineHeight: '1.8', textAlign: 'center' }}>{q.text}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '0.85rem', fontWeight: '500', flex: 1 }}>
+          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '1.1rem', fontWeight: '500', flex: 1 }}>
             <Mic size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
             อ่านออกเสียงให้ถูกต้องและคล่องแคล่ว
           </div>
           <button onClick={() => setChecked(prev => ({ ...prev, [q.id]: !done }))}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
             <CheckCircle size={16} /> {done ? 'ทำแล้ว' : 'ทำเครื่องหมาย'}
           </button>
         </div>
@@ -180,7 +180,7 @@ export default function SpeakingTest() {
           </h1>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ทำแล้ว {answeredCount} / {totalQ}</div>
+          <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ทำแล้ว {answeredCount} / {totalQ}</div>
           <div style={{ height: '8px', width: '150px', borderRadius: '999px', background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#3b82f6,#2563eb)', borderRadius: '999px', transition: 'width 0.3s' }} />
           </div>
@@ -206,10 +206,10 @@ export default function SpeakingTest() {
 
       <div style={{ marginTop: '40px', textAlign: 'center' }}>
         <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
-          style={{ padding: '16px 48px', fontSize: '1.1rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 8px 20px rgba(59,130,246,0.4)', opacity: submitting ? 0.7 : 1 }}>
+          style={{ padding: '16px 48px', fontSize: '1.1rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '14px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 8px 20px rgba(59,130,246,0.4)', opacity: submitting ? 0.7 : 1 }}>
           {submitting ? <><RefreshCw size={20} className="spin" /> บันทึก...</> : <><Trophy size={20} /> ส่งคำตอบและดูผล</>}
         </button>
-        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '0.9rem' }}>ทำเครื่องหมายแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '1.1rem' }}>ทำเครื่องหมายแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
       </div>
     </div>
   );
