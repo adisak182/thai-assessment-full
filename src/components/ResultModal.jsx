@@ -2,7 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { Trophy, XCircle, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function ResultModal({ score, total, onClose, onRetry }) {
+export default function ResultModal({ score, total, breakdown, onClose, onRetry }) {
   const pct = Math.round((score / total) * 100);
   const passed = pct >= 70;
   
