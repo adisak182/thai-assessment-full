@@ -15,12 +15,9 @@ export default function Home() {
         สำนักงานส่งเสริมการเรียนรู้ประจำจังหวัดนราธิวาส
       </p>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
         <Link to="/levels" className="btn-primary" style={{ padding: '16px 32px', fontSize: '1.2rem', textDecoration: 'none' }}>
           เริ่มการประเมิน
-        </Link>
-        <Link to="/dashboard" className="btn-secondary" style={{ padding: '16px 32px', fontSize: '1.2rem', textDecoration: 'none' }}>
-          ดูสถิติของฉัน
         </Link>
       </div>
     </div>
