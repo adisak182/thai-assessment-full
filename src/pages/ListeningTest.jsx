@@ -262,7 +262,7 @@ export default function ListeningTest() {
 
   const calcScore = () => {
     let s = 0;
-    Object.values(answers).forEach(v => { if (v) s++; });
+    Object.entries(answers).forEach(([k, v]) => { if (!k.startsWith('_sel_') && v) s++; });
     Object.entries(tfAnswers).forEach(([id, ans]) => {
       const q = tfQ.find(q => q.id === parseInt(id));
       if (q && ans === q.correct) s++;

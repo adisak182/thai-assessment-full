@@ -201,22 +201,22 @@ export default function FullTest() {
       const cat = getCategory(q.section);
       let isCorrect = false;
 
-      if (q.qType === 'mcq') {
+      if (q.type === 'mcq') {
         if (answers[q.id] === true) isCorrect = true;
-      } else if (q.qType === 'tf') {
+      } else if (q.type === 'tf') {
         const v = tfAnswers[q.id];
         if (v !== undefined) {
           if (q.isListeningTf && q.correct === (v === 'fact' || v === true)) isCorrect = true;
           if (q.isReadingTf && q.correct === v) isCorrect = true;
         }
-      } else if (q.qType === 'match') {
+      } else if (q.type === 'match') {
         if (matchSel[q.id] === matchAnswers[q.id]) isCorrect = true;
-      } else if (q.qType === 'text') {
+      } else if (q.type === 'text') {
         const val = (textAnswers[q.id] || '').trim();
         if (q.answer && val === q.answer) isCorrect = true;
         else if (q.word && val === q.word) isCorrect = true;
         else if (!q.answer && !q.word && val.length > 5) isCorrect = true; // essay
-      } else if (q.qType === 'speaking') {
+      } else if (q.type === 'speaking') {
         const text = speechAnswers[q.id];
         if (text) {
           if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
