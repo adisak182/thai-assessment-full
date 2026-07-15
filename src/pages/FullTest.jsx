@@ -221,6 +221,11 @@ export default function FullTest() {
         if (text) {
           if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
             isCorrect = true;
+          } else if (q.text) {
+            // Strict exact match for reading text (ignore spaces)
+            const cleanSource = q.text.replace(/\s+/g, '');
+            const cleanAnswer = text.replace(/\s+/g, '');
+            if (cleanSource === cleanAnswer) isCorrect = true;
           } else if (q.keywords && q.keywords.length > 0) {
             if (q.keywords.some(kw => text.includes(kw))) isCorrect = true;
           } else {
