@@ -387,6 +387,11 @@ export default function FullTest() {
                 {opt.text}
               </button>
             ))}
+            {curQ.meaning && selIdx[curQ.id] !== undefined && (
+              <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', color: '#166534', fontSize: '1.05rem', lineHeight: '1.6' }}>
+                💡 <b>ความหมาย:</b> {curQ.meaning}
+              </div>
+            )}
           </div>
         )}
 

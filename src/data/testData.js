@@ -287,11 +287,11 @@ export const rearrangeQ = [
 ];
 
 export const writeSectionEQ = [
-  { id: 86, question: 'ข้อ 86. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. วิทยาศาสตต์', correct: false }, { text: 'ข. วิทยาศาสตร์', correct: true }, { text: 'ค. วิทยาสาสตร์', correct: false }, { text: 'ง. วิทยศาสตร์', correct: false }] },
-  { id: 87, question: 'ข้อ 87. คำใดเขียนถูกต้องทุกคำ ?', options: [{ text: 'ก. เกษตกร, ประกาศ', correct: false }, { text: 'ข. เกษตรกร, ประกาศ', correct: true }, { text: 'ค. เกษตรกร, ประการ', correct: false }, { text: 'ง. เกษตกร, ประการ', correct: false }] },
-  { id: 88, question: 'ข้อ 88. ประโยคใดเขียนถูกต้องตามหลักภาษาไทย ?', options: [{ text: 'ก. เขาไปตลาดซื้อปลาและผักมาทำอาหาร', correct: true }, { text: 'ข. เขาซื้อตลาดปลาและผักไปทำอาหาร', correct: false }, { text: 'ค. ตลาดเขาซื้อปลาและผักมาทำอาหาร', correct: false }, { text: 'ง. ปลาและผักเขาไปตลาดทำอาหารซื้อ', correct: false }] },
-  { id: 89, question: 'ข้อ 89. ข้อใดใช้เครื่องหมายวรรคตอนถูกต้อง ?', options: [{ text: 'ก. เธอชอบกิน, ขนม, หวาน', correct: false }, { text: 'ข. สุดท้ายเขาก็ยอมแพ้ ด้วยความเหนื่อยล้า', correct: false }, { text: 'ค. "ไม่เป็นไร" เขากล่าว พร้อมยิ้มอ่อน', correct: true }, { text: 'ง. เธอถามว่า ทำไม เขาถึงมาสาย', correct: false }] },
-  { id: 90, question: 'ข้อ 90. คำในข้อใดเป็นคำที่มาจากภาษาอังกฤษ ?', options: [{ text: 'ก. กล้วย', correct: false }, { text: 'ข. โทรทัศน์', correct: false }, { text: 'ค. คอมพิวเตอร์', correct: true }, { text: 'ง. ตลาด', correct: false }] },
+  { id: 86, question: 'ข้อ 86. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. โลกาภิวัตน์', correct: true }, { text: 'ข. โลกาภิวัฒน์', correct: false }], meaning: 'โลกาภิวัตน์ หมายถึง การแพร่กระจายไปทั่วโลก การที่ประชาคมโลกไม่ว่าจะอยู่ ณ จุดใด สามารถรับรู้ สัมพันธ์ หรือรับผลกระทบจากสิ่งที่เกิด' },
+  { id: 87, question: 'ข้อ 87. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. ประดิดประดอย', correct: true }, { text: 'ข. ประดิษฐ์ประดอย', correct: false }], meaning: 'ประดิดประดอย หมายถึง บรรจงทำให้งดงามและละเอียดลออยิ่งขึ้น' },
+  { id: 88, question: 'ข้อ 88. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. เกษียณอายุ', correct: true }, { text: 'ข. เกษียนอายุ', correct: false }], meaning: 'เกษียณอายุ หมายถึง สิ้นไป ใช้เกี่ยวกับการกำหนดอายุของการทำงาน' },
+  { id: 89, question: 'ข้อ 89. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. เลือดกบปาก', correct: true }, { text: 'ข. เลือดกลบปาก', correct: false }], meaning: 'เลือดกบปาก หมายถึง มีเลือดออกเต็มปาก' },
+  { id: 90, question: 'ข้อ 90. คำใดเขียนถูกต้อง ?', options: [{ text: 'ก. อเนกประสงค์', correct: true }, { text: 'ข. เอนกประสงค์', correct: false }], meaning: 'อเนกประสงค์ หมายถึง ใช้ประโยชน์ได้หลายอย่างแล้วแต่ความต้องการ' },
 ];
 
 export const rearrangePart5Q = [
