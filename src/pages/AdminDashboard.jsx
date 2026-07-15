@@ -403,26 +403,42 @@ export default function AdminDashboard() {
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
                   {userScores.map((h, i) => (
-                    <div key={i} style={{ padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: h.level === 1 ? '#10b981' : h.level === 2 ? '#3b82f6' : '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
-                          L{h.level}
+                    <div key={i} style={{ padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: h.level === 1 ? '#10b981' : h.level === 2 ? '#3b82f6' : '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
+                            L{h.level}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '700', color: '#334155' }}>ทักษะ{h.skill === 'full_test' ? 'รวม (100 ข้อ)' : h.skill}</div>
+                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                              <Calendar size={12} /> {formatDate(h.taken_at)}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div style={{ fontWeight: '700', color: '#334155' }}>ทักษะ{h.skill}</div>
-                          <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                            <Calendar size={12} /> {formatDate(h.taken_at)}
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: '800', color: h.score >= (h.max_score*0.7) ? '#10b981' : '#f43f5e' }}>
+                            {h.score} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: '500' }}>/ {h.max_score}</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '700', color: h.score >= (h.max_score*0.7) ? '#10b981' : '#f43f5e', textTransform: 'uppercase' }}>
+                            {h.score >= (h.max_score*0.7) ? 'Passed' : 'Failed'}
                           </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1.4rem', fontWeight: '800', color: h.score >= (h.max_score*0.7) ? '#10b981' : '#f43f5e' }}>
-                          {h.score} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: '500' }}>/ {h.max_score}</span>
+                      
+                      {h.breakdown && Object.keys(h.breakdown).length > 0 && (
+                        <div style={{ marginTop: '4px', padding: '12px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>คะแนนรายทักษะ</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            {Object.values(h.breakdown).map((b, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px' }}>
+                                <span style={{ color: '#64748b' }}>{b.label}</span>
+                                <span style={{ fontWeight: '600', color: 'var(--color-primary)' }}>{b.score}/{b.max}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: '700', color: h.score >= (h.max_score*0.7) ? '#10b981' : '#f43f5e', textTransform: 'uppercase' }}>
-                          {h.score >= (h.max_score*0.7) ? 'Passed' : 'Failed'}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>

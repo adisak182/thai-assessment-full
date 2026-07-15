@@ -60,6 +60,7 @@ export default function FullTest() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
+  const [breakdownScore, setBreakdownScore] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
@@ -129,44 +130,54 @@ export default function FullTest() {
   const handleSubmit = async () => {
     if (submitting) return;
     setSubmitting(true);
-    let score = 0;
     
-    // MCQ
-    Object.values(answers).forEach(v => { if (v === true) score++; });
-    
-    // T/F
-    Object.entries(tfAnswers).forEach(([qId, val]) => {
-      const qListen = listenTfQ.find(q => q.id === parseInt(qId));
-      const qRead = readTfQ.find(q => q.id === parseInt(qId));
-      if (qListen && qListen.correct === (val === 'fact' || val === true)) score++;
-      if (qRead && qRead.correct === val) score++;
-    });
-    
-    // Match
-    Object.entries(matchSel).forEach(([qId, val]) => {
-      if (matchAnswers[qId] === val) score++;
-    });
-    
-    Object.entries(textAnswers).forEach(([qId, val]) => {
-      const spell = spellingQ.find(q => q.id === parseInt(qId));
-      const fill = fillQ.find(q => q.id === parseInt(qId));
-      const rearrange = rearrangeQ.find(q => q.id === parseInt(qId));
-      const rearrangePart5 = rearrangePart5Q.find(q => q.id === parseInt(qId));
-      const essay = essayQ.find(q => q.id === parseInt(qId));
-      const spellHint = spellQ.find(q => q.id === parseInt(qId));
-      if (spell && val.trim() === spell.answer) score++;
-      if (fill && val.trim() === fill.answer) score++;
-      if (rearrange && val.trim() === rearrange.answer) score++;
-      if (rearrangePart5 && val.trim() === rearrangePart5.answer) score++;
-      if (essay && val.trim().length > 5) score++; 
-      if (spellHint && val.trim() === spellHint.word) score++; 
-    });
-    
-    // Speaking
-    score += Object.keys(speakingInteracted).length;
+    const breakdown = {
+      listening: { score: 0, max: 0, label: 'การฟัง' },
+      speaking: { score: 0, max: 0, label: 'การพูด' },
+      reading: { score: 0, max: 0, label: 'การอ่าน' },
+      writing: { score: 0, max: 0, label: 'การเขียน' }
+    };
 
-    try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ }); } catch (e) {}
+    const getCategory = (sec) => {
+      if (sec.includes('ส่วนที่ 1')) return 'listening';
+      if (sec.includes('ส่วนที่ 2')) return 'speaking';
+      if (sec.includes('ส่วนที่ 3')) return 'reading';
+      if (sec.includes('ส่วนที่ 4') || sec.includes('ส่วนที่ 5')) return 'writing';
+      return 'writing';
+    };
+
+    allQ.forEach(q => {
+      const cat = getCategory(q.section);
+      let isCorrect = false;
+
+      if (q.qType === 'mcq') {
+        if (answers[q.id] === true) isCorrect = true;
+      } else if (q.qType === 'tf') {
+        const v = tfAnswers[q.id];
+        if (v !== undefined) {
+          if (q.isListeningTf && q.correct === (v === 'fact' || v === true)) isCorrect = true;
+          if (q.isReadingTf && q.correct === v) isCorrect = true;
+        }
+      } else if (q.qType === 'match') {
+        if (matchSel[q.id] === matchAnswers[q.id]) isCorrect = true;
+      } else if (q.qType === 'text') {
+        const val = (textAnswers[q.id] || '').trim();
+        if (q.answer && val === q.answer) isCorrect = true;
+        else if (q.word && val === q.word) isCorrect = true;
+        else if (!q.answer && !q.word && val.length > 5) isCorrect = true; // essay
+      } else if (q.qType === 'speaking') {
+        if (speakingInteracted[q.id]) isCorrect = true;
+      }
+
+      breakdown[cat].max++;
+      if (isCorrect) breakdown[cat].score++;
+    });
+
+    const score = breakdown.listening.score + breakdown.speaking.score + breakdown.reading.score + breakdown.writing.score;
+
+    try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ, breakdown }); } catch (e) {}
     setFinalScore(score);
+    setBreakdownScore(breakdown);
     setSubmitting(false);
     setShowSurvey(true);
   };
@@ -447,9 +458,10 @@ export default function FullTest() {
             ถัดไป <ChevronRight size={20} />
           </button>
         )}
+        {finalScore !== null && !showSurvey && (
+          <ResultModal score={finalScore} total={totalQ} breakdown={breakdownScore} onClose={() => navigate('/levels')} onRetry={() => window.location.reload()} />
+        )}
       </div>
-
-      {showResult && <ResultModal score={finalScore} total={totalQ} onClose={() => navigate('/dashboard')} onRetry={reset} />}
     </div>
   );
 }

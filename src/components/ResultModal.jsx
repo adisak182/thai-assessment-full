@@ -32,7 +32,7 @@ export default function ResultModal({ score, total, onClose, onRetry }) {
         </div>
         <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', marginBottom: '8px' }}>{passed ? '🎉 ยอดเยี่ยม!' : '❌ ยังไม่ผ่านเกณฑ์'}</h2>
         <p style={{ color: '#6b7280', marginBottom: '28px' }}>{passed ? 'คุณทำแบบทดสอบเสร็จสมบูรณ์แล้ว!' : 'ลองทำใหม่อีกครั้งได้เลยนะครับ'}</p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px' }}>
           <div style={{ padding: '16px 28px', background: 'rgba(168,85,247,0.08)', borderRadius: '16px', border: '2px solid rgba(168,85,247,0.2)' }}>
             <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-primary)', lineHeight: 1 }}>{score}</div>
@@ -43,6 +43,28 @@ export default function ResultModal({ score, total, onClose, onRetry }) {
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
           </div>
         </div>
+
+        {breakdown && (
+          <div style={{ marginTop: '16px', marginBottom: '28px', textAlign: 'left', background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '16px', color: '#1e293b' }}>คะแนนรายทักษะ</h3>
+            <div style={{ display: 'grid', gap: '16px' }}>
+              {Object.values(breakdown).map((item, idx) => {
+                const bPct = item.max > 0 ? (item.score / item.max) * 100 : 0;
+                return (
+                  <div key={idx}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '8px', fontWeight: '600' }}>
+                      <span style={{ color: '#475569' }}>{item.label}</span>
+                      <span style={{ color: 'var(--color-primary)' }}>{item.score} / {item.max}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${bPct}%`, height: '100%', background: 'var(--color-primary)', transition: 'width 1s ease-out' }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <button onClick={onRetry} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px' }}>ทำใหม่อีกครั้ง</button>
           <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>

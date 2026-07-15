@@ -25,6 +25,10 @@ const scoreHistorySchema = new mongoose.Schema({
   taken_at: {
     type: Date,
     default: Date.now,
+  },
+  breakdown: {
+    type: Object,
+    default: {}
   }
 });
 
