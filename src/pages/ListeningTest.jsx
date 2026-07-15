@@ -181,7 +181,7 @@ function AudioBtn({ src }) {
   useEffect(() => () => { ref.current?.pause(); }, []);
 
   return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(168,85,247,0.12)', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', fontSize: '1.1rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
+    <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
       {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : 'ฟังเสียง'}
     </button>
   );
@@ -297,10 +297,10 @@ export default function ListeningTest() {
     const selected = answers[q.id];
     return (
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        {q.audio && <div style={{ marginBottom: '12px' }}><AudioBtn src={q.audio} label={q.word ? `ฟังคำ "${q.word}"` : 'ฟังเสียง'} /></div>}
         {q.script && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontStyle: 'italic', marginBottom: '12px', lineHeight: '1.7', fontSize: '1.1rem' }}>{q.script}</div>}
         {q.saying && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontWeight: '600', marginBottom: '12px', fontSize: '1.1rem' }}>สำนวน: {q.saying}</div>}
         {q.image && <img src={q.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', margin: '0 auto 16px auto', display: 'block' }} />}
+        {q.audio && <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={q.audio} /></div>}
         <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px' }}>{q.question}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {q.options.map((opt, i) => {
