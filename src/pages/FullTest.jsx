@@ -277,8 +277,24 @@ export default function FullTest() {
         {curQ.reading && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. {curQ.reading}</p>}
         {curQ.words && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', fontSize: '1.2rem' }}>
-            <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>ข้อ {curQ.id}.</span>
-            {curQ.words.map((w, i) => <span key={i} style={{ padding: '6px 14px', background: 'rgba(0,0,0,0.04)', borderRadius: '8px', color: '#4b5563' }}>{w}</span>)}
+            <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', alignSelf: 'center', marginRight: '8px' }}>ข้อ {curQ.id}. (ลากหรือแตะเพื่อเรียง)</span>
+            {curQ.words.map((w, i) => (
+              <span 
+                key={i} 
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('text/plain', w)}
+                onClick={() => {
+                  setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + w }));
+                }}
+                style={{ 
+                  padding: '8px 16px', background: 'white', borderRadius: '8px', 
+                  color: 'var(--color-primary-dark)', border: '2px solid rgba(139,92,246,0.3)',
+                  cursor: 'grab', userSelect: 'none', touchAction: 'manipulation',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                }}>
+                {w}
+              </span>
+            ))}
           </div>
         )}
 
@@ -325,7 +341,37 @@ export default function FullTest() {
           </div>
         )}
 
-        {curQ.type === 'text' && !curQ.sentence && (
+        {curQ.type === 'text' && !curQ.sentence && curQ.words && (
+          <div style={{ marginTop: 'auto', display: 'flex', gap: '10px', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <div 
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const data = e.dataTransfer.getData('text/plain');
+                  if (data) setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + data }));
+                }}
+                style={{ 
+                  flex: 1, padding: '16px 20px', borderRadius: '12px', 
+                  border: '2px dashed rgba(139,92,246,0.5)', 
+                  background: textAnswers[curQ.id] ? 'rgba(139,92,246,0.05)' : 'rgba(0,0,0,0.02)', 
+                  fontSize: '1.2rem', minHeight: '60px', display: 'flex', alignItems: 'center', 
+                  color: textAnswers[curQ.id] ? 'var(--color-primary-dark)' : '#9ca3af' 
+                }}
+              >
+                {textAnswers[curQ.id] || 'ลากคำมาวางเรียงกันที่นี่'}
+              </div>
+              <button 
+                onClick={() => setTextAnswers(prev => ({ ...prev, [curQ.id]: '' }))} 
+                style={{ padding: '0 20px', background: '#fef2f2', color: '#ef4444', border: '2px solid #fca5a5', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', minWidth: '100px' }}>
+                ลบใหม่
+              </button>
+            </div>
+            <p style={{ fontSize: '0.95rem', color: '#6b7280', margin: 0 }}>* หากเรียงผิด สามารถกดปุ่ม "ลบใหม่" ด้านขวาได้เลย</p>
+          </div>
+        )}
+
+        {curQ.type === 'text' && !curQ.sentence && !curQ.words && (
           <div style={{ marginTop: 'auto' }}>
             <input type="text" value={textAnswers[curQ.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)' }} />
