@@ -145,7 +145,7 @@ export default function SpeakingTest() {
     return (
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', borderLeft: done ? '4px solid #10b981' : '4px solid transparent', transition: 'all 0.3s' }}>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <AudioBtn src={q.audio} label="ฟังต้นแบบ" />
+          {q.audio && <AudioBtn src={q.audio} label="ฟังต้นแบบ" />}
           <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '1.15rem' }}>ข้อ {q.id}.</p>
         </div>
         <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '16px' }}>
