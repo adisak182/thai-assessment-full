@@ -73,6 +73,11 @@ export const UserProvider = ({ children }) => {
     return res;
   };
 
+  const submitSurvey = async (data) => {
+    if (!token) return;
+    return await api.saveSurvey(token, data);
+  };
+
   const fetchHistory = async () => {
     if (!token) return [];
     return await api.getHistory(token);
@@ -120,7 +125,8 @@ export const UserProvider = ({ children }) => {
       fetchScores,
       fetchRanking,
       checkLevelPassed,
-      updateScore
+      updateScore,
+      submitSurvey
     }}>
       {!loading && children}
     </UserContext.Provider>

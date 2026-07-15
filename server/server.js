@@ -7,6 +7,7 @@ import connectMongoDB from './dbMongo.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
+import surveyRoutes from './routes/survey.js';
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use(async (req, res, next) => {
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/admin', adminRoutes);
+app.use('/survey', surveyRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {

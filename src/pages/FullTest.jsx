@@ -4,6 +4,8 @@ import { useUser } from '../context/UserContext';
 import { Volume2, Play, Trophy, XCircle, ArrowRight, RefreshCw, Mic, ChevronLeft, ChevronRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ExamTimer from '../components/ExamTimer';
+import ResultModal from '../components/ResultModal';
+import SurveyModal from '../components/SurveyModal';
 
 import {
   vocabQ, announcementQ, storyQ, vocab4Q, proverbQ, listenTfQ, annColdQ, adQ, lastQ, STORY_AUDIO, STORY_IMG, ARTICLE_AUDIO, ANN_COLD_AUDIO, AD_AUDIO,
@@ -45,44 +47,9 @@ function MicBtn({ onInteract, hasInteracted }) {
   );
 }
 
-function ResultModal({ score, total, onClose, onRetry }) {
-  const pct = Math.round((score / total) * 100);
-  const passed = pct >= 60;
-  const fire = useCallback(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.55 }, scalar: 1.3, colors: ['#a855f7', '#7c3aed', '#fbbf24', '#10b981'], zIndex: 9999 }), []);
-  useEffect(() => { if (passed) { fire(); setTimeout(fire, 1000); } }, [passed, fire]);
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="animate-fade-in" style={{ background: 'white', borderRadius: '24px', padding: '48px 40px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-        <div style={{ width: '90px', height: '90px', borderRadius: '50%', margin: '0 auto 24px', background: passed ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          {passed ? <Trophy size={44} /> : <XCircle size={44} />}
-        </div>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', marginBottom: '8px' }}>{passed ? '🎉 ยอดเยี่ยม!' : '❌ ยังไม่ผ่านเกณฑ์'}</h2>
-        <p style={{ color: '#6b7280', marginBottom: '28px' }}>{passed ? 'คุณทำแบบทดสอบ 100 ข้อเสร็จสมบูรณ์แล้ว!' : 'ลองทำใหม่อีกครั้งได้เลยนะครับ'}</p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
-          <div style={{ padding: '16px 28px', background: 'rgba(168,85,247,0.08)', borderRadius: '16px', border: '2px solid rgba(168,85,247,0.2)' }}>
-            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--color-primary)', lineHeight: 1 }}>{score}</div>
-            <div style={{ fontSize: '1.1rem', color: '#9ca3af' }}>จาก {total}</div>
-          </div>
-          <div style={{ padding: '16px 28px', background: passed ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', borderRadius: '16px', border: `2px solid ${passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <button onClick={onRetry} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px' }}>ทำใหม่อีกครั้ง</button>
-          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ArrowRight size={18} /> ดูผลและออก
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function FullTest() {
   const navigate = useNavigate();
-  const { recordScore } = useUser();
+  const { recordScore, submitSurvey } = useUser();
   const [answers, setAnswers] = useState({});
   const [selIdx, setSelIdx] = useState({});
   const [tfAnswers, setTfAnswers] = useState({});
@@ -92,6 +59,7 @@ export default function FullTest() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [showSurvey, setShowSurvey] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
@@ -187,9 +155,6 @@ export default function FullTest() {
       if (spell && val.trim() === spell.answer) score++;
       if (fill && val.trim() === fill.answer) score++;
       if (rearrange && val.trim() === rearrange.answer) score++;
-      // some don't have answer field directly in data? Wait, spellQ has no 'answer' field, we need to check how it was graded.
-      // Ah, spellQ doesn't have answers in testData.js? Let's give them auto-correct for now if filled, or match keyword.
-      // wait, spellQ id 71 is 'บรรทุก', id 72 is 'ละลาย'. In testData, `word` is the answer.
       if (spellHint && val.trim() === spellHint.word) score++; 
     });
     
@@ -198,8 +163,14 @@ export default function FullTest() {
 
     try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ }); } catch (e) {}
     setFinalScore(score);
-    setShowResult(true);
     setSubmitting(false);
+    setShowSurvey(true);
+  };
+
+  const handleSurveySubmit = async (surveyData) => {
+    try { await submitSurvey(surveyData); } catch (e) { console.error('Survey error:', e); }
+    setShowSurvey(false);
+    setShowResult(true);
   };
 
   const reset = () => {
@@ -333,6 +304,9 @@ export default function FullTest() {
           <div style={{ fontWeight: '600', color: 'var(--text-muted)', fontSize: '1.1rem' }}>ทำแล้ว {answeredCount} / {totalQ}</div>
         </div>
         
+        {/* Survey Modal */}
+        {showSurvey && <SurveyModal onSubmit={handleSurveySubmit} />}
+
         {/* Progress Bar */}
         <div style={{ height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
           <div style={{ width: `${(answeredCount / totalQ) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary-light), var(--color-primary))', transition: 'width 0.3s' }} />

@@ -85,6 +85,22 @@ export const saveScore = async (token, data) => {
   return result;
 };
 
+export const saveSurvey = async (token, data) => {
+  const response = await fetch(`${API_URL}/survey`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || 'บันทึกแบบประเมินไม่สำเร็จ');
+  }
+  return result;
+};
+
 export const getHistory = async (token) => {
   const response = await fetch(`${API_URL}/users/history`, {
     headers: {
