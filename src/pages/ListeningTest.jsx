@@ -175,10 +175,22 @@ function AudioBtn({ src }) {
       ref.current.onended = () => setPlaying(false);
     }
     if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
-    else { ref.current.src = src; ref.current.play().catch(() => {}); setPlaying(true); }
+    else { 
+      ref.current.src = src; 
+      const p = ref.current.play();
+      if (p !== undefined) p.catch(() => {});
+      setPlaying(true); 
+    }
   };
 
-  useEffect(() => () => { ref.current?.pause(); }, []);
+  useEffect(() => {
+    return () => {
+      if (ref.current) {
+        ref.current.pause();
+        ref.current.src = '';
+      }
+    };
+  }, []);
 
   return (
     <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>

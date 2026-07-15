@@ -40,9 +40,21 @@ function AudioBtn({ src, label = 'ฟังคำถาม' }) {
   const play = () => {
     if (!ref.current) { ref.current = new Audio(src); ref.current.onended = () => setPlaying(false); }
     if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
-    else { ref.current.src = src; ref.current.play().catch(() => {}); setPlaying(true); }
+    else { 
+      ref.current.src = src; 
+      const p = ref.current.play();
+      if (p !== undefined) p.catch(() => {});
+      setPlaying(true); 
+    }
   };
-  useEffect(() => () => ref.current?.pause(), []);
+  useEffect(() => {
+    return () => {
+      if (ref.current) {
+        ref.current.pause();
+        ref.current.src = '';
+      }
+    };
+  }, []);
   return (
     <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(59,130,246,0.12)', color: playing ? 'white' : '#2563eb', fontWeight: '600', cursor: 'pointer', fontSize: '1.1rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
       {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
