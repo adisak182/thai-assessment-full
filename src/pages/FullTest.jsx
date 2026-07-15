@@ -63,7 +63,7 @@ export default function FullTest() {
   const [breakdownScore, setBreakdownScore] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
-  const [finalScore, setFinalScore] = useState(0);
+  const [finalScore, setFinalScore] = useState(null);
 
   // Combine all questions into a flat list
   const allQ = useMemo(() => {
