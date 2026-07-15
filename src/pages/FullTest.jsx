@@ -209,8 +209,27 @@ export default function FullTest() {
         )}
         {curQ.contextTags && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px', padding: '16px', background: 'rgba(16,185,129,0.05)', borderRadius: '12px' }}>
-            <span style={{ fontWeight: '600', color: '#059669', marginRight: '8px' }}>กลุ่มคำ:</span>
-            {curQ.contextTags.map(w => <span key={w} style={{ padding: '6px 14px', background: 'white', borderRadius: '20px', border: '1px solid rgba(16,185,129,0.2)', color: '#059669', fontSize: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{w}</span>)}
+            <span style={{ fontWeight: '600', color: '#059669', marginRight: '8px', alignSelf: 'center' }}>กลุ่มคำ (ลากหรือแตะเพื่อตอบ):</span>
+            {curQ.contextTags.map(w => (
+              <span 
+                key={w} 
+                draggable
+                onDragStart={(e) => e.dataTransfer.setData('text/plain', w)}
+                onClick={() => {
+                  // For mobile/tablet users: clicking a word sets it to the current answer if it's a fill-in-the-blank question
+                  if (curQ.sentence) {
+                    setTextAnswers(prev => ({ ...prev, [curQ.id]: w }));
+                  }
+                }}
+                style={{ 
+                  padding: '8px 18px', background: 'white', borderRadius: '20px', 
+                  border: '2px solid rgba(16,185,129,0.3)', color: '#059669', 
+                  fontSize: '1.1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                  cursor: 'grab', userSelect: 'none', touchAction: 'manipulation'
+                }}>
+                {w}
+              </span>
+            ))}
           </div>
         )}
 
@@ -231,7 +250,30 @@ export default function FullTest() {
         {curQ.statement && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>{curQ.statement}</p>}
         {curQ.verse && <p style={{ fontWeight: 'bold', color: '#1e3a8a', fontStyle: 'italic', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. "{curQ.verse}"</p>}
         {curQ.hint && curQ.type === 'text' && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. คำศัพท์ที่หมายถึง: "{curQ.hint}"</p>}
-        {curQ.sentence && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. {curQ.sentence.replace('_______', '...')}</p>}
+        {curQ.sentence && (
+          <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span>ข้อ {curQ.id}. {curQ.sentence.split('_______')[0]}</span>
+            <span
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const data = e.dataTransfer.getData('text/plain');
+                if (data) setTextAnswers(prev => ({ ...prev, [curQ.id]: data }));
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                minWidth: '120px', height: '40px', padding: '0 16px',
+                border: '2px dashed #10b981', borderRadius: '8px',
+                background: textAnswers[curQ.id] ? 'rgba(16,185,129,0.1)' : 'rgba(0,0,0,0.02)',
+                color: textAnswers[curQ.id] ? '#059669' : '#9ca3af',
+                fontSize: textAnswers[curQ.id] ? '1.2rem' : '1rem'
+              }}
+            >
+              {textAnswers[curQ.id] || 'ลากคำตอบมาวางที่นี่'}
+            </span>
+            <span>{curQ.sentence.split('_______')[1]}</span>
+          </p>
+        )}
         {curQ.reading && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. {curQ.reading}</p>}
         {curQ.words && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', fontSize: '1.2rem' }}>
@@ -283,7 +325,7 @@ export default function FullTest() {
           </div>
         )}
 
-        {curQ.type === 'text' && (
+        {curQ.type === 'text' && !curQ.sentence && (
           <div style={{ marginTop: 'auto' }}>
             <input type="text" value={textAnswers[curQ.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)' }} />
