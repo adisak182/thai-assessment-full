@@ -7,7 +7,7 @@ import { Timer } from 'lucide-react';
  *   totalSeconds  – เวลาทั้งหมด (วินาที), e.g. 25 ข้อ × 30 = 750
  *   onTimeUp      – callback เมื่อหมดเวลา (trigger submit)
  */
-export default function ExamTimer({ totalSeconds, onTimeUp }) {
+export default function ExamTimer({ totalSeconds, onTimeUp, compact }) {
   const [remaining, setRemaining] = useState(totalSeconds);
   const [urgent, setUrgent] = useState(false);
   const calledRef = useRef(false);
@@ -40,6 +40,17 @@ export default function ExamTimer({ totalSeconds, onTimeUp }) {
     : 'linear-gradient(90deg, #ef4444, #dc2626)';
 
   const textColor = pct > 40 ? '#059669' : pct > 15 ? '#d97706' : '#dc2626';
+
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: urgent ? 'rgba(239,68,68,0.1)' : 'rgba(139,92,246,0.08)', borderRadius: '20px', border: `1.5px solid ${urgent ? '#fca5a5' : 'rgba(139,92,246,0.2)'}`, animation: urgent ? 'timerPulse 1s ease-in-out infinite' : 'none' }}>
+        <Timer size={18} color={urgent ? '#ef4444' : '#7c3aed'} />
+        <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: textColor, fontVariantNumeric: 'tabular-nums' }}>
+          {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div

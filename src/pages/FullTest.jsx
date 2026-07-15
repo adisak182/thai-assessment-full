@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { Volume2, Play, Trophy, XCircle, ArrowRight, RefreshCw, Mic } from 'lucide-react';
+import { Volume2, Play, Trophy, XCircle, ArrowRight, RefreshCw, Mic, ChevronLeft, ChevronRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ExamTimer from '../components/ExamTimer';
 
@@ -26,27 +26,22 @@ function AudioBtn({ src, label = 'ฟังเสียง' }) {
   };
   useEffect(() => () => ref.current?.pause(), []);
   return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
+    <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px 28px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.1rem', width: '100%', maxWidth: '250px', transition: 'all 0.2s', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
       {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
     </button>
   );
 }
 
-function MicBtn() {
+function MicBtn({ onInteract, hasInteracted }) {
   const [recording, setRecording] = useState(false);
   return (
-    <button onClick={() => setRecording(!recording)} className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : 'white', color: recording ? '#ef4444' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
-      <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังบันทึก (กดเพื่อหยุด)' : 'กดเพื่อตอบ (บันทึกเสียง)'}
+    <button onClick={() => {
+      setRecording(!recording);
+      if (!recording && onInteract) onInteract();
+    }} 
+    className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : hasInteracted ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : hasInteracted ? 'rgba(16,185,129,0.1)' : 'white', color: recording ? '#ef4444' : hasInteracted ? '#059669' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
+      <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังบันทึก (กดเพื่อหยุด)' : hasInteracted ? 'บันทึกสำเร็จ (กดอัดใหม่ได้)' : 'กดเพื่อตอบ (บันทึกเสียง)'}
     </button>
-  );
-}
-
-function SectionHeader({ title, sub }) {
-  return (
-    <div style={{ marginBottom: '24px', marginTop: '40px', paddingBottom: '12px', borderBottom: '2px solid rgba(139, 92, 246, 0.2)' }}>
-      <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary)', margin: 0 }}>{title}</h3>
-      {sub && <p style={{ color: 'var(--text-muted)', marginTop: '8px', fontSize: '1.1rem' }}>{sub}</p>}
-    </div>
   );
 }
 
@@ -92,27 +87,68 @@ export default function FullTest() {
   const [selIdx, setSelIdx] = useState({});
   const [tfAnswers, setTfAnswers] = useState({});
   const [matchSel, setMatchSel] = useState({});
-  const [textAnswers, setTextAnswers] = useState({}); // For fill in the blank
-  
+  const [textAnswers, setTextAnswers] = useState({}); 
+  const [speakingInteracted, setSpeakingInteracted] = useState({});
+
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [finalScore, setFinalScore] = useState(0);
 
-  const totalQ = 100;
+  // Combine all questions into a flat list
+  const allQ = useMemo(() => {
+    let arr = [];
+    const add = (items, type, section, extra = {}) => {
+      items.forEach(q => arr.push({ ...q, type, section, ...extra }));
+    };
+
+    // Part 1
+    add(vocabQ, 'mcq', 'ส่วนที่ 1: การฟัง (คำศัพท์)');
+    add(announcementQ, 'mcq', 'ส่วนที่ 1: การฟัง (ประกาศ)');
+    add(storyQ, 'mcq', 'ส่วนที่ 1: การฟัง (นิทาน)', { contextAudio: STORY_AUDIO, contextImage: STORY_IMG, contextDesc: 'นิทาน พ่อค้าเกลือกับลาขี้โกง' });
+    add(vocab4Q, 'mcq', 'ส่วนที่ 1: การฟัง (คำศัพท์)');
+    add(proverbQ, 'mcq', 'ส่วนที่ 1: การฟัง (สำนวน)');
+    add(listenTfQ, 'tf', 'ส่วนที่ 1: การฟัง (เด็กติดจอ)', { contextAudio: ARTICLE_AUDIO, isListeningTf: true, contextDesc: 'พิจารณาว่าข้อความต่อไปนี้เป็น "จริง" หรือ "เท็จ"' });
+    add(annColdQ, 'mcq', 'ส่วนที่ 1: การฟัง (ประกาศภัยหนาว)', { contextAudio: ANN_COLD_AUDIO });
+    add(adQ, 'mcq', 'ส่วนที่ 1: การฟัง (โฆษณา)', { contextAudio: AD_AUDIO });
+    add(lastQ, 'mcq', 'ส่วนที่ 1: การฟัง (ความหมายและการสะกดคำ)');
+
+    // Part 2
+    add(introQ, 'speaking', 'ส่วนที่ 2: การพูด (แนะนำตัว)');
+    add(situQ, 'speaking', 'ส่วนที่ 2: การพูด (สถานการณ์จำลอง)');
+    add(tongueQ, 'speaking', 'ส่วนที่ 2: การพูด (อ่านออกเสียง)');
+
+    // Part 3
+    add(sectionAQ, 'mcq', 'ส่วนที่ 3: การอ่าน (มารยาท)', { contextText: ARTICLE_A });
+    add(sectionBQ, 'mcq', 'ส่วนที่ 3: การอ่าน (โรคหน้าฝน)', { contextText: ARTICLE_B });
+    add(readTfQ, 'tf', 'ส่วนที่ 3: การอ่าน (แยกแยะข้อเท็จจริง/ข้อคิดเห็น)', { contextText: ARTICLE_B, isReadingTf: true });
+    add(sectionCQ, 'mcq', 'ส่วนที่ 3: การอ่าน (สังคมสูงวัย)', { contextText: ARTICLE_C });
+    add(sectionDQ, 'mcq', 'ส่วนที่ 3: การอ่าน (ระดับภาษา)');
+    add(matchData, 'match', 'ส่วนที่ 3: การอ่าน (สุภาษิตพระร่วง)', { contextText: POEM, matchOptions: matchData });
+    add(readSectionEQ, 'mcq', 'ส่วนที่ 3: การอ่าน (หลักภาษา)');
+
+    // Part 4
+    add(spellQ, 'text', 'ส่วนที่ 4: การเขียน (การสะกดคำ)');
+    add(fillQ, 'text', 'ส่วนที่ 4: การเขียน (เติมคำในช่องว่าง)', { contextTags: WORD_BANK });
+    add(spellingQ, 'text', 'ส่วนที่ 4: การเขียน (เขียนคำจากคำอ่าน)');
+    add(rearrangeQ, 'text', 'ส่วนที่ 4: การเขียน (เรียงประโยค)');
+    add(writeSectionEQ, 'mcq', 'ส่วนที่ 4: การเขียน (หลักภาษาไทย)');
+    add(sectionFQ, 'mcq', 'ส่วนที่ 4: การเขียน (การอ่านจับใจความ)', { contextText: PASSAGE_F });
+
+    return arr;
+  }, []);
+
+  const totalQ = allQ.length;
   
   // Count answered
-  let answeredCount = Object.keys(answers).length;
-  answeredCount += Object.keys(tfAnswers).length;
-  answeredCount += Object.keys(matchSel).length;
-  answeredCount += Object.keys(textAnswers).filter(k => textAnswers[k]?.trim() !== '').length;
-  // Note: Speaking tasks (15) are just assumed answered if they interact or if we don't strictly grade them on client. 
-  // For simplicity, let's just count them as automatically correct or require the user to interact.
-  // Actually, Speaking tests in the original were auto-graded or graded by clicking mic.
-  // We'll give automatic points for speaking if they click it, or we just give them the points.
-  const [speakingInteracted, setSpeakingInteracted] = useState({});
+  let answeredCount = Object.keys(answers).length 
+    + Object.keys(tfAnswers).length 
+    + Object.keys(matchSel).length 
+    + Object.keys(textAnswers).filter(k => textAnswers[k]?.trim() !== '').length
+    + Object.keys(speakingInteracted).length;
 
-  const pick = (qId, optCorrect, idx) => {
+  const pickMcq = (qId, optCorrect, idx) => {
     setAnswers(prev => ({ ...prev, [qId]: optCorrect }));
     setSelIdx(prev => ({ ...prev, [qId]: idx }));
   };
@@ -125,26 +161,39 @@ export default function FullTest() {
     if (submitting) return;
     setSubmitting(true);
     let score = 0;
+    
+    // MCQ
     Object.values(answers).forEach(v => { if (v === true) score++; });
+    
+    // T/F
     Object.entries(tfAnswers).forEach(([qId, val]) => {
       const qListen = listenTfQ.find(q => q.id === parseInt(qId));
       const qRead = readTfQ.find(q => q.id === parseInt(qId));
       if (qListen && qListen.correct === (val === 'fact' || val === true)) score++;
       if (qRead && qRead.correct === val) score++;
     });
+    
+    // Match
     Object.entries(matchSel).forEach(([qId, val]) => {
       if (matchAnswers[qId] === val) score++;
     });
-    // Check spelling/fill text answers
+    
+    // Text answers
     Object.entries(textAnswers).forEach(([qId, val]) => {
       const spell = spellingQ.find(q => q.id === parseInt(qId));
       const fill = fillQ.find(q => q.id === parseInt(qId));
       const rearrange = rearrangeQ.find(q => q.id === parseInt(qId));
+      const spellHint = spellQ.find(q => q.id === parseInt(qId));
       if (spell && val.trim() === spell.answer) score++;
       if (fill && val.trim() === fill.answer) score++;
       if (rearrange && val.trim() === rearrange.answer) score++;
+      // some don't have answer field directly in data? Wait, spellQ has no 'answer' field, we need to check how it was graded.
+      // Ah, spellQ doesn't have answers in testData.js? Let's give them auto-correct for now if filled, or match keyword.
+      // wait, spellQ id 71 is 'บรรทุก', id 72 is 'ละลาย'. In testData, `word` is the answer.
+      if (spellHint && val.trim() === spellHint.word) score++; 
     });
-    // Add speaking score
+    
+    // Speaking
     score += Object.keys(speakingInteracted).length;
 
     try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ }); } catch (e) {}
@@ -155,258 +204,170 @@ export default function FullTest() {
 
   const reset = () => {
     setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeakingInteracted({});
+    setCurrentIndex(0);
     setShowResult(false);
     setTimerKey(k => k + 1);
   };
 
-  const MCQCard = ({ q }) => (
-    <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-      {q.script && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontStyle: 'italic', marginBottom: '12px', lineHeight: '1.7', fontSize: '1.1rem' }}>{q.script}</div>}
-      {q.saying && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontWeight: '600', marginBottom: '12px', fontSize: '1.1rem' }}>สำนวน: {q.saying}</div>}
-      {q.image && <img src={q.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', margin: '0 auto 16px auto', display: 'block' }} />}
-      {q.audio && <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={q.audio} /></div>}
-      <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px' }}>{q.question}</p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {q.options.map((opt, i) => (
-          <button key={i} onClick={() => pick(q.id, opt.correct, i)} className="option-btn"
-            style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${selIdx[q.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[q.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: selIdx[q.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
-            {opt.text}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  const curQ = allQ[currentIndex];
 
-  const SpeakingCard = ({ q }) => (
-    <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-      {q.situation && <div style={{ padding: '10px 16px', background: 'rgba(59,130,246,0.1)', borderRadius: '10px', color: '#1e40af', fontWeight: '600', marginBottom: '12px', fontSize: '1.1rem' }}>สถานการณ์: {q.situation}</div>}
-      {q.text && <p style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', textAlign: 'center', marginBottom: '20px' }}>"{q.text}"</p>}
-      {q.prompt && <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px', fontSize: '1.2rem' }}>{q.prompt}</p>}
-      {q.question && <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px', fontSize: '1.2rem' }}>{q.question}</p>}
-      
-      {q.audio && <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={q.audio} label="ฟัง" /></div>}
-      {q.hint && <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '16px', background: '#f3f4f6', padding: '12px', borderRadius: '10px' }}>💡 แนวคำตอบ: {q.hint}</div>}
-      
-      <div onClick={() => handleSpeak(q.id)}>
-        <MicBtn />
+  const goNext = () => { if (currentIndex < totalQ - 1) setCurrentIndex(currentIndex + 1); };
+  const goPrev = () => { if (currentIndex > 0) setCurrentIndex(currentIndex - 1); };
+
+  // Render current question content based on type
+  const renderQuestion = () => {
+    if (!curQ) return null;
+
+    return (
+      <div className="glass-panel animate-fade-in" style={{ padding: '32px 24px', minHeight: '350px', display: 'flex', flexDirection: 'column' }}>
+        
+        <h3 style={{ fontSize: '1.2rem', color: 'var(--color-primary)', marginBottom: '20px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '10px' }}>{curQ.section}</h3>
+
+        {/* SHARED CONTEXT */}
+        {curQ.contextDesc && <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '1.1rem' }}>{curQ.contextDesc}</p>}
+        {curQ.contextImage && <img src={curQ.contextImage} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
+        {curQ.contextAudio && <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={curQ.contextAudio} label="ฟังเสียงประกอบ" /></div>}
+        {curQ.contextText && (
+           <div style={{ padding: '20px', marginBottom: '24px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981', borderRadius: '0 12px 12px 0' }}>
+             {curQ.type === 'match' ? (
+               <pre style={{ fontFamily: 'inherit', color: 'var(--color-primary-dark)', lineHeight: '1.8', margin: 0, fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>{curQ.contextText}</pre>
+             ) : (
+               <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.8', fontSize: '1.1rem' }}>{curQ.contextText}</p>
+             )}
+           </div>
+        )}
+        {curQ.contextTags && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px', padding: '16px', background: 'rgba(16,185,129,0.05)', borderRadius: '12px' }}>
+            <span style={{ fontWeight: '600', color: '#059669', marginRight: '8px' }}>กลุ่มคำ:</span>
+            {curQ.contextTags.map(w => <span key={w} style={{ padding: '6px 14px', background: 'white', borderRadius: '20px', border: '1px solid rgba(16,185,129,0.2)', color: '#059669', fontSize: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{w}</span>)}
+          </div>
+        )}
+
+
+        {/* SPECIFIC ITEM CONTEXT */}
+        {curQ.script && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontStyle: 'italic', marginBottom: '16px', lineHeight: '1.7', fontSize: '1.1rem' }}>{curQ.script}</div>}
+        {curQ.saying && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontWeight: '600', marginBottom: '16px', fontSize: '1.1rem' }}>สำนวน: {curQ.saying}</div>}
+        {curQ.situation && <div style={{ padding: '10px 16px', background: 'rgba(59,130,246,0.1)', borderRadius: '10px', color: '#1e40af', fontWeight: '600', marginBottom: '16px', fontSize: '1.1rem' }}>สถานการณ์: {curQ.situation}</div>}
+        {curQ.image && <img src={curQ.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
+        {curQ.audio && <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={curQ.audio} label="ฟังคำถาม" /></div>}
+        
+        {/* TEXT PROMPTS */}
+        {curQ.text && curQ.type === 'speaking' && <p style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', textAlign: 'center', marginBottom: '20px' }}>"{curQ.text}"</p>}
+        {curQ.prompt && <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px', fontSize: '1.2rem' }}>{curQ.prompt}</p>}
+        
+        {/* MAIN QUESTION TEXT */}
+        {curQ.question && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>{curQ.question}</p>}
+        {curQ.statement && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>{curQ.statement}</p>}
+        {curQ.verse && <p style={{ fontWeight: 'bold', color: '#1e3a8a', fontStyle: 'italic', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. "{curQ.verse}"</p>}
+        {curQ.hint && curQ.type === 'text' && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. คำศัพท์ที่หมายถึง: "{curQ.hint}"</p>}
+        {curQ.sentence && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. {curQ.sentence.replace('_______', '...')}</p>}
+        {curQ.reading && <p style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', marginBottom: '20px', fontSize: '1.2rem' }}>ข้อ {curQ.id}. {curQ.reading}</p>}
+        {curQ.words && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', fontSize: '1.2rem' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>ข้อ {curQ.id}.</span>
+            {curQ.words.map((w, i) => <span key={i} style={{ padding: '6px 14px', background: 'rgba(0,0,0,0.04)', borderRadius: '8px', color: '#4b5563' }}>{w}</span>)}
+          </div>
+        )}
+
+        {/* INPUTS / OPTIONS */}
+        {curQ.type === 'mcq' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: 'auto' }}>
+            {curQ.options.map((opt, i) => (
+              <button key={i} onClick={() => pickMcq(curQ.id, opt.correct, i)} className="option-btn"
+                style={{ padding: '16px 20px', borderRadius: '12px', border: `2px solid ${selIdx[curQ.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[curQ.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: selIdx[curQ.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
+                {opt.text}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {curQ.type === 'tf' && (
+          <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
+            {[{ label: curQ.isReadingTf ? 'ข้อเท็จจริง' : 'จริง', val: curQ.isReadingTf ? 'fact' : true }, 
+              { label: curQ.isReadingTf ? 'ข้อคิดเห็น' : 'เท็จ', val: curQ.isReadingTf ? 'opinion' : false }].map(({ label, val }) => (
+              <button key={String(val)} onClick={() => setTfAnswers(prev => ({ ...prev, [curQ.id]: val }))} className="option-btn"
+                style={{ flex: 1, padding: '16px 20px', borderRadius: '12px', border: `2px solid ${tfAnswers[curQ.id] === val ? '#10b981' : 'rgba(0,0,0,0.1)'}`, background: tfAnswers[curQ.id] === val ? 'rgba(16,185,129,0.1)' : 'white', color: tfAnswers[curQ.id] === val ? '#059669' : '#6b7280', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1.2rem', transition: 'all 0.2s' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {curQ.type === 'match' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: 'auto' }}>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '8px' }}>เลือกความหมายที่ตรงกับคำประพันธ์:</p>
+            {curQ.matchOptions.map(opt => (
+              <button key={opt.id} onClick={() => setMatchSel(prev => ({ ...prev, [curQ.id]: opt.meaning }))} className="option-btn"
+                style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${matchSel[curQ.id] === opt.meaning ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: matchSel[curQ.id] === opt.meaning ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1.1rem', transition: 'all 0.2s' }}>
+                {opt.meaning}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {curQ.type === 'speaking' && (
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {curQ.hint && <div style={{ fontSize: '1.1rem', color: '#6b7280', background: '#f3f4f6', padding: '14px', borderRadius: '12px' }}>💡 แนวคำตอบ: {curQ.hint}</div>}
+            <MicBtn onInteract={() => handleSpeak(curQ.id)} hasInteracted={speakingInteracted[curQ.id]} />
+          </div>
+        )}
+
+        {curQ.type === 'text' && (
+          <div style={{ marginTop: 'auto' }}>
+            <input type="text" value={textAnswers[curQ.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
+              placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)' }} />
+          </div>
+        )}
+
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '60px' }}>
-      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '2.2rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', margin: '0 0 8px' }}>แบบทดสอบรวม 100 ข้อ</h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', margin: 0 }}>ทำรวดเดียวให้ครบ 100 ข้อ (เวลา 50 นาที)</p>
-      </div>
-
-      <ExamTimer key={timerKey} totalSeconds={3000} onTimeUp={handleSubmit} />
-
-      {/* ================= PART 1: LISTENING ================= */}
-      <h2 style={{ fontSize: '1.8rem', color: 'var(--color-primary)', marginTop: '40px', borderBottom: '3px solid var(--color-primary)', paddingBottom: '10px' }}>ส่วนที่ 1: ทักษะการฟัง</h2>
-      <SectionHeader title="มารยาทการฟังและการดู (ข้อ 1-3)" sub="ฟังคำศัพท์และเลือกคำอ่านให้ถูกต้อง" />
-      {vocabQ.map(q => <MCQCard key={q.id} q={q} />)}
+    <div className="animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto', paddingBottom: '60px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
-      <SectionHeader title="การฟังประกาศ (ข้อ 4-6)" sub="ฟังประกาศแล้วตอบคำถาม" />
-      {announcementQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="นิทาน พ่อค้าเกลือกับลาขี้โกง (ข้อ 7-9)" sub="ฟังนิทานจนจบ แล้วตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', textAlign: 'center' }}>
-          <img src={STORY_IMG} alt="นิทาน" style={{ width: '180px', borderRadius: '12px' }} />
-          <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}><AudioBtn src={STORY_AUDIO} /></div>
-          <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.8' }}>พ่อค้าคนหนึ่งมีลาไว้บรรทุกสิ่งของ วันหนึ่งเขาพาลาเดินทางไปซื้อเกลือในเมือง... ลาแกล้งตกน้ำเพื่อให้เกลือละลาย แต่เมื่อพ่อค้าเปลี่ยนมาบรรทุกนุ่นแทน ลาก็เป็นฝ่ายเดือดร้อนเอง</p>
+      {/* HEADER & PROGRESS */}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', margin: 0 }}>ข้อสอบ 100 ข้อ</h1>
+          <div style={{ fontWeight: '600', color: 'var(--text-muted)', fontSize: '1.1rem' }}>ทำแล้ว {answeredCount} / {totalQ}</div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div style={{ height: '8px', background: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+          <div style={{ width: `${(answeredCount / totalQ) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary-light), var(--color-primary))', transition: 'width 0.3s' }} />
+        </div>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</div>
+          <ExamTimer key={timerKey} totalSeconds={3000} onTimeUp={handleSubmit} compact />
         </div>
       </div>
-      {storyQ.map(q => <MCQCard key={q.id} q={q} />)}
 
-      <SectionHeader title="คำศัพท์และสำนวน (ข้อ 10-14)" sub="ฟังคำศัพท์/สำนวน แล้วตอบคำถาม" />
-      {vocab4Q.map(q => <MCQCard key={q.id} q={q} />)}
-      {proverbQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="บทความ เด็กเล็กติดจอมือถือ (ข้อ 15-19)" sub="ฟังบทความ แล้วเลือก จริง หรือ เท็จ" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '20px' }}><AudioBtn src={ARTICLE_AUDIO} /></div>
-        <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '16px' }}>ให้พิจารณาว่าแต่ละข้อความเป็น "จริง" หรือ "เท็จ"</p>
-        {listenTfQ.map(q => (
-          <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem', flex: 1, minWidth: '200px' }}>{q.statement}</p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {[{ label: 'จริง', val: true }, { label: 'เท็จ', val: false }].map(({ label, val }) => (
-                <button key={String(val)} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))} className="option-btn"
-                  style={{ padding: '10px 18px', borderRadius: '20px', border: `2px solid ${tfAnswers[q.id] === val ? '#10b981' : 'rgba(0,0,0,0.1)'}`, background: tfAnswers[q.id] === val ? 'rgba(16,185,129,0.1)' : 'white', color: tfAnswers[q.id] === val ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1.1rem', transition: 'all 0.2s' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+      {/* QUESTION RENDER */}
+      <div style={{ flex: 1 }}>
+        {renderQuestion()}
       </div>
 
-      <SectionHeader title="การฟังประกาศและโฆษณา (ข้อ 20-23)" sub="ฟังและตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}><AudioBtn src={ANN_COLD_AUDIO} /></div>
-      </div>
-      {annColdQ.map(q => <MCQCard key={q.id} q={q} />)}
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px', textAlign: 'center' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}><AudioBtn src={AD_AUDIO} /></div>
-      </div>
-      {adQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="ความหมายและการสะกดคำ (ข้อ 24-25)" sub="ฟังประโยคแล้วตอบคำถาม" />
-      {lastQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      {/* ================= PART 2: SPEAKING ================= */}
-      <h2 style={{ fontSize: '1.8rem', color: 'var(--color-primary)', marginTop: '60px', borderBottom: '3px solid var(--color-primary)', paddingBottom: '10px' }}>ส่วนที่ 2: ทักษะการพูด</h2>
-      
-      <SectionHeader title="การแนะนำตัว (ข้อ 26-30)" sub="ตอบคำถามพื้นฐานเกี่ยวกับการแนะนำตัว" />
-      {introQ.map(q => <SpeakingCard key={q.id} q={q} />)}
-      
-      <SectionHeader title="การสื่อสารในชีวิตประจำวัน (ข้อ 31-35)" sub="ตอบโต้ในสถานการณ์จำลอง" />
-      {situQ.map(q => <SpeakingCard key={q.id} q={q} />)}
-      
-      <SectionHeader title="การออกเสียง (ข้อ 36-40)" sub="อ่านออกเสียงประโยคให้ชัดเจนและถูกต้อง" />
-      {tongueQ.map(q => <SpeakingCard key={q.id} q={q} />)}
-
-
-      {/* ================= PART 3: READING ================= */}
-      <h2 style={{ fontSize: '1.8rem', color: 'var(--color-primary)', marginTop: '60px', borderBottom: '3px solid var(--color-primary)', paddingBottom: '10px' }}>ส่วนที่ 3: ทักษะการอ่าน</h2>
-      
-      <SectionHeader title="มารยาทการฟังและการดู (ข้อ 41-45)" sub="อ่านบทความแล้วตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981' }}>
-        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '1.1rem' }}>{ARTICLE_A}</p>
-      </div>
-      {sectionAQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="6 โรคที่มากับหน้าฝน (ข้อ 46-55)" sub="อ่านบทความ ตอบคำถาม และแยกแยะข้อเท็จจริง/ข้อคิดเห็น" />
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981' }}>
-        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '1.1rem' }}>{ARTICLE_B}</p>
-      </div>
-      {sectionBQ.map(q => <MCQCard key={q.id} q={q} />)}
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '16px' }}>ให้พิจารณาว่าแต่ละข้อความเป็น "ข้อเท็จจริง" หรือ "ข้อคิดเห็น"</p>
-        {readTfQ.map(q => (
-          <div key={q.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px 0', borderBottom: '1px solid rgba(0,0,0,0.06)', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem', flex: 1, minWidth: '200px' }}>{q.statement}</p>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {[{ label: 'ข้อเท็จจริง', val: 'fact' }, { label: 'ข้อคิดเห็น', val: 'opinion' }].map(({ label, val }) => (
-                <button key={val} onClick={() => setTfAnswers(prev => ({ ...prev, [q.id]: val }))} className="option-btn"
-                  style={{ padding: '10px 18px', borderRadius: '20px', border: `2px solid ${tfAnswers[q.id] === val ? '#10b981' : 'rgba(0,0,0,0.1)'}`, background: tfAnswers[q.id] === val ? 'rgba(16,185,129,0.1)' : 'white', color: tfAnswers[q.id] === val ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1.1rem', transition: 'all 0.2s' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <SectionHeader title="สังคมสูงวัยกับเศรษฐกิจดิจิทัล (ข้อ 56-60)" sub="อ่านบทความเชิงวิเคราะห์แล้วตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981' }}>
-        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '1.1rem' }}>{ARTICLE_C}</p>
-      </div>
-      {sectionCQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="ระดับภาษา (ข้อ 61-65)" sub="วิเคราะห์ระดับภาษาในแต่ละสถานการณ์" />
-      {sectionDQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="คำประพันธ์สุภาษิตพระร่วง (ข้อ 66-70)" sub="จับคู่ความหมายและตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981' }}>
-        <pre style={{ fontFamily: 'Kanit, sans-serif', color: 'var(--color-primary-dark)', lineHeight: '2', margin: 0, fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>{POEM}</pre>
-        <p style={{ margin: '8px 0 0', fontSize: '1.1rem', color: 'var(--text-muted)', textAlign: 'right' }}>— สุภาษิตพระร่วง</p>
-      </div>
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '16px' }}>จับคู่คำประพันธ์ (ข้อ 66-69) ให้ตรงกับความหมาย:</p>
-        {matchData.map(m => {
-          const currentSel = matchSel[m.id];
-          return (
-            <div key={m.id} style={{ marginBottom: '20px' }}>
-              <p style={{ fontWeight: '600', color: '#1e3a8a', fontStyle: 'italic', marginBottom: '10px' }}>ข้อ {m.id}. "{m.verse}"</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {matchData.map(opt => (
-                  <button key={opt.id} onClick={() => setMatchSel(prev => ({ ...prev, [m.id]: opt.meaning }))} className="option-btn"
-                    style={{ padding: '12px 18px', borderRadius: '10px', border: `2px solid ${currentSel === opt.meaning ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: currentSel === opt.meaning ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', fontSize: '1.1rem', transition: 'all 0.2s' }}>
-                    {opt.meaning}
-                  </button>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {readSectionEQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-
-      {/* ================= PART 4: WRITING ================= */}
-      <h2 style={{ fontSize: '1.8rem', color: 'var(--color-primary)', marginTop: '60px', borderBottom: '3px solid var(--color-primary)', paddingBottom: '10px' }}>ส่วนที่ 4: ทักษะการเขียน</h2>
-      
-      <SectionHeader title="การสะกดคำ (ข้อ 71-72)" sub="พิมพ์คำศัพท์ให้ถูกต้องตามความหมาย" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        {spellQ.map(q => (
-          <div key={q.id} style={{ marginBottom: '24px' }}>
-            <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>ข้อ {q.id}. คำศัพท์ที่หมายถึง: "{q.hint}"</p>
-            {q.image && <img src={q.image} alt="" style={{ width: '220px', borderRadius: '12px', margin: '0 auto 16px auto', display: 'block' }} />}
-            <input type="text" value={textAnswers[q.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-              placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.1rem', fontFamily: 'inherit', outline: 'none' }} />
-          </div>
-        ))}
-      </div>
-
-      <SectionHeader title="เติมคำในช่องว่าง (ข้อ 73-75)" sub="เลือกคำจากกลุ่มคำที่กำหนดให้ ไปเติมในช่องว่าง" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '24px', padding: '16px', background: 'rgba(16,185,129,0.05)', borderRadius: '12px' }}>
-          <span style={{ fontWeight: '600', color: '#059669', marginRight: '8px' }}>กลุ่มคำ:</span>
-          {WORD_BANK.map(w => <span key={w} style={{ padding: '6px 14px', background: 'white', borderRadius: '20px', border: '1px solid rgba(16,185,129,0.2)', color: '#059669', fontSize: '1rem', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>{w}</span>)}
-        </div>
-        {fillQ.map(q => (
-          <div key={q.id} style={{ marginBottom: '24px' }}>
-            <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>ข้อ {q.id}. {q.sentence.replace('_______', '...')}</p>
-            <input type="text" value={textAnswers[q.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-              placeholder="พิมพ์คำที่ต้องการเติม..." style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.1rem', fontFamily: 'inherit', outline: 'none' }} />
-          </div>
-        ))}
-      </div>
-
-      <SectionHeader title="เขียนคำจากคำอ่าน (ข้อ 76-80)" sub="พิมพ์คำศัพท์ให้ถูกต้องตามคำอ่าน" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        {spellingQ.map(q => (
-          <div key={q.id} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', margin: 0, minWidth: '180px', fontSize: '1.1rem' }}>ข้อ {q.id}. {q.reading}</p>
-            <input type="text" value={textAnswers[q.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-              placeholder="เขียนคำที่ถูกต้อง..." style={{ flex: 1, minWidth: '200px', padding: '12px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.1rem', fontFamily: 'inherit', outline: 'none' }} />
-          </div>
-        ))}
-      </div>
-
-      <SectionHeader title="เรียงประโยค (ข้อ 81-85)" sub="นำคำที่กำหนดให้มาเรียงเป็นประโยคที่สมบูรณ์" />
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '20px' }}>
-        {rearrangeQ.map(q => (
-          <div key={q.id} style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-              <span style={{ fontWeight: '600', color: 'var(--color-primary-dark)' }}>ข้อ {q.id}.</span>
-              {q.words.map((w, i) => <span key={i} style={{ padding: '4px 12px', background: 'rgba(0,0,0,0.04)', borderRadius: '6px', color: '#4b5563' }}>{w}</span>)}
-            </div>
-            <input type="text" value={textAnswers[q.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
-              placeholder="พิมพ์ประโยคที่เรียงแล้ว..." style={{ width: '100%', padding: '14px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.1rem', fontFamily: 'inherit', outline: 'none' }} />
-          </div>
-        ))}
-      </div>
-
-      <SectionHeader title="หลักภาษาไทย (ข้อ 86-90)" sub="เลือกคำตอบที่ถูกต้องที่สุด" />
-      {writeSectionEQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-      <SectionHeader title="การอ่านจับใจความ (ข้อ 91-100)" sub="อ่านบทความแล้วตอบคำถาม" />
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '20px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981' }}>
-        <p style={{ margin: 0, color: 'var(--color-primary-dark)', lineHeight: '1.9', fontSize: '1.1rem' }}>{PASSAGE_F}</p>
-      </div>
-      {sectionFQ.map(q => <MCQCard key={q.id} q={q} />)}
-
-
-      <div style={{ marginTop: '40px', textAlign: 'center' }}>
-        <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
-          style={{ padding: '16px 48px', fontSize: '1.2rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '14px', background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 8px 20px rgba(16,185,129,0.4)', opacity: submitting ? 0.7 : 1 }}>
-          {submitting ? <><RefreshCw size={20} className="spin" /> บันทึก...</> : <><Trophy size={20} /> ส่งคำตอบ 100 ข้อ</>}
+      {/* NAVIGATION BUTTONS */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', gap: '16px' }}>
+        <button onClick={goPrev} disabled={currentIndex === 0} className="btn-secondary"
+          style={{ padding: '14px 24px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px', opacity: currentIndex === 0 ? 0.5 : 1, fontSize: '1.1rem' }}>
+          <ChevronLeft size={20} /> ย้อนกลับ
         </button>
-        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '1.1rem' }}>ตอบแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
+
+        {currentIndex === totalQ - 1 ? (
+          <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
+            style={{ padding: '14px 32px', fontSize: '1.1rem', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)', opacity: submitting ? 0.7 : 1 }}>
+            {submitting ? <RefreshCw size={20} className="spin" /> : <Trophy size={20} />} 
+            {submitting ? 'กำลังส่ง...' : 'ส่งคำตอบ'}
+          </button>
+        ) : (
+          <button onClick={goNext} className="btn-primary"
+            style={{ padding: '14px 32px', fontSize: '1.1rem', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(139,92,246,0.3)' }}>
+            ถัดไป <ChevronRight size={20} />
+          </button>
+        )}
       </div>
 
       {showResult && <ResultModal score={finalScore} total={totalQ} onClose={() => navigate('/dashboard')} onRetry={reset} />}
