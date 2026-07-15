@@ -319,7 +319,7 @@ export default function FullTest() {
       </div>
 
       {/* QUESTION RENDER */}
-      <div style={{ flex: 1 }}>
+      <div style={{ marginBottom: '24px' }}>
         {renderQuestion()}
       </div>
 
