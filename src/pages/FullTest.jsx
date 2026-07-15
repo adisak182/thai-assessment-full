@@ -11,7 +11,7 @@ import {
   vocabQ, announcementQ, storyQ, vocab4Q, proverbQ, listenTfQ, annColdQ, adQ, lastQ, STORY_AUDIO, STORY_IMG, ARTICLE_AUDIO, ANN_COLD_AUDIO, AD_AUDIO,
   introQ, situQ, tongueQ,
   sectionAQ, sectionBQ, readTfQ, sectionCQ, sectionDQ, readSectionEQ, ARTICLE_A, ARTICLE_B, ARTICLE_C, POEM, matchData, matchAnswers,
-  spellQ, fillQ, WORD_BANK, spellingQ, rearrangeQ, writeSectionEQ, sectionFQ, PASSAGE_F
+  spellQ, fillQ, WORD_BANK, spellingQ, rearrangeQ, writeSectionEQ, rearrangePart5Q, essayQ
 } from '../data/testData';
 
 // Reusable Audio Button
@@ -102,7 +102,8 @@ export default function FullTest() {
     add(spellingQ, 'text', 'ส่วนที่ 4: การเขียน (เขียนคำจากคำอ่าน)');
     add(rearrangeQ, 'text', 'ส่วนที่ 4: การเขียน (เรียงประโยค)');
     add(writeSectionEQ, 'mcq', 'ส่วนที่ 4: การเขียน (หลักภาษาไทย)');
-    add(sectionFQ, 'mcq', 'ส่วนที่ 4: การเขียน (การอ่านจับใจความ)', { contextText: PASSAGE_F });
+    add(rearrangePart5Q, 'text', 'ส่วนที่ 5: การประยุกต์ใช้ภาษา (เรียงประโยค)');
+    add(essayQ, 'text', 'ส่วนที่ 5: การประยุกต์ใช้ภาษา (ตอบคำถามพอสังเขป)');
 
     return arr;
   }, []);
@@ -146,15 +147,18 @@ export default function FullTest() {
       if (matchAnswers[qId] === val) score++;
     });
     
-    // Text answers
     Object.entries(textAnswers).forEach(([qId, val]) => {
       const spell = spellingQ.find(q => q.id === parseInt(qId));
       const fill = fillQ.find(q => q.id === parseInt(qId));
       const rearrange = rearrangeQ.find(q => q.id === parseInt(qId));
+      const rearrangePart5 = rearrangePart5Q.find(q => q.id === parseInt(qId));
+      const essay = essayQ.find(q => q.id === parseInt(qId));
       const spellHint = spellQ.find(q => q.id === parseInt(qId));
       if (spell && val.trim() === spell.answer) score++;
       if (fill && val.trim() === fill.answer) score++;
       if (rearrange && val.trim() === rearrange.answer) score++;
+      if (rearrangePart5 && val.trim() === rearrangePart5.answer) score++;
+      if (essay && val.trim().length > 5) score++; 
       if (spellHint && val.trim() === spellHint.word) score++; 
     });
     
@@ -371,7 +375,20 @@ export default function FullTest() {
           </div>
         )}
 
-        {curQ.type === 'text' && !curQ.sentence && !curQ.words && (
+        {curQ.isEssay && (
+          <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {curQ.hint && <div style={{ fontSize: '1rem', color: '#6b7280', background: '#f3f4f6', padding: '14px', borderRadius: '12px' }}>💡 {curQ.hint}</div>}
+            <textarea 
+              value={textAnswers[curQ.id] || ''} 
+              onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
+              placeholder="พิมพ์คำตอบที่นี่..." 
+              rows={4}
+              style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)', resize: 'vertical' }} 
+            />
+          </div>
+        )}
+
+        {curQ.type === 'text' && !curQ.sentence && !curQ.words && !curQ.isEssay && (
           <div style={{ marginTop: 'auto' }}>
             <input type="text" value={textAnswers[curQ.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)' }} />
