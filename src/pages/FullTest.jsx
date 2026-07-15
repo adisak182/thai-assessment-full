@@ -459,7 +459,7 @@ export default function FullTest() {
           </button>
         )}
         {finalScore !== null && !showSurvey && (
-          <ResultModal score={finalScore} total={totalQ} breakdown={breakdownScore} onClose={() => navigate('/levels')} onRetry={() => window.location.reload()} />
+          <ResultModal score={finalScore} total={totalQ} breakdown={breakdownScore} onClose={() => navigate('/dashboard')} onRetry={() => window.location.reload()} />
         )}
       </div>
     </div>
