@@ -239,7 +239,7 @@ export default function AdminDashboard() {
             onChange={(e) => setFilterStatus(e.target.value)}
           >
             <option value="all">ทั้งหมด</option>
-            <option value="passed">สอบผ่าน (>= 60)</option>
+            <option value="passed">สอบผ่าน {">="} 60</option>
             <option value="notPassed">ยังไม่ผ่าน / ยังไม่ได้สอบ</option>
           </select>
         </div>
