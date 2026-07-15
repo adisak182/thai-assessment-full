@@ -29,6 +29,14 @@
       "destination": "server/server.js"
     },
     {
+      "source": "/survey",
+      "destination": "server/server.js"
+    },
+    {
+      "source": "/survey/(.*)",
+      "destination": "server/server.js"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
