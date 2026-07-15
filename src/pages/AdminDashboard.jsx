@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys } from '../services/api';
-import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList } from 'lucide-react';
+import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 
 function formatDate(isoStr) {
   const d = new Date(isoStr);
@@ -33,6 +34,33 @@ export default function AdminDashboard() {
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveys, setSurveys] = useState([]);
   const [surveysLoading, setSurveysLoading] = useState(false);
+  const [surveyTab, setSurveyTab] = useState('overview'); // 'overview' | 'list'
+  const [expandedSurveyId, setExpandedSurveyId] = useState(null);
+
+  const surveySummaryData = useMemo(() => {
+    if (!surveys || surveys.length === 0) return [];
+    const fields = [
+      { key: 'design_1', label: '1.1 เมนูใช้งานง่าย' },
+      { key: 'design_2', label: '1.2 ทันสมัย' },
+      { key: 'design_3', label: '1.3 ตัวอักษรเหมาะสม' },
+      { key: 'design_4', label: '1.4 ภาพประกอบชัดเจน' },
+      { key: 'content_1', label: '2.1 ถูกต้องตามหลักภาษา' },
+      { key: 'content_2', label: '2.2 เนื้อหาเหมาะสม' },
+      { key: 'content_3', label: '2.3 ลำดับง่ายไปยาก' },
+      { key: 'content_4', label: '2.4 น่าสนใจ' },
+      { key: 'benefit_1', label: '3.1 ส่งเสริมความรู้' },
+      { key: 'benefit_2', label: '3.2 พัฒนาทักษะภาษา' },
+      { key: 'benefit_3', label: '3.3 ประยุกต์ใช้ได้' },
+      { key: 'benefit_4', label: '3.4 เห็นคุณค่าภาษาไทย' },
+    ];
+    return fields.map(f => {
+      const sum = surveys.reduce((acc, s) => acc + (Number(s[f.key]) || 0), 0);
+      return {
+        name: f.label,
+        avg: parseFloat((sum / surveys.length).toFixed(2))
+      };
+    });
+  }, [surveys]);
 
   useEffect(() => {
     if (!user) return;
@@ -548,6 +576,15 @@ export default function AdminDashboard() {
               <button onClick={() => setShowSurveyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
             </div>
             
+            <div style={{ padding: '0 32px', display: 'flex', gap: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+              <button onClick={() => setSurveyTab('overview')} style={{ padding: '16px 24px', background: 'transparent', border: 'none', borderBottom: surveyTab === 'overview' ? '3px solid var(--color-primary)' : '3px solid transparent', color: surveyTab === 'overview' ? 'var(--color-primary)' : '#64748b', fontWeight: surveyTab === 'overview' ? '700' : '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', transition: 'all 0.2s' }}>
+                <BarChart2 size={20} /> ภาพรวมคะแนน
+              </button>
+              <button onClick={() => setSurveyTab('list')} style={{ padding: '16px 24px', background: 'transparent', border: 'none', borderBottom: surveyTab === 'list' ? '3px solid var(--color-primary)' : '3px solid transparent', color: surveyTab === 'list' ? 'var(--color-primary)' : '#64748b', fontWeight: surveyTab === 'list' ? '700' : '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', transition: 'all 0.2s' }}>
+                <List size={20} /> รายชื่อผู้ตอบแบบสอบถาม
+              </button>
+            </div>
+
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white' }}>
               {surveysLoading ? (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>
@@ -560,38 +597,135 @@ export default function AdminDashboard() {
                   <div style={{ color: '#64748b', fontSize: '1.1rem' }}>ยังไม่มีข้อมูลแบบสอบถาม</div>
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
-                    <thead>
-                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>วันที่</th>
-                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>เพศ/อายุ</th>
-                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>กลุ่มเป้าหมาย</th>
-                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>จังหวัด</th>
-                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>ข้อเสนอแนะ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {surveys.map((s, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{formatDate(s.submitted_at)}</td>
-                          <td style={{ padding: '16px', color: '#334155' }}>
-                            <div style={{ fontWeight: '600' }}>{s.gender || '-'}</div>
-                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{s.age || '-'}</div>
-                          </td>
-                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{s.target_group || '-'}</td>
-                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>
-                            {s.province || '-'}
-                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>อ.{s.district || '-'}</div>
-                          </td>
-                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem', maxWidth: '300px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                            {s.suggestions ? `"${s.suggestions}"` : <span style={{ color: '#94a3b8' }}>ไม่มีข้อเสนอแนะ</span>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {surveyTab === 'overview' && (
+                    <div className="animate-fade-in">
+                      <div style={{ marginBottom: '24px', background: 'linear-gradient(135deg, rgba(59,130,246,0.05), rgba(139,92,246,0.05))', padding: '20px', borderRadius: '16px', border: '1px solid rgba(59,130,246,0.1)' }}>
+                        <h4 style={{ color: '#1e293b', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+                          คะแนนความพึงพอใจเฉลี่ย (เต็ม 4)
+                        </h4>
+                        <p style={{ margin: 0, color: '#64748b' }}>กราฟแสดงค่าเฉลี่ยของคะแนนประเมินในแต่ละด้านจากผู้ทำแบบสอบถามทั้งหมด</p>
+                      </div>
+                      
+                      <div style={{ height: '550px', width: '100%', paddingRight: '20px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={surveySummaryData} layout="vertical" margin={{ top: 5, right: 30, left: 160, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                            <XAxis type="number" domain={[0, 4]} ticks={[0, 1, 2, 3, 4]} stroke="#64748b" />
+                            <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 13, fill: '#475569' }} />
+                            <RechartsTooltip 
+                              cursor={{fill: 'rgba(59,130,246,0.05)'}} 
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
+                              formatter={(value) => [`${value} คะแนน`, 'ค่าเฉลี่ย']}
+                            />
+                            <Bar dataKey="avg" radius={[0, 6, 6, 0]} animationDuration={1000}>
+                              {surveySummaryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.avg >= 3.5 ? '#10b981' : entry.avg >= 2.5 ? '#3b82f6' : '#f59e0b'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {surveyTab === 'list' && (
+                    <div className="animate-fade-in" style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                            <th style={{ padding: '16px', width: '50px' }}></th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>วันที่</th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>เพศ/อายุ</th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>กลุ่มเป้าหมาย</th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>จังหวัด</th>
+                            <th style={{ padding: '16px', textAlign: 'center', color: '#475569', fontWeight: '600' }}>คะแนนเฉลี่ย</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {surveys.map((s, i) => {
+                            const isExpanded = expandedSurveyId === (s.id || i);
+                            const currentId = s.id || i;
+                            
+                            const totalScore = (
+                              Number(s.design_1||0) + Number(s.design_2||0) + Number(s.design_3||0) + Number(s.design_4||0) +
+                              Number(s.content_1||0) + Number(s.content_2||0) + Number(s.content_3||0) + Number(s.content_4||0) +
+                              Number(s.benefit_1||0) + Number(s.benefit_2||0) + Number(s.benefit_3||0) + Number(s.benefit_4||0)
+                            );
+                            const avgScore = (totalScore / 12).toFixed(2);
+
+                            return (
+                              <Fragment key={currentId}>
+                                <tr style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', background: isExpanded ? 'rgba(59,130,246,0.03)' : 'white', transition: 'background 0.2s' }} onClick={() => setExpandedSurveyId(isExpanded ? null : currentId)}>
+                                  <td style={{ padding: '16px', textAlign: 'center', color: isExpanded ? 'var(--color-primary)' : '#94a3b8' }}>
+                                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                  </td>
+                                  <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{formatDate(s.submitted_at)}</td>
+                                  <td style={{ padding: '16px', color: '#334155' }}>
+                                    <div style={{ fontWeight: '600' }}>{s.gender || '-'}</div>
+                                    <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{s.age ? `${s.age} ปี` : '-'}</div>
+                                  </td>
+                                  <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{s.target_group || '-'}</td>
+                                  <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>
+                                    {s.province || '-'}
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{s.district ? `อ.${s.district}` : '-'}</div>
+                                  </td>
+                                  <td style={{ padding: '16px', textAlign: 'center' }}>
+                                    <div style={{ display: 'inline-block', padding: '6px 12px', background: avgScore >= 3.5 ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)', color: avgScore >= 3.5 ? '#059669' : '#2563eb', borderRadius: '20px', fontWeight: 'bold' }}>
+                                      {avgScore}
+                                    </div>
+                                  </td>
+                                </tr>
+                                {isExpanded && (
+                                  <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                                    <td colSpan={6} style={{ padding: '24px 32px' }}>
+                                      <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                                        {/* Design */}
+                                        <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
+                                          <div style={{ fontWeight: 'bold', color: '#3b82f6', marginBottom: '12px', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>1. ด้านการออกแบบ</div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>เมนูใช้งานง่าย:</span> <strong>{s.design_1||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ทันสมัย:</span> <strong>{s.design_2||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ตัวอักษรเหมาะสม:</span> <strong>{s.design_3||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155' }}><span>ภาพประกอบชัดเจน:</span> <strong>{s.design_4||'-'}/4</strong></div>
+                                        </div>
+                                        {/* Content */}
+                                        <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
+                                          <div style={{ fontWeight: 'bold', color: '#10b981', marginBottom: '12px', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>2. ด้านเนื้อหา</div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ถูกต้องตามหลักภาษา:</span> <strong>{s.content_1||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>เหมาะสมตามระดับ:</span> <strong>{s.content_2||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ลำดับง่ายไปยาก:</span> <strong>{s.content_3||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155' }}><span>น่าสนใจ:</span> <strong>{s.content_4||'-'}/4</strong></div>
+                                        </div>
+                                        {/* Benefit */}
+                                        <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
+                                          <div style={{ fontWeight: 'bold', color: '#8b5cf6', marginBottom: '12px', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>3. ด้านประโยชน์</div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ส่งเสริมความรู้:</span> <strong>{s.benefit_1||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>พัฒนาทักษะภาษา:</span> <strong>{s.benefit_2||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#334155' }}><span>ประยุกต์ใช้ได้:</span> <strong>{s.benefit_3||'-'}/4</strong></div>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#334155' }}><span>เห็นคุณค่าภาษาไทย:</span> <strong>{s.benefit_4||'-'}/4</strong></div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Suggestions */}
+                                      <div style={{ background: 'white', padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)', borderLeft: '4px solid #ef4444' }}>
+                                        <div style={{ fontWeight: 'bold', color: '#b91c1c', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          💬 ข้อเสนอแนะ:
+                                        </div>
+                                        <div style={{ color: '#475569', whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                                          {s.suggestions || <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>- ไม่มีข้อเสนอแนะ -</span>}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
