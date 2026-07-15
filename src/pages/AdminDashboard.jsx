@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin } from '../services/api';
-import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw } from 'lucide-react';
+import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys } from '../services/api';
+import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList } from 'lucide-react';
 
 function formatDate(isoStr) {
   const d = new Date(isoStr);
@@ -27,7 +27,12 @@ export default function AdminDashboard() {
 
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // all, passed1, passed2, passed3, notPassed
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Surveys Modal State
+  const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [surveys, setSurveys] = useState([]);
+  const [surveysLoading, setSurveysLoading] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -68,6 +73,19 @@ export default function AdminDashboard() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openSurveys = async () => {
+    setShowSurveyModal(true);
+    setSurveysLoading(true);
+    try {
+      const data = await getAdminSurveys(token);
+      setSurveys(data);
+    } catch (err) {
+      alert('ดึงข้อมูลแบบสอบถามไม่สำเร็จ: ' + err.message);
+    } finally {
+      setSurveysLoading(false);
     }
   };
 
@@ -160,9 +178,14 @@ export default function AdminDashboard() {
           </h1>
           <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 72px', fontSize: '1.1rem' }}>จัดการผู้ใช้งานและติดตามความคืบหน้า</p>
         </div>
-        <Link to="/levels" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600' }}>
-          กลับไปหน้าหลัก
-        </Link>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={openSurveys} className="btn-primary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardList size={20} /> ดูผลแบบสอบถาม
+          </button>
+          <Link to="/levels" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600' }}>
+            กลับไปหน้าหลัก
+          </Link>
+        </div>
       </div>
 
       {/* Statistics Header */}
@@ -471,6 +494,69 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Surveys Modal */}
+      {showSurveyModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <ClipboardList size={28} color="var(--color-primary)" />
+                  ผลแบบสอบถาม ({surveys.length} รายการ)
+                </h3>
+              </div>
+              <button onClick={() => setShowSurveyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
+            </div>
+            
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white' }}>
+              {surveysLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                  <RefreshCw size={40} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
+                  <div style={{ color: '#64748b' }}>กำลังโหลดข้อมูล...</div>
+                </div>
+              ) : surveys.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 0', background: '#f8fafc', borderRadius: '20px', border: '2px dashed #e2e8f0' }}>
+                  <ClipboardList size={48} color="#cbd5e1" style={{ marginBottom: '16px' }} />
+                  <div style={{ color: '#64748b', fontSize: '1.1rem' }}>ยังไม่มีข้อมูลแบบสอบถาม</div>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>วันที่</th>
+                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>เพศ/อายุ</th>
+                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>กลุ่มเป้าหมาย</th>
+                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>จังหวัด</th>
+                        <th style={{ padding: '16px', textAlign: 'left', color: '#475569', fontWeight: '600' }}>ข้อเสนอแนะ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {surveys.map((s, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{formatDate(s.submitted_at)}</td>
+                          <td style={{ padding: '16px', color: '#334155' }}>
+                            <div style={{ fontWeight: '600' }}>{s.gender || '-'}</div>
+                            <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{s.age || '-'}</div>
+                          </td>
+                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{s.target_group || '-'}</td>
+                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>
+                            {s.province || '-'}
+                            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>อ.{s.district || '-'}</div>
+                          </td>
+                          <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem', maxWidth: '300px', whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                            {s.suggestions ? `"${s.suggestions}"` : <span style={{ color: '#94a3b8' }}>ไม่มีข้อเสนอแนะ</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

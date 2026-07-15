@@ -160,6 +160,15 @@ export const getAdminUserScores = async (token, userId) => {
   return result;
 };
 
+export const getAdminSurveys = async (token) => {
+  const response = await fetch(`${API_URL}/survey`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'ดึงข้อมูลแบบประเมินไม่สำเร็จ');
+  return result;
+};
+
 export const deleteUser = async (token, userId) => {
   const response = await fetch(`${API_URL}/admin/users/${userId}`, {
     method: 'DELETE',
