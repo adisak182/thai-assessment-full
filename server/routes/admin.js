@@ -47,7 +47,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
       return {
         ...u.toJSON(),
         full_test_score: maxScore,
-        full_test_passed: maxScore >= 60 // เกณฑ์ผ่าน 60 คะแนน
+        full_test_passed: maxScore >= 70 // เกณฑ์ผ่าน 70 คะแนน
       };
     });
 

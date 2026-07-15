@@ -4,7 +4,14 @@ import confetti from 'canvas-confetti';
 
 export default function ResultModal({ score, total, onClose, onRetry }) {
   const pct = Math.round((score / total) * 100);
-  const passed = pct >= 60;
+  const passed = pct >= 70;
+  
+  let evaluationLevel = '';
+  let evaluationColor = '';
+  if (pct >= 80) { evaluationLevel = 'ดีมาก'; evaluationColor = '#059669'; } // Emerald
+  else if (pct >= 60) { evaluationLevel = 'ดี'; evaluationColor = '#2563eb'; } // Blue
+  else if (pct >= 50) { evaluationLevel = 'พอใช้'; evaluationColor = '#d97706'; } // Amber
+  else { evaluationLevel = 'ปรับปรุง'; evaluationColor = '#dc2626'; } // Red
   
   const fire = useCallback(() => {
     confetti({ 
@@ -41,6 +48,7 @@ export default function ResultModal({ score, total, onClose, onRetry }) {
           <div style={{ padding: '16px 28px', background: passed ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', borderRadius: '16px', border: `2px solid ${passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
             <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
+            <div style={{ fontSize: '1.05rem', color: evaluationColor, fontWeight: 'bold', marginTop: '6px' }}>{evaluationLevel}</div>
           </div>
         </div>
 
@@ -48,12 +56,24 @@ export default function ResultModal({ score, total, onClose, onRetry }) {
           <div style={{ marginTop: '16px', marginBottom: '28px', textAlign: 'left', background: '#f8fafc', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 'bold', marginBottom: '16px', color: '#1e293b' }}>คะแนนรายทักษะ</h3>
             <div style={{ display: 'grid', gap: '16px' }}>
-              {Object.values(breakdown).map((item, idx) => {
+              {Object.entries(breakdown).map(([key, item]) => {
                 const bPct = item.max > 0 ? (item.score / item.max) * 100 : 0;
+                
+                let skillPassed = false;
+                if (key === 'listening' && item.score >= 18) skillPassed = true;
+                if (key === 'speaking' && item.score >= 11) skillPassed = true;
+                if (key === 'reading' && item.score >= 21) skillPassed = true;
+                if (key === 'writing' && item.score >= 21) skillPassed = true;
+
                 return (
-                  <div key={idx}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', marginBottom: '8px', fontWeight: '600' }}>
-                      <span style={{ color: '#475569' }}>{item.label}</span>
+                  <div key={key}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.9rem', marginBottom: '8px', fontWeight: '600' }}>
+                      <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {item.label}
+                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: skillPassed ? '#d1fae5' : '#fee2e2', color: skillPassed ? '#059669' : '#dc2626' }}>
+                          {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                        </span>
+                      </span>
                       <span style={{ color: 'var(--color-primary)' }}>{item.score} / {item.max}</span>
                     </div>
                     <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
