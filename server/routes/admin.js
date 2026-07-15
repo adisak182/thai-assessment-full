@@ -31,20 +31,23 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     // Get all users
     const users = await User.find().select('-password').sort({ created_at: -1 });
     
-    // Get progress for all users
-    const progressMap = {};
-    const progresses = await LevelProgress.find();
-    progresses.forEach(p => {
-      progressMap[p.user_id.toString()] = p;
+    // Get max full_test score for all users
+    const scores = await ScoreHistory.aggregate([
+      { $match: { skill: 'full_test' } },
+      { $group: { _id: '$user_id', maxScore: { $max: '$score' } } }
+    ]);
+    
+    const scoreMap = {};
+    scores.forEach(s => {
+      scoreMap[s._id.toString()] = s.maxScore;
     });
 
     const result = users.map(u => {
-      const p = progressMap[u._id.toString()] || {};
+      const maxScore = scoreMap[u._id.toString()] || 0;
       return {
         ...u.toJSON(),
-        level1_passed: p.level1_passed || 0,
-        level2_passed: p.level2_passed || 0,
-        level3_passed: p.level3_passed || 0
+        full_test_score: maxScore,
+        full_test_passed: maxScore >= 60 // เกณฑ์ผ่าน 60 คะแนน
       };
     });
 

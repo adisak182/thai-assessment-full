@@ -46,18 +46,16 @@ export default function AdminDashboard() {
     if (!matchesSearch) return false;
 
     if (filterStatus === 'all') return true;
-    if (filterStatus === 'passed1') return u.level1_passed;
-    if (filterStatus === 'passed2') return u.level2_passed;
-    if (filterStatus === 'passed3') return u.level3_passed;
-    if (filterStatus === 'notPassed') return !u.level1_passed && !u.level2_passed && !u.level3_passed;
+    if (filterStatus === 'passed') return u.full_test_passed;
+    if (filterStatus === 'notPassed') return !u.full_test_passed;
     return true;
   });
 
   const stats = {
     total: users.length,
-    passed1: users.filter(u => u.level1_passed).length,
-    passed2: users.filter(u => u.level2_passed).length,
-    passed3: users.filter(u => u.level3_passed).length,
+    passed: users.filter(u => u.full_test_passed).length,
+    notPassed: users.filter(u => !u.full_test_passed && u.full_test_score > 0).length,
+    notTested: users.filter(u => !u.full_test_score).length,
   };
 
 
@@ -179,9 +177,9 @@ export default function AdminDashboard() {
           </div>
         </div>
         {[
-          { label: 'ผ่าน Level 1', count: stats.passed1, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
-          { label: 'ผ่าน Level 2', count: stats.passed2, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)' },
-          { label: 'ผ่าน Level 3', count: stats.passed3, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
+          { label: 'สอบผ่าน', count: stats.passed, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
+          { label: 'ยังไม่ผ่าน', count: stats.notPassed, color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)' },
+          { label: 'ยังไม่ได้สอบ', count: stats.notTested, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
         ].map((s, idx) => (
           <div key={idx} className="stat-card">
             <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -218,10 +216,8 @@ export default function AdminDashboard() {
             onChange={(e) => setFilterStatus(e.target.value)}
           >
             <option value="all">ทั้งหมด</option>
-            <option value="passed1">ผ่าน Level 1</option>
-            <option value="passed2">ผ่าน Level 2</option>
-            <option value="passed3">ผ่าน Level 3</option>
-            <option value="notPassed">ยังไม่ผ่านเลย</option>
+            <option value="passed">สอบผ่าน (>= 60)</option>
+            <option value="notPassed">ยังไม่ผ่าน / ยังไม่ได้สอบ</option>
           </select>
         </div>
         <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
@@ -272,17 +268,12 @@ export default function AdminDashboard() {
                     </td>
                     <td>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                        {[
-                          { label: 'L1', passed: u.level1_passed, color: '#10b981' },
-                          { label: 'L2', passed: u.level2_passed, color: '#3b82f6' },
-                          { label: 'L3', passed: u.level3_passed, color: '#f59e0b' },
-                        ].map((lvl, i) => (
-                          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: lvl.passed ? lvl.color : '#f1f5f9', color: lvl.passed ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {lvl.passed ? <CheckCircle size={18} /> : <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{lvl.label}</div>}
-                            </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ padding: '6px 12px', borderRadius: '8px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#f1f5f9'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                            {u.full_test_passed ? <><CheckCircle size={16} /> ผ่านแล้ว</> : (u.full_test_score > 0 ? <><XCircle size={16} /> ไม่ผ่าน</> : 'ยังไม่ได้สอบ')}
                           </div>
-                        ))}
+                          {u.full_test_score > 0 && <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>{u.full_test_score} / 100 คะแนน</div>}
+                        </div>
                       </div>
                     </td>
                     <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
@@ -346,15 +337,9 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>สถานะ:</span>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    {[
-                      { l: 'L1', p: u.level1_passed, c: '#10b981' },
-                      { l: 'L2', p: u.level2_passed, c: '#3b82f6' },
-                      { l: 'L3', p: u.level3_passed, c: '#f59e0b' },
-                    ].map((lvl, i) => (
-                      <div key={i} style={{ padding: '4px 10px', borderRadius: '6px', background: lvl.p ? lvl.c : '#e2e8f0', color: lvl.p ? 'white' : '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                        {lvl.l}
-                      </div>
-                    ))}
+                    <div style={{ padding: '4px 10px', borderRadius: '6px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#e2e8f0'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                      {u.full_test_passed ? `ผ่าน (${u.full_test_score}/100)` : (u.full_test_score > 0 ? `ไม่ผ่าน (${u.full_test_score}/100)` : 'ยังไม่ได้สอบ')}
+                    </div>
                   </div>
                   {u.role !== 'admin' && (
                     <button onClick={() => handleDelete(u.id, u.name)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ef4444', padding: '4px' }}><Trash2 size={18} /></button>
