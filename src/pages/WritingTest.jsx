@@ -185,7 +185,7 @@ export default function WritingTest() {
       <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {spellQ.map(q => (
           <div key={q.id}>
-            {q.image && <img src={q.image} alt="" style={{ width: '180px', borderRadius: '12px', marginBottom: '12px', display: 'block' }} />}
+            {q.image && <img src={q.image} alt="" style={{ width: '220px', borderRadius: '12px', margin: '0 auto 16px auto', display: 'block' }} />}
             <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '8px' }}>ข้อ {q.id}. {q.hint}</p>
             <input type="text" value={spellInputs[q.id] || ''} onChange={e => setSpellInputs(prev => ({ ...prev, [q.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." style={{ ...inputStyle, maxWidth: '300px', borderColor: spellInputs[q.id] ? (spellInputs[q.id].trim() === q.word ? '#10b981' : '#f59e0b') : 'rgba(0,0,0,0.1)' }} />

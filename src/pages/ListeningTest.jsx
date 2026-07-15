@@ -300,7 +300,7 @@ export default function ListeningTest() {
         {q.audio && <div style={{ marginBottom: '12px' }}><AudioBtn src={q.audio} label={q.word ? `ฟังคำ "${q.word}"` : 'ฟังเสียง'} /></div>}
         {q.script && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontStyle: 'italic', marginBottom: '12px', lineHeight: '1.7', fontSize: '1.1rem' }}>{q.script}</div>}
         {q.saying && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontWeight: '600', marginBottom: '12px', fontSize: '1.1rem' }}>สำนวน: {q.saying}</div>}
-        {q.image && <img src={q.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', marginBottom: '12px', display: 'block' }} />}
+        {q.image && <img src={q.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', margin: '0 auto 16px auto', display: 'block' }} />}
         <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '14px' }}>{q.question}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {q.options.map((opt, i) => {
@@ -374,8 +374,8 @@ export default function ListeningTest() {
       {/* Section C: Story */}
       <SectionHeader num="C" title='นิทาน "พ่อค้าเกลือกับลาขี้โกง" (ข้อ 7-9)' icon="ฟังนิทานจนจบ แล้วตอบคำถาม" />
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <img src={STORY_IMG} alt="นิทาน" style={{ width: '180px', borderRadius: '12px', flexShrink: 0 }} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', textAlign: 'center' }}>
+          <img src={STORY_IMG} alt="นิทาน" style={{ width: '180px', borderRadius: '12px' }} />
           <div>
             <AudioBtn src={STORY_AUDIO} label="ฟังนิทาน" />
             <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.8' }}>
