@@ -34,16 +34,67 @@ function AudioBtn({ src, label = 'ฟังเสียง' }) {
   );
 }
 
-function MicBtn({ onInteract, hasInteracted }) {
+function MicBtn({ onResult, currentText }) {
   const [recording, setRecording] = useState(false);
+  const [error, setError] = useState(false);
+
+  const toggleListen = () => {
+    if (recording) {
+      setRecording(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("เบราว์เซอร์ของคุณไม่รองรับระบบแยกแยะเสียง กรุณาใช้ Chrome หรือ Edge (ระบบจะอนุโลมให้ข้ามข้อนี้ได้)");
+      onResult("PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'th-TH';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setRecording(true);
+      setError(false);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      onResult(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error(event.error);
+      setError(true);
+      setRecording(false);
+    };
+
+    recognition.onend = () => {
+      setRecording(false);
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error(e);
+      setRecording(false);
+    }
+  };
+
   return (
-    <button onClick={() => {
-      setRecording(!recording);
-      if (!recording && onInteract) onInteract();
-    }} 
-    className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : hasInteracted ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : hasInteracted ? 'rgba(16,185,129,0.1)' : 'white', color: recording ? '#ef4444' : hasInteracted ? '#059669' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
-      <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังบันทึก (กดเพื่อหยุด)' : hasInteracted ? 'บันทึกสำเร็จ (กดอัดใหม่ได้)' : 'กดเพื่อตอบ (บันทึกเสียง)'}
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+      <button onClick={toggleListen} 
+        className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : currentText ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? 'rgba(16,185,129,0.1)' : 'white', color: recording ? '#ef4444' : currentText ? '#059669' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
+        <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (พูดได้เลย)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
+      </button>
+      {error && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>ไม่สามารถใช้งานไมค์ได้ โปรดตรวจสอบการอนุญาตไมค์บนเบราว์เซอร์</div>}
+      {currentText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123" && (
+        <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: '#334155', fontSize: '1.1rem', fontStyle: 'italic', borderLeft: '4px solid #10b981', alignSelf: 'flex-start', width: '100%' }}>
+          " {currentText} "
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -55,7 +106,7 @@ export default function FullTest() {
   const [tfAnswers, setTfAnswers] = useState({});
   const [matchSel, setMatchSel] = useState({});
   const [textAnswers, setTextAnswers] = useState({}); 
-  const [speakingInteracted, setSpeakingInteracted] = useState({});
+  const [speechAnswers, setSpeechAnswers] = useState({});
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -116,15 +167,15 @@ export default function FullTest() {
     + Object.keys(tfAnswers).length 
     + Object.keys(matchSel).length 
     + Object.keys(textAnswers).filter(k => textAnswers[k]?.trim() !== '').length
-    + Object.keys(speakingInteracted).length;
+    + Object.keys(speechAnswers).length;
 
   const pickMcq = (qId, optCorrect, idx) => {
     setAnswers(prev => ({ ...prev, [qId]: optCorrect }));
     setSelIdx(prev => ({ ...prev, [qId]: idx }));
   };
 
-  const handleSpeak = (qId) => {
-    setSpeakingInteracted(prev => ({ ...prev, [qId]: true }));
+  const handleSpeechResult = (qId, text) => {
+    setSpeechAnswers(prev => ({ ...prev, [qId]: text }));
   };
 
   const handleSubmit = async () => {
@@ -166,7 +217,16 @@ export default function FullTest() {
         else if (q.word && val === q.word) isCorrect = true;
         else if (!q.answer && !q.word && val.length > 5) isCorrect = true; // essay
       } else if (q.qType === 'speaking') {
-        if (speakingInteracted[q.id]) isCorrect = true;
+        const text = speechAnswers[q.id];
+        if (text) {
+          if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
+            isCorrect = true;
+          } else if (q.keywords && q.keywords.length > 0) {
+            if (q.keywords.some(kw => text.includes(kw))) isCorrect = true;
+          } else {
+            if (text.trim().length >= 3) isCorrect = true;
+          }
+        }
       }
 
       breakdown[cat].max++;
@@ -189,7 +249,7 @@ export default function FullTest() {
   };
 
   const reset = () => {
-    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeakingInteracted({});
+    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeechAnswers({});
     setCurrentIndex(0);
     setShowResult(false);
     setTimerKey(k => k + 1);
@@ -352,7 +412,7 @@ export default function FullTest() {
         {curQ.type === 'speaking' && (
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {curQ.hint && <div style={{ fontSize: '1.1rem', color: '#6b7280', background: '#f3f4f6', padding: '14px', borderRadius: '12px' }}>💡 แนวคำตอบ: {curQ.hint}</div>}
-            <MicBtn onInteract={() => handleSpeak(curQ.id)} hasInteracted={speakingInteracted[curQ.id]} />
+            <MicBtn onResult={(txt) => handleSpeechResult(curQ.id, txt)} currentText={speechAnswers[curQ.id]} />
           </div>
         )}
 
