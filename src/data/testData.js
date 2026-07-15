@@ -258,8 +258,8 @@ export const readSectionEQ = [
 // ==========================================
 
 export const spellQ = [
-  { id: 71, word: 'บรรทุก', hint: 'คำที่หมายถึง การใส่ของขึ้นบนพาหนะ', image: '/images/story_donkey_merchant_1777621288896.png', audio: '/audio/vocab_bantuk.mp3' },
-  { id: 72, word: 'ละลาย', hint: 'คำที่หมายถึง ของแข็งที่กลายเป็นของเหลวเมื่อถูกความร้อน', image: null, audio: '/audio/vocab_lalai.mp3' },
+  { id: 71, word: 'บรรทุก', hint: 'คำที่หมายถึง การใส่ของขึ้นบนพาหนะ', image: '/images/truck_goods.png', audio: '/audio/vocab_bantuk.mp3' },
+  { id: 72, word: 'ละลาย', hint: 'คำที่หมายถึง ของแข็งที่กลายเป็นของเหลวเมื่อถูกความร้อน', image: '/images/ice_melting.png', audio: '/audio/vocab_lalai.mp3' },
 ];
 
 export const fillQ = [
