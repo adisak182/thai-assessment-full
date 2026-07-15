@@ -98,7 +98,7 @@ export const listenTfQ = [
   { id: 19, statement: 'ข้อ 19. ผู้ปกครองควรเลือกโปรแกรมหรือแอปพลิเคชันที่เหมาะสมกับวัย', correct: true },
 ];
 
-export const ANN_COLD_AUDIO = '/audio/l3_listen_announcement.mp3';
+export const ANN_COLD_AUDIO = '/audio/announcement_new.m4a';
 
 export const annColdQ = [
   { id: 20, question: 'ข้อ 20. จุดประสงค์หลักของประกาศนี้คืออะไร ?',
