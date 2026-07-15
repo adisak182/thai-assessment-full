@@ -146,7 +146,11 @@ router.get('/scores', authenticate, async (req, res) => {
 router.get('/ranking', authenticate, async (req, res) => {
   try {
     const ranking = await ScoreHistory.aggregate([
-      // 1. หาคะแนนสูงสุดของแต่ละทักษะของแต่ละผู้ใช้ (ไม่สน level)
+      // กรองเอาเฉพาะคะแนนจากแบบทดสอบ 100 ข้อ
+      {
+        $match: { skill: 'full_test' }
+      },
+      // 1. หาคะแนนสูงสุดของผู้ใช้แต่ละคน
       {
         $group: {
           _id: { user_id: '$user_id', skill: '$skill' },
