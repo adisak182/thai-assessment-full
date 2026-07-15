@@ -15,6 +15,7 @@ import ListeningTest from './pages/ListeningTest';
 import SpeakingTest from './pages/SpeakingTest';
 import ReadingTest from './pages/ReadingTest';
 import WritingTest from './pages/WritingTest';
+import FullTest from './pages/FullTest';
 import Ranking from './pages/Ranking';
 
 // Protected route: redirect to /start if not authenticated
@@ -87,7 +88,7 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><Ranking /></ProtectedRoute>} />
-          <Route path="/skills" element={<ProtectedRoute><SkillSelect /></ProtectedRoute>} />
+          <Route path="/skills" element={<ProtectedRoute><FullTest /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
           <Route path="/test/listening" element={<ProtectedRoute><ListeningTest /></ProtectedRoute>} />
           <Route path="/test/speaking" element={<ProtectedRoute><SpeakingTest /></ProtectedRoute>} />

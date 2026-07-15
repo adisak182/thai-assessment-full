@@ -4,10 +4,7 @@ import { useUser } from '../context/UserContext';
 import { Trophy, BookOpen, MessageCircle, Volume2, PenTool, Edit3, User as UserIcon, CheckCircle, Clock, ArrowRight } from 'lucide-react';
 
 const SKILL_CONFIG = [
-  { key: 'listening',    label: 'ทักษะการฟัง',   icon: <Volume2 size={24} />,      color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', path: '/test/listening',  max: 25 },
-  { key: 'conversation', label: 'ทักษะการพูด',   icon: <MessageCircle size={24} />, color: '#3b82f6', bg: 'linear-gradient(135deg,#3b82f6,#2563eb)', path: '/test/speaking',   max: 15 },
-  { key: 'reading',      label: 'ทักษะการอ่าน',  icon: <BookOpen size={24} />,      color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#059669)', path: '/test/reading',    max: 30 },
-  { key: 'writing',      label: 'ทักษะการเขียน', icon: <PenTool size={24} />,       color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#d97706)', path: '/test/writing',    max: 30 },
+  { key: 'full_test', label: 'แบบทดสอบรวม 100 ข้อ', icon: <BookOpen size={24} />, color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', path: '/skills', max: 100 },
 ];
 const TOTAL_MAX = 100;
 
@@ -40,7 +37,7 @@ export default function Dashboard() {
           flat = raw.flat;
         } else if (raw['1'] || raw['2'] || raw['3']) {
           // Old format: merge best score across levels
-          for (const sk of ['listening', 'conversation', 'reading', 'writing']) {
+          for (const sk of ['listening', 'conversation', 'reading', 'writing', 'full_test']) {
             let best = null;
             for (let lv = 1; lv <= 3; lv++) {
               const s = raw[lv]?.[sk];
@@ -129,8 +126,8 @@ export default function Dashboard() {
           </div>
           <div style={{ textAlign: 'center', padding: '20px 32px', background: 'var(--bg-glass)', borderRadius: '16px' }}>
             <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ทำแล้ว</div>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{completedCount}/4</div>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ทักษะ</div>
+            <div style={{ fontSize: '3rem', fontWeight: 'bold', color: 'var(--color-primary-dark)' }}>{completedCount}/1</div>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>ชุดข้อสอบ</div>
           </div>
         </div>
 
