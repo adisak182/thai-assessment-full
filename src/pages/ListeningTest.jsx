@@ -8,28 +8,28 @@ import ExamTimer from '../components/ExamTimer';
 // ===== QUESTION DATA =====
 // Section A: Vocab flashcards (ข้อ 1-3) - 2 options
 const vocabQ = [
-  { id: 1, word: 'สร้อย', audio: '/audio/vocab_soi.mp3', image: '/images/vocab_1_necklace_1777619701174.png',
+  { id: 1, word: 'สร้อย', audio: '/audio/vocab_1.mp3', image: '/images/vocab_1_necklace_1777619701174.png',
     question: 'ข้อ 1. คำว่า "สร้อย" อ่านอย่างไร ?',
     options: [{ text: 'ก. สะ-ร้อย', correct: false }, { text: 'ข. ส้อย', correct: true }] },
-  { id: 2, word: 'ปลอดภัย', audio: '/audio/vocab_plodbpai.mp3', image: '/images/vocab_2_safety_1777619714847.png',
+  { id: 2, word: 'ปลอดภัย', audio: '/audio/vocab_2.mp3', image: '/images/vocab_2_safety_1777619714847.png',
     question: 'ข้อ 2. คำว่า "ปลอดภัย" อ่านอย่างไร ?',
     options: [{ text: 'ก. ปลอด-พัย', correct: true }, { text: 'ข. ปะ-ลอด-พัย', correct: false }] },
-  { id: 3, word: 'ภูมิปัญญา', audio: '/audio/vocab_pumipanya.mp3', image: '/images/vocab_4_wisdom_1777619757158.png',
+  { id: 3, word: 'ภูมิปัญญา', audio: '/audio/vocab_3.mp3', image: '/images/vocab_4_wisdom_1777619757158.png',
     question: 'ข้อ 3. คำว่า "ภูมิปัญญา" อ่านอย่างไร ?',
     options: [{ text: 'ก. พู-มิ-ปัน-ยา', correct: false }, { text: 'ข. พูม-ปัน-ยา', correct: true }] },
 ];
 
 // Section B: Short announcements (ข้อ 4-6) - 2 options
 const announcementQ = [
-  { id: 4, audio: '/audio/ann_swimming.mp3',
+  { id: 4, audio: '/audio/announce_1.mp3',
     script: '"ประกาศ... ห้ามลงเล่นน้ำในบริเวณนี้เนื่องจากน้ำลึกและไหลเชี่ยว"',
     question: 'ข้อ 4. ข้อใดเป็นคำเตือนจากประกาศนี้ ?',
     options: [{ text: 'ก. ห้ามว่ายน้ำ', correct: true }, { text: 'ข. ห้ามตกปลา', correct: false }] },
-  { id: 5, audio: '/audio/ann_trash.mp3',
+  { id: 5, audio: '/audio/announce_2.mp3',
     script: '"โปรดทิ้งขยะลงถังให้ถูกประเภท"',
     question: 'ข้อ 5. ข้อใดที่ท่านควรพึงปฏิบัติ ?',
     options: [{ text: 'ก. ทิ้งขยะรวมกัน', correct: false }, { text: 'ข. แยกขยะก่อนทิ้ง', correct: true }] },
-  { id: 6, audio: '/audio/ann_exam.mp3',
+  { id: 6, audio: '/audio/announce_3.mp3',
     script: '"เมื่อทำข้อสอบเสร็จแล้ว ให้วางกระดาษคำตอบบนโต๊ะแล้วเดินออกจากห้องเงียบ ๆ"',
     question: 'ข้อ 6. ข้อใดไม่ควรปฏิบัติ ?',
     options: [{ text: 'ก. เดินออกจากห้องเบา ๆ', correct: false }, { text: 'ข. ตะโกนบอกเพื่อนว่าทำเสร็จแล้ว', correct: true }] },
@@ -52,13 +52,13 @@ const storyQ = [
 
 // Section D: 4-option vocab (ข้อ 10-11)
 const vocab4Q = [
-  { id: 10, audio: '/audio/vocab_consul.mp3', word: '"กงสุล"',
+  { id: 10, audio: '/audio/vocab_4.mp3', word: '"กงสุล"',
     question: 'ข้อ 10. คำศัพท์ที่ฟังตรงกับข้อใด ?',
     options: [
       { text: 'ก. กงสน', correct: false }, { text: 'ข. กงสุล', correct: true },
       { text: 'ค. กงสุน', correct: false }, { text: 'ง. กงศุล', correct: false }
     ] },
-  { id: 11, audio: '/audio/vocab_watsil.mp3', word: '"วาทศิลป์"',
+  { id: 11, audio: '/audio/vocab_5.mp3', word: '"วาทศิลป์"',
     question: 'ข้อ 11. คำศัพท์ที่ฟังตรงกับข้อใด ?',
     options: [
       { text: 'ก. วาทศิลป์', correct: true }, { text: 'ข. วาทสิน', correct: false },
@@ -68,7 +68,7 @@ const vocab4Q = [
 
 // Section E: Proverbs (ข้อ 12-14)
 const proverbQ = [
-  { id: 12, audio: '/audio/prov_fish.mp3', saying: '"จับปลาสองมือ"',
+  { id: 12, audio: '/audio/announce_4.mp3', saying: '"จับปลาสองมือ"',
     question: 'ข้อ 12. สำนวนนี้มีความหมายตรงกับข้อใด ?',
     options: [
       { text: 'ก. เลือกทำสิ่งที่ง่ายที่สุด', correct: false },
@@ -76,7 +76,7 @@ const proverbQ = [
       { text: 'ค. ทำสิ่งใดสิ่งหนึ่งเพียงอย่างเดียว', correct: false },
       { text: 'ง. ทำหลายอย่างพร้อมกันจนไม่สำเร็จสักอย่าง', correct: true }
     ] },
-  { id: 13, audio: '/audio/prov_water.mp3', saying: '"น้ำขึ้นให้รีบตัก"',
+  { id: 13, audio: '/audio/announce_5.mp3', saying: '"น้ำขึ้นให้รีบตัก"',
     question: 'ข้อ 13. สำนวนนี้มีความหมายตรงกับข้อใด ?',
     options: [
       { text: 'ก. รีบทำเมื่อมีโอกาสดี', correct: true },
@@ -84,7 +84,7 @@ const proverbQ = [
       { text: 'ค. ทำงานตามลำดับขั้นตอน', correct: false },
       { text: 'ง. รอเวลาที่เหมาะสมก่อนลงมือทำ', correct: false }
     ] },
-  { id: 14, audio: '/audio/prov_paddle.mp3', saying: '"มือไม่พาย เอาเท้าราน้ำ"',
+  { id: 14, audio: '/audio/story_1.mp3', saying: '"มือไม่พาย เอาเท้าราน้ำ"',
     question: 'ข้อ 14. สำนวนนี้มีความหมายตรงกับข้อใด ?',
     options: [
       { text: 'ก. ทำงานอย่างมีความสุข', correct: false },
@@ -105,7 +105,7 @@ const tfQ = [
 ];
 
 // Section G: Announcement MCQ (ข้อ 20-21)
-const ANN_COLD_AUDIO = '/audio/ann_cold_weather.mp3';
+const ANN_COLD_AUDIO = '/audio/l3_listen_announcement.mp3';
 const annColdQ = [
   { id: 20, question: 'ข้อ 20. จุดประสงค์หลักของประกาศนี้คืออะไร ?',
     options: [
@@ -144,7 +144,7 @@ const adQ = [
 
 // Section I: Polysemy & spelling (ข้อ 24-25)
 const lastQ = [
-  { id: 24, audio: '/audio/q24_kun.mp3',
+  { id: 24, audio: '/audio/l3_listen_q14.mp3',
     script: '"เขาหัวเราะจน ขัน ที่ถืออยู่สั่นไปมา เพราะนึกถึงเรื่อง ขัน ที่เพื่อนเล่า"',
     question: 'ข้อ 24. คำว่า "ขัน" คำแรก มีความหมายตรงกับข้อใด ?',
     options: [
@@ -153,7 +153,7 @@ const lastQ = [
       { text: 'ค. การทำให้ตึง', correct: false },
       { text: 'ง. เสียงร้องของไก่', correct: false }
     ] },
-  { id: 25, audio: '/audio/q25_yai.mp3',
+  { id: 25, audio: '/audio/l3_listen_q15.mp3',
     script: '"ยายกินลำไย น้ำลายยายไหลย้อย"',
     question: 'ข้อ 25. คำที่อยู่ในมาตราตัวสะกด แม่เกย มีกี่คำ (ไม่นับคำซ้ำ) ?',
     options: [
@@ -165,7 +165,7 @@ const lastQ = [
 ];
 
 // ===== AUDIO BUTTON =====
-function AudioBtn({ src, label = 'ฟังเสียง' }) {
+function AudioBtn({ src }) {
   const ref = useRef(null);
   const [playing, setPlaying] = useState(false);
 
@@ -182,7 +182,7 @@ function AudioBtn({ src, label = 'ฟังเสียง' }) {
 
   return (
     <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(168,85,247,0.12)', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', fontSize: '1.1rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
-      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
+      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : 'ฟังเสียง'}
     </button>
   );
 }
