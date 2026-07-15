@@ -430,7 +430,7 @@ export default function FullTest() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</div>
-          <ExamTimer key={timerKey} totalSeconds={3000} onTimeUp={handleSubmit} compact />
+          <ExamTimer key={timerKey} totalSeconds={2100} onTimeUp={handleSubmit} compact />
         </div>
       </div>
 
