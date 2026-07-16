@@ -124,6 +124,7 @@ export default function FullTest() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [breakdownScore, setBreakdownScore] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
@@ -579,7 +580,7 @@ export default function FullTest() {
         </button>
 
         {currentIndex === totalQ - 1 ? (
-          <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
+          <button onClick={() => setShowConfirmModal(true)} disabled={submitting} className="btn-primary"
             style={{ padding: '14px 32px', fontSize: '1.1rem', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg,#10b981,#059669)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)', opacity: submitting ? 0.7 : 1 }}>
             {submitting ? <RefreshCw size={20} className="spin" /> : <Trophy size={20} />} 
             {submitting ? 'กำลังส่ง...' : 'ส่งคำตอบ'}
@@ -594,6 +595,43 @@ export default function FullTest() {
           <ResultModal score={finalScore} total={totalQ} breakdown={breakdownScore} onClose={() => navigate('/dashboard')} onRetry={() => window.location.reload()} />
         )}
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '400px', padding: '32px', borderRadius: '24px', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', background: '#d1fae5', color: '#10b981', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <CheckCircle size={32} />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '12px' }}>ยืนยันการส่งคำตอบ</h2>
+            <p style={{ color: '#64748b', marginBottom: '24px', fontSize: '1.05rem', lineHeight: '1.5' }}>
+              คุณทำข้อสอบไปแล้ว {answeredCount} จาก {totalQ} ข้อ<br/>
+              ต้องการส่งข้อสอบเลยหรือไม่?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                onClick={() => setShowConfirmModal(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', background: 'white', color: '#64748b', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s' }}
+                onMouseEnter={e => e.target.style.background = '#f8fafc'}
+                onMouseLeave={e => e.target.style.background = 'white'}
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  handleSubmit();
+                }}
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: '#10b981', color: 'white', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)', transition: 'transform 0.2s, box-shadow 0.2s' }}
+                onMouseEnter={e => { e.target.style.transform = 'scale(1.05)'; e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)' }}
+                onMouseLeave={e => { e.target.style.transform = 'scale(1)'; e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)' }}
+              >
+                ยืนยันส่งข้อสอบ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
