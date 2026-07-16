@@ -176,6 +176,15 @@ export default function FullTest() {
 
   const totalQ = allQ.length;
   
+  const isQuestionAnswered = useCallback((q) => {
+    if (q.type === 'mcq') return answers[q.id] !== undefined;
+    if (q.type === 'tf') return tfAnswers[q.id] !== undefined;
+    if (q.type === 'match') return matchSel[q.id] !== undefined && matchSel[q.id] !== '';
+    if (q.type === 'text') return textAnswers[q.id] !== undefined && textAnswers[q.id].trim() !== '';
+    if (q.type === 'speaking') return speechAnswers[q.id] !== undefined && speechAnswers[q.id].trim() !== '';
+    return false;
+  }, [answers, tfAnswers, matchSel, textAnswers, speechAnswers]);
+
   // Count answered
   let answeredCount = Object.keys(answers).length 
     + Object.keys(tfAnswers).length 
@@ -561,9 +570,36 @@ export default function FullTest() {
           <div style={{ width: `${(answeredCount / totalQ) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary-light), var(--color-primary))', transition: 'width 0.3s' }} />
         </div>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</div>
           <ExamTimer key={timerKey} totalSeconds={2100} onTimeUp={handleSubmit} compact />
+        </div>
+        
+        {/* Navigation Grid */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '12px 8px', background: 'rgba(255,255,255,0.7)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)', scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}>
+          {allQ.map((q, idx) => {
+            const answered = isQuestionAnswered(q);
+            const active = currentIndex === idx;
+            return (
+              <button 
+                key={idx}
+                onClick={() => setCurrentIndex(idx)}
+                title={answered ? `ข้อ ${idx+1} ตอบแล้ว` : `ข้อ ${idx+1} ยังไม่ได้ตอบ`}
+                style={{
+                  minWidth: '36px', height: '36px', borderRadius: '50%', 
+                  background: active ? 'var(--color-primary)' : (answered ? '#10b981' : '#ef4444'),
+                  color: 'white', border: 'none', fontWeight: 'bold', fontSize: '0.9rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: active ? '0 0 0 4px rgba(139,92,246,0.3)' : 'none',
+                  transition: 'all 0.2s',
+                  transform: active ? 'scale(1.15)' : 'scale(1)'
+                }}
+              >
+                {idx + 1}
+              </button>
+            );
+          })}
         </div>
       </div>
 
