@@ -6,6 +6,7 @@ import confetti from 'canvas-confetti';
 import ExamTimer from '../components/ExamTimer';
 import ResultModal from '../components/ResultModal';
 import SurveyModal from '../components/SurveyModal';
+import { useSessionStorage } from '../hooks/useSessionStorage';
 
 import {
   vocabQ, announcementQ, storyQ, vocab4Q, proverbQ, listenTfQ, annColdQ, adQ, lastQ, STORY_AUDIO, STORY_IMG, ARTICLE_AUDIO, ANN_COLD_AUDIO, AD_AUDIO,
@@ -113,15 +114,15 @@ function MicBtn({ onResult, currentText }) {
 export default function FullTest() {
   const navigate = useNavigate();
   const { recordScore, submitSurvey } = useUser();
-  const [answers, setAnswers] = useState({});
-  const [selIdx, setSelIdx] = useState({});
-  const [tfAnswers, setTfAnswers] = useState({});
-  const [matchSel, setMatchSel] = useState({});
-  const [textAnswers, setTextAnswers] = useState({}); 
-  const [speechAnswers, setSpeechAnswers] = useState({});
-  const [usedWords, setUsedWords] = useState({});
+  const [answers, setAnswers] = useSessionStorage('fulltest_answers', {});
+  const [selIdx, setSelIdx] = useSessionStorage('fulltest_selIdx', {});
+  const [tfAnswers, setTfAnswers] = useSessionStorage('fulltest_tfAnswers', {});
+  const [matchSel, setMatchSel] = useSessionStorage('fulltest_matchSel', {});
+  const [textAnswers, setTextAnswers] = useSessionStorage('fulltest_textAnswers', {}); 
+  const [speechAnswers, setSpeechAnswers] = useSessionStorage('fulltest_speechAnswers', {});
+  const [usedWords, setUsedWords] = useSessionStorage('fulltest_usedWords', {});
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useSessionStorage('fulltest_currentIndex', 0);
   const [showResult, setShowResult] = useState(false);
   const [showSurvey, setShowSurvey] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -298,6 +299,10 @@ export default function FullTest() {
     setBreakdownScore(breakdown);
     setSubmitting(false);
     setShowSurvey(true);
+
+    // Clear session storage progress
+    const keysToClear = ['fulltest_answers', 'fulltest_selIdx', 'fulltest_tfAnswers', 'fulltest_matchSel', 'fulltest_textAnswers', 'fulltest_speechAnswers', 'fulltest_usedWords', 'fulltest_currentIndex', 'fulltest_timer'];
+    keysToClear.forEach(k => window.sessionStorage.removeItem(k));
   };
 
   const handleSurveySubmit = async (surveyData) => {
@@ -575,7 +580,7 @@ export default function FullTest() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</div>
-          <ExamTimer key={timerKey} totalSeconds={2100} onTimeUp={handleSubmit} compact />
+          <ExamTimer key={timerKey} totalSeconds={2100} onTimeUp={handleSubmit} compact storageKey="fulltest_timer" />
         </div>
         
         {/* Navigation Grid */}

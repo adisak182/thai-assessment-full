@@ -4,6 +4,7 @@ import { BookOpen, Trophy, XCircle, ArrowRight, RefreshCw, CheckCircle } from 'l
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 import ExamTimer from '../components/ExamTimer';
+import { useSessionStorage } from '../hooks/useSessionStorage';
 
 // ===== QUESTION DATA =====
 
@@ -109,10 +110,10 @@ function ResultModal({ score, total, onClose, onRetry }) {
 export default function ReadingTest() {
   const { recordScore } = useUser();
   const navigate = useNavigate();
-  const [answers, setAnswers] = useState({});      // { qId: correctness (bool) }
-  const [selIdx, setSelIdx] = useState({});         // { qId: optionIndex }
-  const [tfAnswers, setTfAnswers] = useState({});   // { qId: 'fact'|'opinion' }
-  const [matchSel, setMatchSel] = useState({});     // { verseId: meaningText }
+  const [answers, setAnswers] = useSessionStorage('readtest_answers', {});
+  const [selIdx, setSelIdx] = useSessionStorage('readtest_selIdx', {});
+  const [tfAnswers, setTfAnswers] = useSessionStorage('readtest_tfAnswers', {});
+  const [matchSel, setMatchSel] = useSessionStorage('readtest_matchSel', {});
   const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -147,6 +148,10 @@ export default function ReadingTest() {
     try { await recordScore({ level: 1, skill: 'reading', score, maxScore: totalQ }); } catch (e) {}
     setShowResult(true);
     setSubmitting(false);
+
+    // Clear session storage progress
+    const keysToClear = ['readtest_answers', 'readtest_selIdx', 'readtest_tfAnswers', 'readtest_matchSel', 'readtest_timer'];
+    keysToClear.forEach(k => window.sessionStorage.removeItem(k));
   };
 
   const SectionHeader = ({ num, title, sub }) => (
@@ -192,7 +197,7 @@ export default function ReadingTest() {
       </div>
 
       {/* Timer: 30 ข้อ × 30 วินาที = 900 วินาที */}
-      <ExamTimer key={timerKey} totalSeconds={900} onTimeUp={handleSubmit} />
+      <ExamTimer key={timerKey} totalSeconds={900} onTimeUp={handleSubmit} storageKey="readtest_timer" />
 
       {/* Section A */}
       <SectionHeader num="A" title='มารยาทการฟังและการดู (ข้อ 41-45)' sub="อ่านบทความแล้วตอบคำถาม" />

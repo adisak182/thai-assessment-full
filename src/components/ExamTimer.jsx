@@ -7,12 +7,23 @@ import { Timer } from 'lucide-react';
  *   totalSeconds  – เวลาทั้งหมด (วินาที), e.g. 25 ข้อ × 30 = 750
  *   onTimeUp      – callback เมื่อหมดเวลา (trigger submit)
  */
-export default function ExamTimer({ totalSeconds, onTimeUp, compact }) {
-  const [remaining, setRemaining] = useState(totalSeconds);
+export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey }) {
+  const [remaining, setRemaining] = useState(() => {
+    if (storageKey) {
+      const saved = window.sessionStorage.getItem(storageKey);
+      if (saved !== null && !isNaN(parseInt(saved, 10))) {
+        return parseInt(saved, 10);
+      }
+    }
+    return totalSeconds;
+  });
   const [urgent, setUrgent] = useState(false);
   const calledRef = useRef(false);
 
   useEffect(() => {
+    if (storageKey) {
+      window.sessionStorage.setItem(storageKey, remaining);
+    }
     if (remaining <= 0) {
       if (!calledRef.current) {
         calledRef.current = true;
