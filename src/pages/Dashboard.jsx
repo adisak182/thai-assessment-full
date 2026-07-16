@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { Trophy, BookOpen, MessageCircle, Volume2, PenTool, Edit3, User as UserIcon, CheckCircle, Clock, ArrowRight } from 'lucide-react';
+import { Trophy, BookOpen, MessageCircle, Volume2, PenTool, Edit3, User as UserIcon, CheckCircle, Clock, ArrowRight, Eye, XCircle } from 'lucide-react';
 
 const SKILL_CONFIG = [
   { key: 'full_test', label: 'แบบทดสอบรวม 100 ข้อ', icon: <BookOpen size={24} />, color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)', path: '/skills', max: 100 },
@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [skillScores, setSkillScores] = useState({});
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedAttemptId, setExpandedAttemptId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -194,18 +195,61 @@ export default function Dashboard() {
               const info = SKILL_CONFIG.find(s => s.key === h.skill) || { label: h.skill, color: '#6b7280', icon: <BookOpen size={18} />, bg: '#6b7280' };
               const hp = Math.round((h.score / h.max_score) * 100);
               return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 18px', background: 'rgba(255,255,255,0.6)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
-                  <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: info.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    {info.icon}
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '14px 18px', background: 'rgba(255,255,255,0.6)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: info.bg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {info.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '0.9rem' }}>{info.label}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{formatDate(h.taken_at)}</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 'bold', color: hp >= 60 ? '#10b981' : '#ef4444' }}>{h.score}/{h.max_score}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{hp}%</div>
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '0.9rem' }}>{info.label}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{formatDate(h.taken_at)}</div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: '1rem', fontWeight: 'bold', color: hp >= 60 ? '#10b981' : '#ef4444' }}>{h.score}/{h.max_score}</div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{hp}%</div>
-                  </div>
+
+                  {h.detailed_results && h.detailed_results.length > 0 && (
+                    <div style={{ marginTop: '4px' }}>
+                      <button 
+                        onClick={() => setExpandedAttemptId(expandedAttemptId === h._id ? null : h._id)}
+                        style={{ background: 'white', border: '1px solid #e2e8f0', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', justifyContent: 'center' }}
+                      >
+                        <Eye size={16} /> {expandedAttemptId === h._id ? 'ซ่อนรายละเอียดคำตอบ' : 'ดูรายละเอียดคำตอบ'}
+                      </button>
+                      
+                      {expandedAttemptId === h._id && (
+                        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                          {h.detailed_results.map((r, rIdx) => (
+                            <div key={rIdx} style={{ padding: '12px', borderBottom: rIdx < h.detailed_results.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                              <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                <div style={{ marginTop: '2px' }}>
+                                  {r.is_correct ? <CheckCircle size={18} color="#10b981" /> : <XCircle size={18} color="#f43f5e" />}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>{r.section}</div>
+                                  <div style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>{r.question}</div>
+                                  <div style={{ fontSize: '0.85rem', display: 'grid', gap: '4px' }}>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      <span style={{ color: '#64748b', width: '80px' }}>คำตอบของคุณ:</span>
+                                      <span style={{ color: r.is_correct ? '#10b981' : '#f43f5e', fontWeight: '600' }}>{r.user_answer || '-'}</span>
+                                    </div>
+                                    {!r.is_correct && (
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <span style={{ color: '#64748b', width: '80px' }}>เฉลย:</span>
+                                        <span style={{ color: '#10b981', fontWeight: '600' }}>{r.correct_answer || '-'}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
