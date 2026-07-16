@@ -34,6 +34,8 @@ function ProtectedRoute({ children }) {
 
 function AppLayout() {
   const { user, apiError } = useUser();
+  const location = useLocation();
+  const isTestPage = location.pathname.startsWith('/skills') || location.pathname.startsWith('/test/');
 
   return (
     <div className="app-wrapper">
@@ -42,7 +44,8 @@ function AppLayout() {
           ⚠️ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้
         </div>
       )}
-      <header className="glass-panel app-header">
+      {!isTestPage && (
+        <header className="glass-panel app-header">
         <div className="header" style={{ padding: 0 }}>
           <Link to="/" className="header-logo">
             <div className="header-logo-icon logo-wrapper">
@@ -82,6 +85,7 @@ function AppLayout() {
           )}
         </nav>
       </header>
+      )}
 
       <main className="main-content container relative z-1">
         <Routes>
