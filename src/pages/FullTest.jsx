@@ -119,6 +119,7 @@ export default function FullTest() {
   const [matchSel, setMatchSel] = useState({});
   const [textAnswers, setTextAnswers] = useState({}); 
   const [speechAnswers, setSpeechAnswers] = useState({});
+  const [usedWords, setUsedWords] = useState({});
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showResult, setShowResult] = useState(false);
@@ -266,7 +267,7 @@ export default function FullTest() {
   };
 
   const reset = () => {
-    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeechAnswers({});
+    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeechAnswers({}); setUsedWords({});
     setCurrentIndex(0);
     setShowResult(false);
     setTimerKey(k => k + 1);
@@ -370,23 +371,32 @@ export default function FullTest() {
         {curQ.words && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', fontSize: '1.2rem' }}>
             <span style={{ fontWeight: 'bold', color: 'var(--color-primary-dark)', alignSelf: 'center', marginRight: '8px' }}>ข้อ {curQ.id}. (ลากหรือแตะเพื่อเรียง)</span>
-            {curQ.words.map((w, i) => (
-              <span 
-                key={i} 
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData('text/plain', w)}
-                onClick={() => {
-                  setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + w }));
-                }}
-                style={{ 
-                  padding: '8px 16px', background: 'white', borderRadius: '8px', 
-                  color: 'var(--color-primary-dark)', border: '2px solid rgba(139,92,246,0.3)',
-                  cursor: 'grab', userSelect: 'none', touchAction: 'manipulation',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                }}>
-                {w}
-              </span>
-            ))}
+            {curQ.words.map((w, i) => {
+              const isUsed = usedWords[curQ.id]?.includes(i);
+              return (
+                <span 
+                  key={i} 
+                  draggable={!isUsed}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', w);
+                    e.dataTransfer.setData('text/index', i.toString());
+                  }}
+                  onClick={() => {
+                    if (!isUsed) {
+                      setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + w }));
+                      setUsedWords(prev => ({ ...prev, [curQ.id]: [...(prev[curQ.id] || []), i] }));
+                    }
+                  }}
+                  style={{ 
+                    padding: '8px 16px', background: isUsed ? '#f3f4f6' : 'white', borderRadius: '8px', 
+                    color: isUsed ? '#9ca3af' : 'var(--color-primary-dark)', border: `2px solid ${isUsed ? 'transparent' : 'rgba(139,92,246,0.3)'}`,
+                    cursor: isUsed ? 'default' : 'grab', userSelect: 'none', touchAction: 'manipulation',
+                    boxShadow: isUsed ? 'none' : '0 2px 4px rgba(0,0,0,0.05)', opacity: isUsed ? 0.5 : 1
+                  }}>
+                  {w}
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -446,7 +456,17 @@ export default function FullTest() {
                 onDrop={(e) => {
                   e.preventDefault();
                   const data = e.dataTransfer.getData('text/plain');
-                  if (data) setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + data }));
+                  const idxStr = e.dataTransfer.getData('text/index');
+                  if (data && idxStr) {
+                    const idx = parseInt(idxStr);
+                    if (!usedWords[curQ.id]?.includes(idx)) {
+                      setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + data }));
+                      setUsedWords(prev => ({ ...prev, [curQ.id]: [...(prev[curQ.id] || []), idx] }));
+                    }
+                  } else if (data) {
+                    // Fallback if dropped from somewhere else
+                    setTextAnswers(prev => ({ ...prev, [curQ.id]: (prev[curQ.id] || '') + data }));
+                  }
                 }}
                 style={{ 
                   flex: 1, padding: '16px 20px', borderRadius: '12px', 
@@ -459,7 +479,10 @@ export default function FullTest() {
                 {textAnswers[curQ.id] || 'ลากคำมาวางเรียงกันที่นี่'}
               </div>
               <button 
-                onClick={() => setTextAnswers(prev => ({ ...prev, [curQ.id]: '' }))} 
+                onClick={() => {
+                  setTextAnswers(prev => ({ ...prev, [curQ.id]: '' }));
+                  setUsedWords(prev => ({ ...prev, [curQ.id]: [] }));
+                }} 
                 style={{ padding: '0 20px', background: '#fef2f2', color: '#ef4444', border: '2px solid #fca5a5', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', minWidth: '100px' }}>
                 ลบใหม่
               </button>
