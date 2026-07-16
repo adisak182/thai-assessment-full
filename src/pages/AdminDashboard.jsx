@@ -212,13 +212,13 @@ export default function AdminDashboard() {
           <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 72px', fontSize: '1.1rem' }}>จัดการผู้ใช้งานและติดตามความคืบหน้า</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', background: 'white' }}>
+          <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <List size={20} /> ดูเฉลยข้อสอบ
           </button>
           <button onClick={openSurveys} className="btn-primary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ClipboardList size={20} /> ดูผลแบบสอบถาม
           </button>
-          <Link to="/levels" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600', background: 'white' }}>
+          <Link to="/" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600' }}>
             กลับไปหน้าหลัก
           </Link>
         </div>
