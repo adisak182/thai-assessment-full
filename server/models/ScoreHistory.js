@@ -29,6 +29,10 @@ const scoreHistorySchema = new mongoose.Schema({
   breakdown: {
     type: Object,
     default: {}
+  },
+  detailed_results: {
+    type: Array,
+    default: []
   }
 });
 

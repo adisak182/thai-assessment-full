@@ -4,6 +4,7 @@ import { useUser } from '../context/UserContext';
 import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys } from '../services/api';
 import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
+import { getAllQuestions } from '../data/testData';
 
 function formatDate(isoStr) {
   const d = new Date(isoStr);
@@ -21,6 +22,7 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userScores, setUserScores] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
+  const [expandedAttemptId, setExpandedAttemptId] = useState(null);
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
@@ -30,12 +32,15 @@ export default function AdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Surveys Modal State
+  // Surveys & Answer Key State
   const [showSurveyModal, setShowSurveyModal] = useState(false);
+  const [showAnswerKeyModal, setShowAnswerKeyModal] = useState(false);
   const [surveys, setSurveys] = useState([]);
   const [surveysLoading, setSurveysLoading] = useState(false);
   const [surveyTab, setSurveyTab] = useState('overview'); // 'overview' | 'list'
   const [expandedSurveyId, setExpandedSurveyId] = useState(null);
+
+  const answerKeyData = useMemo(() => getAllQuestions(), []);
 
   const surveySummaryData = useMemo(() => {
     if (!surveys || surveys.length === 0) return [];
@@ -207,10 +212,13 @@ export default function AdminDashboard() {
           <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 72px', fontSize: '1.1rem' }}>จัดการผู้ใช้งานและติดตามความคืบหน้า</p>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', background: 'white' }}>
+            <List size={20} /> ดูเฉลยข้อสอบ
+          </button>
           <button onClick={openSurveys} className="btn-primary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ClipboardList size={20} /> ดูผลแบบสอบถาม
           </button>
-          <Link to="/levels" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600' }}>
+          <Link to="/levels" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600', background: 'white' }}>
             กลับไปหน้าหลัก
           </Link>
         </div>
@@ -490,6 +498,47 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         )}
+                        
+                        {h.detailed_results && h.detailed_results.length > 0 && (
+                          <div style={{ marginTop: '8px' }}>
+                            <button 
+                              onClick={() => setExpandedAttemptId(expandedAttemptId === h.id ? null : h.id)}
+                              style={{ background: 'white', border: '1px solid #e2e8f0', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', justifyContent: 'center' }}
+                            >
+                              <Eye size={16} /> {expandedAttemptId === h.id ? 'ซ่อนรายละเอียดคำตอบ' : 'ดูรายละเอียดคำตอบ'}
+                            </button>
+                            
+                            {expandedAttemptId === h.id && (
+                              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                {h.detailed_results.map((r, rIdx) => (
+                                  <div key={rIdx} style={{ padding: '12px', borderBottom: rIdx < h.detailed_results.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                      <div style={{ marginTop: '2px' }}>
+                                        {r.is_correct ? <CheckCircle size={18} color="#10b981" /> : <XCircle size={18} color="#f43f5e" />}
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>{r.section}</div>
+                                        <div style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>{r.question}</div>
+                                        <div style={{ fontSize: '0.85rem', display: 'grid', gap: '4px' }}>
+                                          <div style={{ display: 'flex', gap: '8px' }}>
+                                            <span style={{ color: '#64748b', width: '80px' }}>คำตอบผู้ใช้:</span>
+                                            <span style={{ color: r.is_correct ? '#10b981' : '#f43f5e', fontWeight: '600' }}>{r.user_answer || '-'}</span>
+                                          </div>
+                                          {!r.is_correct && (
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                              <span style={{ color: '#64748b', width: '80px' }}>เฉลย:</span>
+                                              <span style={{ color: '#10b981', fontWeight: '600' }}>{r.correct_answer || '-'}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -727,6 +776,54 @@ export default function AdminDashboard() {
                   )}
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Answer Key Modal */}
+      {showAnswerKeyModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '900px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <List size={28} color="var(--color-primary)" />
+                  เฉลยข้อสอบทั้งหมด ({answerKeyData.length} ข้อ)
+                </h3>
+              </div>
+              <button onClick={() => setShowAnswerKeyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
+            </div>
+            
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {answerKeyData.map((q, idx) => {
+                let correctAnswerText = '';
+                if (q.type === 'mcq') {
+                  const correctOpt = q.options?.find(o => o.correct);
+                  correctAnswerText = correctOpt ? correctOpt.text : '-';
+                } else if (q.type === 'tf') {
+                  correctAnswerText = q.correct === true ? 'จริง' : 'เท็จ';
+                } else if (q.type === 'match') {
+                  // matchAnswers is not exported here directly, we can assume q has something or just display a generic note.
+                  correctAnswerText = 'ดูเฉลยในส่วนการจับคู่';
+                } else if (q.type === 'text') {
+                  correctAnswerText = q.answer || q.word || 'พิจารณาตามเนื้อหา / เติมคำตอบให้ถูกต้อง';
+                } else if (q.type === 'speaking') {
+                  correctAnswerText = q.text || (q.keywords ? q.keywords.join(', ') : 'พูดออกเสียงให้ถูกต้อง');
+                }
+
+                return (
+                  <div key={idx} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--color-primary)', fontWeight: '700', marginBottom: '8px' }}>{q.section}</div>
+                    <div style={{ fontSize: '1.05rem', color: '#1e293b', fontWeight: '600', marginBottom: '12px' }}>{q.question || q.script || q.text || q.word || `ข้อ ${q.id}`}</div>
+                    
+                    <div style={{ display: 'flex', gap: '8px', background: 'white', padding: '12px', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+                      <span style={{ color: '#64748b', fontWeight: '600', width: '80px' }}>เฉลย:</span>
+                      <span style={{ color: '#10b981', fontWeight: '700', flex: 1 }}>{correctAnswerText}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

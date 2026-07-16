@@ -312,3 +312,46 @@ export const essayQ = [
 
 
 export const matchAnswers = { 66: 'คนที่พูดจาอ่อนหวาน สุภาพ จะมีเพื่อนมากมาย มีคนรักใคร่เอ็นดู', 67: 'คนที่พูดจาหยาบคาย จะไม่มีเพื่อนแท้ หรือแทบไม่มีใครอยากอยู่ใกล้', 68: 'เปรียบเหมือนดวงจันทร์ (ศศิ) ที่ส่องแสงสวยงาม มีดวงดาวมากมายล้อมรอบประดับอยู่', 69: 'เปรียบเหมือนดวงอาทิตย์ที่มีแสงร้อนแรง จนทำให้มองไม่เห็นดาว หรือไม่มีดาวอยู่ใกล้' };
+
+export const getAllQuestions = () => {
+  let arr = [];
+  const add = (items, type, section, extra = {}) => {
+    items.forEach(q => arr.push({ ...q, type, section, ...extra }));
+  };
+
+  // Part 1
+  add(vocabQ, 'mcq', 'ส่วนที่ 1: การฟัง (คำศัพท์)');
+  add(announcementQ, 'mcq', 'ส่วนที่ 1: การฟัง (ประกาศ)');
+  add(storyQ, 'mcq', 'ส่วนที่ 1: การฟัง (นิทาน)', { contextAudio: STORY_AUDIO, contextImage: STORY_IMG, contextDesc: 'นิทาน พ่อค้าเกลือกับลาขี้โกง' });
+  add(vocab4Q, 'mcq', 'ส่วนที่ 1: การฟัง (คำศัพท์)');
+  add(proverbQ, 'mcq', 'ส่วนที่ 1: การฟัง (สำนวน)');
+  add(listenTfQ, 'tf', 'ส่วนที่ 1: การฟัง (เด็กติดจอ)', { contextAudio: ARTICLE_AUDIO, isListeningTf: true, contextDesc: 'พิจารณาว่าข้อความต่อไปนี้เป็น "จริง" หรือ "เท็จ"' });
+  add(annColdQ, 'mcq', 'ส่วนที่ 1: การฟัง (ประกาศภัยหนาว)', { contextAudio: ANN_COLD_AUDIO });
+  add(adQ, 'mcq', 'ส่วนที่ 1: การฟัง (โฆษณา)', { contextAudio: AD_AUDIO });
+  add(lastQ, 'mcq', 'ส่วนที่ 1: การฟัง (ความหมายและการสะกดคำ)');
+
+  // Part 2
+  add(introQ, 'speaking', 'ส่วนที่ 2: การพูด (แนะนำตัว)');
+  add(situQ, 'speaking', 'ส่วนที่ 2: การพูด (สถานการณ์จำลอง)');
+  add(tongueQ, 'speaking', 'ส่วนที่ 2: การพูด (อ่านออกเสียง)');
+
+  // Part 3
+  add(sectionAQ, 'mcq', 'ส่วนที่ 3: การอ่าน (มารยาท)', { contextText: ARTICLE_A });
+  add(sectionBQ, 'mcq', 'ส่วนที่ 3: การอ่าน (โรคหน้าฝน)', { contextText: ARTICLE_B });
+  add(readTfQ, 'tf', 'ส่วนที่ 3: การอ่าน (แยกแยะข้อเท็จจริง/ข้อคิดเห็น)', { contextText: ARTICLE_B, isReadingTf: true });
+  add(sectionCQ, 'mcq', 'ส่วนที่ 3: การอ่าน (สังคมสูงวัย)', { contextText: ARTICLE_C });
+  add(sectionDQ, 'mcq', 'ส่วนที่ 3: การอ่าน (ระดับภาษา)');
+  add(matchData, 'match', 'ส่วนที่ 3: การอ่าน (สุภาษิตพระร่วง)', { contextText: POEM, matchOptions: matchData });
+  add(readSectionEQ, 'mcq', 'ส่วนที่ 3: การอ่าน (หลักภาษา)');
+
+  // Part 4
+  add(spellQ, 'text', 'ส่วนที่ 4: การเขียน (การสะกดคำ)');
+  add(fillQ, 'text', 'ส่วนที่ 4: การเขียน (เติมคำในช่องว่าง)', { contextTags: WORD_BANK });
+  add(spellingQ, 'text', 'ส่วนที่ 4: การเขียน (เขียนคำจากคำอ่าน)');
+  add(rearrangeQ, 'text', 'ส่วนที่ 4: การเขียน (เรียงประโยค)');
+  add(writeSectionEQ, 'mcq', 'ส่วนที่ 4: การเขียน (หลักภาษาไทย)');
+  add(rearrangePart5Q, 'text', 'ส่วนที่ 5: การประยุกต์ใช้ภาษา (เรียงประโยค)');
+  add(essayQ, 'text', 'ส่วนที่ 5: การประยุกต์ใช้ภาษา (ตอบคำถามพอสังเขป)');
+
+  return arr;
+};

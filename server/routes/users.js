@@ -56,7 +56,7 @@ router.put('/me', authenticate, async (req, res) => {
 
 // ==================== SAVE SCORE ====================
 router.post('/score', authenticate, async (req, res) => {
-  const { level, skill, score, maxScore, breakdown } = req.body;
+  const { level, skill, score, maxScore, breakdown, detailed_results } = req.body;
 
   if (!skill || score == null || maxScore == null) {
     return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
@@ -70,7 +70,8 @@ router.post('/score', authenticate, async (req, res) => {
       skill,
       score,
       max_score: maxScore,
-      breakdown: breakdown || {}
+      breakdown: breakdown || {},
+      detailed_results: detailed_results || []
     });
 
     // คำนวณคะแนนรวมทุกทักษะของผู้ใช้นี้ (เอาคะแนนสูงสุดของแต่ละทักษะ)

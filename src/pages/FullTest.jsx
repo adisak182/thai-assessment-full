@@ -210,30 +210,47 @@ export default function FullTest() {
       return 'writing';
     };
 
+    const detailed_results = [];
+
     allQ.forEach(q => {
       const cat = getCategory(q.section);
       let isCorrect = false;
+      let userAnswer = '';
+      let correctAnswer = '';
 
       if (q.type === 'mcq') {
+        const selectedOpt = q.options?.find((o, idx) => selIdx[q.id] === idx);
+        userAnswer = selectedOpt ? selectedOpt.text : '';
+        const correctOpt = q.options?.find(o => o.correct);
+        correctAnswer = correctOpt ? correctOpt.text : '';
         if (answers[q.id] === true) isCorrect = true;
       } else if (q.type === 'tf') {
         const v = tfAnswers[q.id];
+        userAnswer = v === undefined ? '' : (v === 'fact' || v === true ? 'จริง' : 'เท็จ');
+        correctAnswer = q.correct === true ? 'จริง' : 'เท็จ';
         if (v !== undefined) {
           if (q.isListeningTf && q.correct === (v === 'fact' || v === true)) isCorrect = true;
           if (q.isReadingTf && q.correct === v) isCorrect = true;
         }
       } else if (q.type === 'match') {
-        if (matchSel[q.id] === matchAnswers[q.id]) isCorrect = true;
+        userAnswer = matchSel[q.id] || '';
+        correctAnswer = matchAnswers[q.id] || '';
+        if (userAnswer === correctAnswer) isCorrect = true;
       } else if (q.type === 'text') {
         const val = (textAnswers[q.id] || '').trim();
+        userAnswer = val;
+        correctAnswer = q.answer || q.word || 'พิจารณาจากคำตอบ';
         if (q.answer && val === q.answer) isCorrect = true;
         else if (q.word && val === q.word) isCorrect = true;
         else if (!q.answer && !q.word && val.length > 5) isCorrect = true; // essay
       } else if (q.type === 'speaking') {
-        const text = speechAnswers[q.id];
+        const text = speechAnswers[q.id] || '';
+        userAnswer = text;
+        correctAnswer = q.text || (q.keywords ? q.keywords.join(', ') : 'พูดออกเสียงให้ถูกต้อง');
         if (text) {
           if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
             isCorrect = true;
+            userAnswer = 'เบราว์เซอร์ไม่รองรับ (อนุโลมให้ผ่าน)';
           } else if (q.text) {
             // Strict exact match for reading text (ignore spaces)
             const cleanSource = q.text.replace(/\s+/g, '');
@@ -247,13 +264,23 @@ export default function FullTest() {
         }
       }
 
+      detailed_results.push({
+        id: q.id,
+        section: q.section,
+        type: q.type,
+        question: q.question || q.script || q.text || q.word || `ข้อ ${q.id}`,
+        user_answer: userAnswer,
+        correct_answer: correctAnswer,
+        is_correct: isCorrect
+      });
+
       breakdown[cat].max++;
       if (isCorrect) breakdown[cat].score++;
     });
 
     const score = breakdown.listening.score + breakdown.speaking.score + breakdown.reading.score + breakdown.writing.score;
 
-    try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ, breakdown }); } catch (e) {}
+    try { await recordScore({ level: 1, skill: 'full_test', score, maxScore: totalQ, breakdown, detailed_results }); } catch (e) {}
     setFinalScore(score);
     setBreakdownScore(breakdown);
     setSubmitting(false);
