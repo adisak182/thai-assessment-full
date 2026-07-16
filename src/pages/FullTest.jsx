@@ -177,11 +177,12 @@ export default function FullTest() {
   const totalQ = allQ.length;
   
   const isQuestionAnswered = useCallback((q) => {
+    if (!q) return false;
     if (q.type === 'mcq') return answers[q.id] !== undefined;
     if (q.type === 'tf') return tfAnswers[q.id] !== undefined;
     if (q.type === 'match') return matchSel[q.id] !== undefined && matchSel[q.id] !== '';
-    if (q.type === 'text') return textAnswers[q.id] !== undefined && textAnswers[q.id].trim() !== '';
-    if (q.type === 'speaking') return speechAnswers[q.id] !== undefined && speechAnswers[q.id].trim() !== '';
+    if (q.type === 'text') return typeof textAnswers[q.id] === 'string' && textAnswers[q.id].trim() !== '';
+    if (q.type === 'speaking') return typeof speechAnswers[q.id] === 'string' && speechAnswers[q.id].trim() !== '';
     return false;
   }, [answers, tfAnswers, matchSel, textAnswers, speechAnswers]);
 
