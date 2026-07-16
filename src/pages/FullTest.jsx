@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { Volume2, Play, Trophy, XCircle, ArrowRight, RefreshCw, Mic, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { Volume2, Play, Trophy, XCircle, ArrowRight, RefreshCw, Mic, ChevronLeft, ChevronRight, RotateCcw, CheckCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import ExamTimer from '../components/ExamTimer';
 import ResultModal from '../components/ResultModal';
