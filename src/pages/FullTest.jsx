@@ -328,7 +328,7 @@ export default function FullTest() {
     if (!curQ) return null;
 
     return (
-      <div className="glass-panel animate-fade-in" style={{ padding: '32px 24px', minHeight: '350px', display: 'flex', flexDirection: 'column' }}>
+      <div className="glass-panel animate-fade-in" style={{ padding: '32px', borderRadius: '24px', background: 'white', minHeight: '450px', display: 'flex', flexDirection: 'column' }}>
         
         <h3 style={{ fontSize: '1.2rem', color: 'var(--color-primary)', marginBottom: '20px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '10px' }}>{curQ.section}</h3>
 
@@ -544,7 +544,7 @@ export default function FullTest() {
               onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." 
               rows={4}
-              style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)', resize: 'vertical' }} 
+              style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)', resize: 'none' }} 
             />
           </div>
         )}
@@ -580,7 +580,7 @@ export default function FullTest() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</div>
-          <ExamTimer key={timerKey} totalSeconds={2100} onTimeUp={handleSubmit} compact storageKey="fulltest_timer" />
+          <ExamTimer key={timerKey} totalSeconds={1800} onTimeUp={handleSubmit} compact storageKey="fulltest_timer" />
         </div>
         
         {/* Navigation Grid */}
