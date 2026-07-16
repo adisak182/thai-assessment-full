@@ -58,7 +58,7 @@ export default function Ranking() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {ranking.map((r, index) => {
-              const isCurrentUser = user && user._id === r.userId;
+              const isCurrentUser = user && (user._id === r.userId || user.id === r.userId);
               
               return (
                 <div key={r.userId} style={{
