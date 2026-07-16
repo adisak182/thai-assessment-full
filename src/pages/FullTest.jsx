@@ -289,7 +289,7 @@ export default function FullTest() {
         {/* SHARED CONTEXT */}
         {curQ.contextDesc && <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '1.1rem' }}>{curQ.contextDesc}</p>}
         {curQ.contextImage && <img src={curQ.contextImage} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
-        {curQ.contextAudio && <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={curQ.contextAudio} label="ฟังเสียงประกอบ" /></div>}
+        {curQ.contextAudio && <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}><AudioBtn key={`context-${curQ.id}`} src={curQ.contextAudio} label="ฟังเสียงประกอบ" /></div>}
         {curQ.contextText && (
            <div style={{ padding: '20px', marginBottom: '24px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981', borderRadius: '0 12px 12px 0' }}>
              {curQ.type === 'match' ? (
@@ -331,7 +331,7 @@ export default function FullTest() {
         {curQ.saying && <div style={{ padding: '14px 20px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', color: 'var(--color-primary-dark)', fontWeight: '600', marginBottom: '16px', fontSize: '1.1rem' }}>สำนวน: {curQ.saying}</div>}
         {curQ.situation && <div style={{ padding: '10px 16px', background: 'rgba(59,130,246,0.1)', borderRadius: '10px', color: '#1e40af', fontWeight: '600', marginBottom: '16px', fontSize: '1.1rem' }}>สถานการณ์: {curQ.situation}</div>}
         {curQ.image && <img src={curQ.image} alt="" style={{ width: '100%', maxWidth: '240px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
-        {curQ.audio && <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}><AudioBtn src={curQ.audio} label="ฟังคำถาม" /></div>}
+        {curQ.audio && <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}><AudioBtn key={`audio-${curQ.id}`} src={curQ.audio} label="ฟังคำถาม" /></div>}
         
         {/* TEXT PROMPTS */}
         {curQ.text && curQ.type === 'speaking' && <p style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', textAlign: 'center', marginBottom: '20px' }}>"{curQ.text}"</p>}
