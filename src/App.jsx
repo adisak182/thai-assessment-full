@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { BookOpen, Trophy, LayoutDashboard, User as UserIcon } from 'lucide-react';
 import { useUser } from './context/UserContext';
 import './App.css';
