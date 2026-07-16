@@ -248,26 +248,28 @@ export default function FullTest() {
         correctAnswer = matchAnswers[q.id] || '';
         if (userAnswer === correctAnswer) isCorrect = true;
       } else if (q.type === 'text') {
-        const val = (textAnswers[q.id] || '').trim();
+        const rawVal = textAnswers[q.id];
+        const val = typeof rawVal === 'string' ? rawVal.trim() : (rawVal ? String(rawVal).trim() : '');
         userAnswer = val;
         correctAnswer = q.answer || q.word || 'พิจารณาจากคำตอบ';
         if (q.answer && val === q.answer) isCorrect = true;
         else if (q.word && val === q.word) isCorrect = true;
         else if (!q.answer && !q.word && val.length > 5) isCorrect = true; // essay
       } else if (q.type === 'speaking') {
-        const text = speechAnswers[q.id] || '';
+        const rawText = speechAnswers[q.id];
+        const text = typeof rawText === 'string' ? rawText : (rawText ? String(rawText) : '');
         userAnswer = text;
         correctAnswer = q.text || (q.keywords ? q.keywords.join(', ') : 'พูดออกเสียงให้ถูกต้อง');
         if (text) {
           if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
             isCorrect = true;
             userAnswer = 'เบราว์เซอร์ไม่รองรับ (อนุโลมให้ผ่าน)';
-          } else if (q.text) {
+          } else if (typeof q.text === 'string') {
             // Strict exact match for reading text (ignore spaces)
             const cleanSource = q.text.replace(/\s+/g, '');
             const cleanAnswer = text.replace(/\s+/g, '');
             if (cleanSource === cleanAnswer) isCorrect = true;
-          } else if (q.keywords && q.keywords.length > 0) {
+          } else if (q.keywords && Array.isArray(q.keywords) && q.keywords.length > 0) {
             if (q.keywords.some(kw => text.includes(kw))) isCorrect = true;
           } else {
             if (text.trim().length >= 3) isCorrect = true;
