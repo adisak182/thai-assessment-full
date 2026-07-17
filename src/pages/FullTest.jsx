@@ -561,7 +561,7 @@ export default function FullTest() {
   };
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto', paddingBottom: '60px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="animate-fade-in" style={{ maxWidth: '700px', margin: '0 auto', paddingTop: '32px', paddingBottom: '60px', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* HEADER & PROGRESS */}
       <div style={{ marginBottom: '24px' }}>
