@@ -30,7 +30,7 @@ export const announcementQ = [
     options: [{ text: 'ก. เดินออกจากห้องเบา ๆ', correct: false }, { text: 'ข. ตะโกนบอกเพื่อนว่าทำเสร็จแล้ว', correct: true }] },
 ];
 
-export const STORY_AUDIO = '/audio/story_donkey_merchant_new.m4a';
+export const STORY_AUDIO = '/audio/story_donkey_merchant_new.mp3';
 
 export const STORY_IMG = '/images/story_donkey_merchant_1777621288896.png';
 
