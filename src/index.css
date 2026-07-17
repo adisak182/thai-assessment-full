@@ -220,7 +220,7 @@ h1, h2, h3, h4, h5, h6 {
   
   /* Flex direction for bottom nav buttons */
   div[style*='justify-content: space-between'][style*='margin-top: 32px'] {
-    flex-direction: column !important;
+    flex-direction: column-reverse !important;
     gap: 12px !important;
   }
 
