@@ -49,48 +49,74 @@ function AudioBtn({ src, label = 'ฟังเสียง' }) {
 
 function MicBtn({ onResult, currentText }) {
   const [recording, setRecording] = useState(false);
-  const [error, setError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const recognitionRef = useRef(null);
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setRecording(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopRecording();
+    };
+  }, []);
 
   const toggleListen = () => {
     if (recording) {
-      setRecording(false);
+      stopRecording();
       return;
     }
+    
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("เบราว์เซอร์ของคุณไม่รองรับระบบแยกแยะเสียง กรุณาใช้ Chrome หรือ Edge (ระบบจะอนุโลมให้ข้ามข้อนี้ได้)");
+      setErrorMsg("เบราว์เซอร์ไม่รองรับระบบแยกแยะเสียง (ระบบอนุโลมให้ผ่านข้อนี้ได้โดยอัตโนมัติ)");
       onResult("PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123");
       return;
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'th-TH';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setRecording(true);
-      setError(false);
-    };
-
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      onResult(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error(event.error);
-      setError(true);
-      setRecording(false);
-    };
-
-    recognition.onend = () => {
-      setRecording(false);
-    };
-
+    
     try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'th-TH';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setRecording(true);
+        setErrorMsg('');
+      };
+      
+      recognition.onresult = (event) => {
+        if (event.results && event.results.length > 0) {
+          const transcript = event.results[0][0].transcript;
+          onResult(transcript);
+        }
+      };
+      
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+          setErrorMsg("โปรดอนุญาตให้ใช้งานไมโครโฟนบนเบราว์เซอร์ของคุณ");
+        } else {
+          setErrorMsg("เกิดข้อผิดพลาดในการฟังเสียง (" + event.error + ")");
+        }
+        setRecording(false);
+      };
+      
+      recognition.onend = () => {
+        setRecording(false);
+      };
+      
+      recognitionRef.current = recognition;
       recognition.start();
     } catch (e) {
-      console.error(e);
+      console.error("Failed to start speech recognition:", e);
+      setErrorMsg("ไม่สามารถเริ่มการใช้งานไมโครโฟนได้");
       setRecording(false);
     }
   };
@@ -99,9 +125,9 @@ function MicBtn({ onResult, currentText }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
       <button onClick={toggleListen} 
         className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : currentText ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? 'rgba(16,185,129,0.1)' : 'white', color: recording ? '#ef4444' : currentText ? '#059669' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
-        <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (พูดได้เลย)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
+        <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (กดเพื่อหยุด)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
       </button>
-      {error && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>ไม่สามารถใช้งานไมค์ได้ โปรดตรวจสอบการอนุญาตไมค์บนเบราว์เซอร์</div>}
+      {errorMsg && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>{errorMsg}</div>}
       {currentText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123" && (
         <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: '#334155', fontSize: '1.1rem', fontStyle: 'italic', borderLeft: '4px solid #10b981', alignSelf: 'flex-start', width: '100%' }}>
           " {currentText} "

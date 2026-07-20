@@ -8,29 +8,29 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.png'],
+      includeAssets: ['favicon.svg', 'logo.jpg'],
       manifest: {
         name: 'นรารู้ไทย',
         short_name: 'นรารู้ไทย',
-        description: 'แบบประเมินทักษะภาษาไทย',
+        description: 'แอปพลิเคชันทดสอบและประเมินทักษะภาษาไทย',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
           {
-            src: 'logo.png',
+            src: 'logo.jpg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/jpeg'
           },
           {
-            src: 'logo.png',
+            src: 'logo.jpg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/jpeg'
           },
           {
-            src: 'logo.png',
+            src: 'logo.jpg',
             sizes: '512x512',
-            type: 'image/png',
+            type: 'image/jpeg',
             purpose: 'any maskable'
           }
         ]
