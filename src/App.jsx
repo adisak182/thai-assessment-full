@@ -49,7 +49,7 @@ function AppLayout() {
         <div className="header" style={{ padding: 0 }}>
           <Link to="/" className="header-logo">
             <div className="header-logo-icon logo-wrapper">
-              <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              <img src="/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
             </div>
             <div className="header-titles">
               <div className="header-logo-text">นรารู้ไทย</div>
