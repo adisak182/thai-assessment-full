@@ -7,9 +7,88 @@
     <meta name="theme-color" content="#ffffff">
     <link rel="apple-touch-icon" href="/logo.jpg">
     <title>นรารู้ไทย</title>
+    <style>
+      /* Pre-loader Styles */
+      #root:empty {
+        display: block;
+      }
+      .app-preloader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        font-family: 'Inter', sans-serif;
+      }
+      .app-preloader-logo {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        margin-bottom: 24px;
+        object-fit: cover;
+        box-shadow: 0 10px 25px rgba(22, 163, 74, 0.25);
+        animation: preloader-pulse 2s infinite cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .app-preloader-title {
+        color: #166534;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        animation: preloader-fade 1.5s infinite alternate;
+      }
+      .app-preloader-subtitle {
+        color: #15803d;
+        font-size: 0.95rem;
+        opacity: 0.85;
+      }
+      .app-preloader-spinner {
+        margin-top: 30px;
+        width: 42px;
+        height: 42px;
+        border: 4px solid rgba(22, 163, 74, 0.15);
+        border-top-color: #16a34a;
+        border-radius: 50%;
+        animation: preloader-spin 1s linear infinite;
+      }
+      
+      @keyframes preloader-pulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 10px 25px rgba(22, 163, 74, 0.25); }
+        50% { transform: scale(1.05); box-shadow: 0 15px 35px rgba(22, 163, 74, 0.4); }
+      }
+      @keyframes preloader-fade {
+        from { opacity: 0.7; }
+        to { opacity: 1; }
+      }
+      @keyframes preloader-spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* Global App Fade-in after React mounts */
+      .app-fade-in {
+        animation: app-fade-in 0.6s ease-out forwards;
+      }
+      @keyframes app-fade-in {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- HTML Pre-loader (Will be overwritten when React mounts) -->
+      <div class="app-preloader">
+        <img src="/logo.jpg" alt="นรารู้ไทย โลโก้" class="app-preloader-logo" />
+        <div class="app-preloader-title">นรารู้ไทย</div>
+        <div class="app-preloader-subtitle">สำนักงานส่งเสริมการเรียนรู้ประจำจังหวัดนราธิวาส</div>
+        <div class="app-preloader-spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

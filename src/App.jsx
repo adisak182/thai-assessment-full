@@ -111,15 +111,17 @@ function AppLayout() {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public routes - no header */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/start" element={<StartPage />} />
-        {/* All other routes go through AppLayout with header */}
-        <Route path="/*" element={<AppLayout />} />
-      </Routes>
-    </Router>
+    <div className="app-fade-in" style={{ width: '100%', height: '100%' }}>
+      <Router>
+        <Routes>
+          {/* Public routes - no header */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/start" element={<StartPage />} />
+          {/* All other routes go through AppLayout with header */}
+          <Route path="/*" element={<AppLayout />} />
+        </Routes>
+      </Router>
+    </div>
   );
 }
 
