@@ -62,6 +62,105 @@ function AudioBtn({ src, label = 'ฟังคำถาม' }) {
   );
 }
 
+function MicBtn({ onResult, currentText, expectedText }) {
+  const [recording, setRecording] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const recognitionRef = useRef(null);
+
+  const stopRecording = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+    }
+    setRecording(false);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopRecording();
+    };
+  }, []);
+
+  const toggleListen = () => {
+    if (recording) {
+      stopRecording();
+      return;
+    }
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setErrorMsg("เบราว์เซอร์ไม่รองรับระบบแยกแยะเสียง");
+      onResult("PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123");
+      return;
+    }
+    
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'th-TH';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      
+      recognition.onstart = () => {
+        setRecording(true);
+        setErrorMsg('');
+      };
+      
+      recognition.onresult = (event) => {
+        if (event.results && event.results.length > 0) {
+          const transcript = event.results[0][0].transcript;
+          onResult(transcript);
+        }
+      };
+      
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed') {
+          setErrorMsg("โปรดอนุญาตให้ใช้งานไมโครโฟนบนเบราว์เซอร์ของคุณ");
+        } else {
+          setErrorMsg("เกิดข้อผิดพลาดในการฟังเสียง (" + event.error + ")");
+        }
+        setRecording(false);
+      };
+      
+      recognition.onend = () => {
+        setRecording(false);
+      };
+      
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start speech recognition:", e);
+      setErrorMsg("ไม่สามารถเริ่มการใช้งานไมโครโฟนได้");
+      setRecording(false);
+    }
+  };
+
+  let isMatch = null;
+  if (currentText && expectedText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
+    const cleanSource = expectedText.replace(/[\s\.\-\?!]/g, '');
+    const cleanAnswer = currentText.replace(/[\s\.\-\?!]/g, '');
+    isMatch = cleanSource === cleanAnswer;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+      <button onClick={toggleListen} 
+        className="option-btn" style={{ padding: '10px 16px', borderRadius: '10px', border: `2px solid ${recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#10b981') : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? (isMatch === false ? '#fef2f2' : 'rgba(16,185,129,0.1)') : 'white', color: recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#059669') : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
+        <Mic size={18} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (กดเพื่อหยุด)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
+      </button>
+      {errorMsg && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>{errorMsg}</div>}
+      {currentText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123" && (
+        <div style={{ background: isMatch === false ? '#fef2f2' : '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: isMatch === false ? '#ef4444' : '#334155', fontSize: '1rem', fontStyle: 'italic', borderLeft: `4px solid ${isMatch === false ? '#ef4444' : '#10b981'}`, alignSelf: 'flex-start', width: '100%' }}>
+          " {currentText} "
+          {isMatch === false && <div style={{ marginTop: '8px', fontSize: '0.95rem', fontWeight: 'bold', color: '#ef4444' }}>❌ อ่านผิด กรุณากดพูดใหม่</div>}
+          {isMatch === true && <div style={{ marginTop: '8px', fontSize: '0.95rem', fontWeight: 'bold', color: '#059669' }}>✅ อ่านถูกต้อง</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ResultModal({ score, total, onClose, onRetry }) {
   const pct = Math.round((score / total) * 100);
   const passed = score >= 11;
@@ -101,8 +200,24 @@ export default function SpeakingTest() {
   const { recordScore } = useUser();
   const navigate = useNavigate();
   const [checked, setChecked] = useState({}); // { qId: true } = self-marked done
+  const [speechTexts, setSpeechTexts] = useState({});
   const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleSpeechResult = (qId, text, expectedText) => {
+    setSpeechTexts(prev => ({ ...prev, [qId]: text }));
+    if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
+      setChecked(prev => ({ ...prev, [qId]: true }));
+      return;
+    }
+    const cleanSource = expectedText.replace(/[\s\.\-\?!]/g, '');
+    const cleanAnswer = text.replace(/[\s\.\-\?!]/g, '');
+    if (cleanSource === cleanAnswer) {
+      setChecked(prev => ({ ...prev, [qId]: true }));
+    } else {
+      setChecked(prev => ({ ...prev, [qId]: false }));
+    }
+  };
 
   // Speaking is self-assessed: each question checked = 1 point
   const totalQ = 15;
@@ -163,16 +278,7 @@ export default function SpeakingTest() {
         <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '16px' }}>
           <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#1e3a8a', lineHeight: '1.8', textAlign: 'center' }}>{q.text}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '1.1rem', fontWeight: '500', flex: 1 }}>
-            <Mic size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-            อ่านออกเสียงให้ถูกต้องและคล่องแคล่ว
-          </div>
-          <button onClick={() => setChecked(prev => ({ ...prev, [q.id]: !done }))}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
-            <CheckCircle size={16} /> {done ? 'ทำแล้ว' : 'ทำเครื่องหมาย'}
-          </button>
-        </div>
+        <MicBtn onResult={(txt) => handleSpeechResult(q.id, txt, q.text)} currentText={speechTexts[q.id]} expectedText={q.text} />
       </div>
     );
   };

@@ -47,7 +47,7 @@ function AudioBtn({ src, label = 'ฟังเสียง' }) {
   );
 }
 
-function MicBtn({ onResult, currentText }) {
+function MicBtn({ onResult, currentText, expectedText }) {
   const [recording, setRecording] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const recognitionRef = useRef(null);
@@ -121,16 +121,25 @@ function MicBtn({ onResult, currentText }) {
     }
   };
 
+  let isMatch = null;
+  if (currentText && expectedText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
+    const cleanSource = expectedText.replace(/[\s\.\-\?!]/g, '');
+    const cleanAnswer = currentText.replace(/[\s\.\-\?!]/g, '');
+    isMatch = cleanSource === cleanAnswer;
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
       <button onClick={toggleListen} 
-        className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : currentText ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? 'rgba(16,185,129,0.1)' : 'white', color: recording ? '#ef4444' : currentText ? '#059669' : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
+        className="option-btn" style={{ padding: '14px 20px', borderRadius: '12px', border: `2px solid ${recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#10b981') : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? (isMatch === false ? '#fef2f2' : 'rgba(16,185,129,0.1)') : 'white', color: recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#059669') : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
         <Mic size={20} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (กดเพื่อหยุด)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
       </button>
       {errorMsg && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>{errorMsg}</div>}
       {currentText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123" && (
-        <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: '#334155', fontSize: '1.1rem', fontStyle: 'italic', borderLeft: '4px solid #10b981', alignSelf: 'flex-start', width: '100%' }}>
+        <div style={{ background: isMatch === false ? '#fef2f2' : '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: isMatch === false ? '#ef4444' : '#334155', fontSize: '1.1rem', fontStyle: 'italic', borderLeft: `4px solid ${isMatch === false ? '#ef4444' : '#10b981'}`, alignSelf: 'flex-start', width: '100%' }}>
           " {currentText} "
+          {isMatch === false && <div style={{ marginTop: '8px', fontSize: '1rem', fontWeight: 'bold', color: '#ef4444' }}>❌ อ่านผิด กรุณากดพูดใหม่ (ต้องอ่านให้ตรงทุกคำ)</div>}
+          {isMatch === true && <div style={{ marginTop: '8px', fontSize: '1rem', fontWeight: 'bold', color: '#059669' }}>✅ อ่านถูกต้อง</div>}
         </div>
       )}
     </div>
@@ -156,6 +165,13 @@ export default function FullTest() {
   const [submitting, setSubmitting] = useState(false);
   const [timerKey, setTimerKey] = useState(0);
   const [finalScore, setFinalScore] = useState(null);
+
+  useEffect(() => {
+    const el = document.getElementById('nav-btn-' + currentIndex);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [currentIndex]);
 
   // Combine all questions into a flat list
   const allQ = useMemo(() => {
@@ -515,7 +531,7 @@ export default function FullTest() {
         {curQ.type === 'speaking' && (
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {curQ.hint && <div style={{ fontSize: '1.1rem', color: '#6b7280', background: '#f3f4f6', padding: '14px', borderRadius: '12px' }}>💡 แนวคำตอบ: {curQ.hint}</div>}
-            <MicBtn onResult={(txt) => handleSpeechResult(curQ.id, txt)} currentText={speechAnswers[curQ.id]} />
+            <MicBtn onResult={(txt) => handleSpeechResult(curQ.id, txt)} currentText={speechAnswers[curQ.id]} expectedText={curQ.text} />
           </div>
         )}
 
@@ -617,12 +633,13 @@ export default function FullTest() {
             return (
               <button 
                 key={idx}
+                id={'nav-btn-' + idx}
                 onClick={() => setCurrentIndex(idx)}
                 title={answered ? `ข้อ ${idx+1} ตอบแล้ว` : `ข้อ ${idx+1} ยังไม่ได้ตอบ`}
                 style={{
-                  minWidth: '36px', height: '36px', borderRadius: '50%', 
+                  minWidth: '28px', height: '28px', borderRadius: '50%', 
                   background: active ? 'var(--color-primary)' : (answered ? '#10b981' : '#ef4444'),
-                  color: 'white', border: 'none', fontWeight: 'bold', fontSize: '0.9rem',
+                  color: 'white', border: 'none', fontWeight: 'bold', fontSize: '0.85rem',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   flexShrink: 0,
                   boxShadow: active ? '0 0 0 4px rgba(139,92,246,0.3)' : 'none',
