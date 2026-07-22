@@ -13,12 +13,20 @@
 
 /* Header */
 .app-header {
-  margin: 16px;
-  padding: 16px 32px;
+  margin: 16px auto;
+  max-width: 1200px;
+  padding: 12px 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  z-index: 10;
+  z-index: 100;
+  position: sticky;
+  top: 16px;
+  transition: all 0.3s ease;
+}
+
+.app-header:hover {
+  box-shadow: 0 12px 40px rgba(126, 34, 206, 0.2);
 }
 
 .header {
@@ -74,7 +82,7 @@
 /* Navigation Links */
 .nav-links {
   display: flex;
-  gap: 24px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -85,11 +93,14 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: color 0.2s;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
 }
 
 .nav-item:hover {
-  color: var(--color-primary-light);
+  color: var(--color-primary);
+  background: rgba(126, 34, 206, 0.08);
 }
 
 /* Responsiveness */
