@@ -16,13 +16,22 @@ import {
 } from '../data/testData';
 
 // Reusable Audio Button
-function AudioBtn({ src, label = 'ฟังเสียง' }) {
+function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
   const ref = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
   const play = () => {
     if (!ref.current) {
       ref.current = new Audio(src);
-      ref.current.onended = () => setPlaying(false);
+      ref.current.onended = () => {
+        setPlaying(false);
+        if (onCompleteRef.current) onCompleteRef.current();
+      };
     }
     if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
     else { 
@@ -156,6 +165,7 @@ export default function FullTest() {
   const [textAnswers, setTextAnswers] = useSessionStorage('fulltest_textAnswers', {}); 
   const [speechAnswers, setSpeechAnswers] = useSessionStorage('fulltest_speechAnswers', {});
   const [usedWords, setUsedWords] = useSessionStorage('fulltest_usedWords', {});
+  const [completedAudios, setCompletedAudios] = useSessionStorage('fulltest_completedAudios', {});
 
   const [currentIndex, setCurrentIndex] = useSessionStorage('fulltest_currentIndex', 0);
   const [showResult, setShowResult] = useState(false);
@@ -343,7 +353,7 @@ export default function FullTest() {
     setShowSurvey(true);
 
     // Clear session storage progress
-    const keysToClear = ['fulltest_answers', 'fulltest_selIdx', 'fulltest_tfAnswers', 'fulltest_matchSel', 'fulltest_textAnswers', 'fulltest_speechAnswers', 'fulltest_usedWords', 'fulltest_currentIndex', 'fulltest_timer'];
+    const keysToClear = ['fulltest_answers', 'fulltest_selIdx', 'fulltest_tfAnswers', 'fulltest_matchSel', 'fulltest_textAnswers', 'fulltest_speechAnswers', 'fulltest_usedWords', 'fulltest_currentIndex', 'fulltest_timer', 'fulltest_completedAudios'];
     keysToClear.forEach(k => window.sessionStorage.removeItem(k));
   };
 
@@ -354,7 +364,7 @@ export default function FullTest() {
   };
 
   const reset = () => {
-    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeechAnswers({}); setUsedWords({});
+    setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setTextAnswers({}); setSpeechAnswers({}); setUsedWords({}); setCompletedAudios({});
     setCurrentIndex(0);
     setShowResult(false);
     setTimerKey(k => k + 1);
@@ -377,7 +387,18 @@ export default function FullTest() {
         {/* SHARED CONTEXT */}
         {curQ.contextDesc && <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '1.1rem' }}>{curQ.contextDesc}</p>}
         {curQ.contextImage && <img src={curQ.contextImage} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
-        {curQ.contextAudio && <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}><AudioBtn key={`context-${curQ.id}`} src={curQ.contextAudio} label="ฟังเสียงประกอบ" /></div>}
+        {curQ.contextAudio && (
+          <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
+            <AudioBtn 
+              key={`context-${curQ.id}`} 
+              src={curQ.contextAudio} 
+              label="ฟังเสียงประกอบ" 
+              onComplete={() => {
+                setCompletedAudios(prev => ({ ...prev, [curQ.contextAudio]: true }));
+              }}
+            />
+          </div>
+        )}
         {curQ.contextText && (
            <div style={{ padding: '20px', marginBottom: '24px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981', borderRadius: '0 12px 12px 0' }}>
              {curQ.type === 'match' ? (
@@ -488,21 +509,37 @@ export default function FullTest() {
         )}
 
         {/* INPUTS / OPTIONS */}
-        {curQ.type === 'mcq' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: 'auto' }}>
-            {curQ.options.map((opt, i) => (
-              <button key={i} onClick={() => pickMcq(curQ.id, opt.correct, i)} className="option-btn"
-                style={{ padding: '16px 20px', borderRadius: '12px', border: `2px solid ${selIdx[curQ.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[curQ.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: selIdx[curQ.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
-                {opt.text}
-              </button>
-            ))}
-            {curQ.meaning && selIdx[curQ.id] !== undefined && (
-              <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', color: '#166534', fontSize: '1.05rem', lineHeight: '1.6' }}>
-                💡 <b>ความหมาย:</b> {curQ.meaning}
-              </div>
-            )}
-          </div>
-        )}
+        {curQ.type === 'mcq' && (() => {
+          const isStorySection = curQ.section === 'ส่วนที่ 1: การฟัง (นิทาน)';
+          const audioCompleted = curQ.contextAudio ? completedAudios[curQ.contextAudio] : false;
+          const disableOptions = isStorySection && !audioCompleted;
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: 'auto', position: 'relative' }}>
+              {disableOptions && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px' }}>
+                  <div style={{ background: '#fef3c7', color: '#d97706', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                    🎧 กรุณาฟังนิทานให้จบก่อนทำข้อสอบ
+                  </div>
+                </div>
+              )}
+              {curQ.options.map((opt, i) => (
+                <button key={i} onClick={() => {
+                    if (!disableOptions) pickMcq(curQ.id, opt.correct, i);
+                  }} className="option-btn"
+                  disabled={disableOptions}
+                  style={{ padding: '16px 20px', borderRadius: '12px', border: `2px solid ${selIdx[curQ.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[curQ.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: disableOptions ? 'not-allowed' : 'pointer', fontWeight: selIdx[curQ.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem', opacity: disableOptions ? 0.6 : 1 }}>
+                  {opt.text}
+                </button>
+              ))}
+              {curQ.meaning && selIdx[curQ.id] !== undefined && (
+                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', color: '#166534', fontSize: '1.05rem', lineHeight: '1.6' }}>
+                  💡 <b>ความหมาย:</b> {curQ.meaning}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {curQ.type === 'tf' && (
           <div style={{ display: 'flex', gap: '16px', marginTop: 'auto' }}>
