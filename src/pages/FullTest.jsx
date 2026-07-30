@@ -379,27 +379,39 @@ export default function FullTest() {
   const renderQuestion = () => {
     if (!curQ) return null;
 
+    const requiresAudioFirst = curQ.contextAudio && curQ.section.startsWith('ส่วนที่ 1');
+    const audioCompleted = curQ.contextAudio ? completedAudios[curQ.contextAudio] : false;
+
     return (
       <div className="glass-panel animate-fade-in" style={{ padding: '32px', borderRadius: '24px', background: 'white', minHeight: '450px', display: 'flex', flexDirection: 'column' }}>
         
         <h3 style={{ fontSize: '1.2rem', color: 'var(--color-primary)', marginBottom: '20px', borderBottom: '1px solid rgba(0,0,0,0.05)', paddingBottom: '10px' }}>{curQ.section}</h3>
 
         {/* SHARED CONTEXT */}
-        {curQ.contextDesc && <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '1.1rem' }}>{curQ.contextDesc}</p>}
+        {curQ.contextDesc && <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '1.1rem', textAlign: requiresAudioFirst && !audioCompleted ? 'center' : 'left' }}>{curQ.contextDesc}</p>}
         {curQ.contextImage && <img src={curQ.contextImage} alt="" style={{ width: '100%', maxWidth: '280px', borderRadius: '12px', margin: '0 auto 20px auto', display: 'block' }} />}
         {curQ.contextAudio && (
           <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'center' }}>
             <AudioBtn 
               key={`context-${curQ.id}`} 
               src={curQ.contextAudio} 
-              label="ฟังเสียงประกอบ" 
+              label={requiresAudioFirst ? "ฟังเสียงให้จบ" : "ฟังเสียงประกอบ"} 
               onComplete={() => {
                 setCompletedAudios(prev => ({ ...prev, [curQ.contextAudio]: true }));
               }}
             />
           </div>
         )}
-        {curQ.contextText && (
+
+        {requiresAudioFirst && !audioCompleted && (
+          <div className="animate-fade-in" style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto', padding: '24px', background: '#fef3c7', color: '#d97706', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.1)' }}>
+            🎧 กรุณาฟังเสียงให้จบก่อน แล้วข้อสอบจะแสดงขึ้นมาโดยอัตโนมัติ
+          </div>
+        )}
+
+        {(!requiresAudioFirst || audioCompleted) && (
+          <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            {curQ.contextText && (
            <div style={{ padding: '20px', marginBottom: '24px', background: 'rgba(16,185,129,0.04)', borderLeft: '4px solid #10b981', borderRadius: '0 12px 12px 0' }}>
              {curQ.type === 'match' ? (
                <pre style={{ fontFamily: 'inherit', color: 'var(--color-primary-dark)', lineHeight: '1.8', margin: 0, fontSize: '1.1rem', whiteSpace: 'pre-wrap' }}>{curQ.contextText}</pre>
@@ -510,25 +522,11 @@ export default function FullTest() {
 
         {/* INPUTS / OPTIONS */}
         {curQ.type === 'mcq' && (() => {
-          const isStorySection = curQ.section === 'ส่วนที่ 1: การฟัง (นิทาน)';
-          const audioCompleted = curQ.contextAudio ? completedAudios[curQ.contextAudio] : false;
-          const disableOptions = isStorySection && !audioCompleted;
-
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: 'auto', position: 'relative' }}>
-              {disableOptions && (
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, background: 'rgba(255,255,255,0.6)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px' }}>
-                  <div style={{ background: '#fef3c7', color: '#d97706', padding: '10px 20px', borderRadius: '20px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                    🎧 กรุณาฟังนิทานให้จบก่อนทำข้อสอบ
-                  </div>
-                </div>
-              )}
               {curQ.options.map((opt, i) => (
-                <button key={i} onClick={() => {
-                    if (!disableOptions) pickMcq(curQ.id, opt.correct, i);
-                  }} className="option-btn"
-                  disabled={disableOptions}
-                  style={{ padding: '16px 20px', borderRadius: '12px', border: `2px solid ${selIdx[curQ.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[curQ.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: disableOptions ? 'not-allowed' : 'pointer', fontWeight: selIdx[curQ.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem', opacity: disableOptions ? 0.6 : 1 }}>
+                <button key={i} onClick={() => pickMcq(curQ.id, opt.correct, i)} className="option-btn"
+                  style={{ padding: '16px 20px', borderRadius: '12px', border: `2px solid ${selIdx[curQ.id] === i ? '#10b981' : 'rgba(0,0,0,0.08)'}`, background: selIdx[curQ.id] === i ? 'rgba(16,185,129,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: selIdx[curQ.id] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
                   {opt.text}
                 </button>
               ))}
@@ -632,6 +630,9 @@ export default function FullTest() {
           <div style={{ marginTop: 'auto' }}>
             <input type="text" value={textAnswers[curQ.id] || ''} onChange={e => setTextAnswers(prev => ({ ...prev, [curQ.id]: e.target.value }))}
               placeholder="พิมพ์คำตอบที่นี่..." style={{ width: '100%', padding: '16px 20px', borderRadius: '12px', border: '2px solid rgba(139,92,246,0.3)', fontSize: '1.2rem', fontFamily: 'inherit', outline: 'none', background: 'rgba(255,255,255,0.8)' }} />
+          </div>
+        )}
+
           </div>
         )}
 

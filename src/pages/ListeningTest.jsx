@@ -165,14 +165,22 @@ const lastQ = [
 ];
 
 // ===== AUDIO BUTTON =====
-function AudioBtn({ src }) {
+function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
   const ref = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const play = () => {
     if (!ref.current) {
       ref.current = new Audio(src);
-      ref.current.onended = () => setPlaying(false);
+      ref.current.onended = () => {
+        setPlaying(false);
+        if (onCompleteRef.current) onCompleteRef.current();
+      };
     }
     if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
     else { 
@@ -194,7 +202,7 @@ function AudioBtn({ src }) {
 
   return (
     <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
-      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : 'ฟังเสียง'}
+      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
     </button>
   );
 }
@@ -250,11 +258,11 @@ export default function ListeningTest() {
   const { recordScore } = useUser();
   const navigate = useNavigate();
 
-  // answers map: { qId: true/false } (true = correct)
   const [answers, setAnswers] = useState({});
   const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [tfAnswers, setTfAnswers] = useState({}); // { 15: true/false }
+  const [completedAudios, setCompletedAudios] = useState({});
 
   const totalQ = 25;
 
@@ -383,37 +391,42 @@ export default function ListeningTest() {
       <SectionHeader num="B" title="ฟังประกาศและคำสั่งสั้น ๆ (ข้อ 4-6)" icon="ฟังแล้วเลือกคำตอบที่ถูกต้อง" />
       {announcementQ.map(q => <MCQCard key={q.id} q={q} />)}
 
-      {/* Section C: Story */}
       <SectionHeader num="C" title='นิทาน "พ่อค้าเกลือกับลาขี้โกง" (ข้อ 7-9)' icon="ฟังนิทานจนจบ แล้วตอบคำถาม" />
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', textAlign: 'center' }}>
           <img src={STORY_IMG} alt="นิทาน" style={{ width: '180px', borderRadius: '12px' }} />
           <div>
-            <AudioBtn src={STORY_AUDIO} label="ฟังนิทาน" />
-            <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.8' }}>
-              พ่อค้าคนหนึ่งมีลาไว้บรรทุกสิ่งของ วันหนึ่งเขาพาลาเดินทางไปซื้อเกลือในเมือง... ลาแกล้งตกน้ำเพื่อให้เกลือละลาย แต่เมื่อพ่อค้าเปลี่ยนมาบรรทุกนุ่นแทน ลาก็เป็นฝ่ายเดือดร้อนเอง
-            </p>
+            <AudioBtn src={STORY_AUDIO} label="ฟังนิทานให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [STORY_AUDIO]: true }))} />
           </div>
         </div>
-        <div style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {storyQ.map(q => (
-            <div key={q.id}>
-              <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {q.options.map((opt, i) => {
-                  const isSelected = answers[q.id] !== undefined && answers[q.id] === opt.correct && answers[`_sel_${q.id}`] === i;
-                  return (
-                    <button key={i}
-                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
-                      style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
-                      {opt.text}
-                    </button>
-                  );
-                })}
+        
+        {!completedAudios[STORY_AUDIO] && (
+          <div className="animate-fade-in" style={{ textAlign: 'center', padding: '24px', background: '#fef3c7', color: '#d97706', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.1)' }}>
+            🎧 กรุณาฟังนิทานให้จบก่อน แล้วข้อสอบจะแสดงขึ้นมาโดยอัตโนมัติ
+          </div>
+        )}
+
+        {completedAudios[STORY_AUDIO] && (
+          <div className="animate-fade-in" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {storyQ.map(q => (
+              <div key={q.id}>
+                <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {q.options.map((opt, i) => {
+                    const isSelected = answers[q.id] !== undefined && answers[q.id] === opt.correct && answers[`_sel_${q.id}`] === i;
+                    return (
+                      <button key={i}
+                        onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
+                        style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
+                        {opt.text}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section D: 4-option vocab */}
@@ -426,62 +439,91 @@ export default function ListeningTest() {
 
       {/* Section F: Article T/F */}
       <SectionHeader num="F" title="ฟังบทความแล้วทำเครื่องหมายถูก/ผิด (ข้อ 15-19)" icon="ฟังบทความ แล้วตัดสินว่าแต่ละข้อความเป็น ถูก หรือ ผิด" />
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '16px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <AudioBtn src={ARTICLE_AUDIO} label="ฟังบทความ: เด็กเล็กติดจอมือถือ" />
+      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+          <AudioBtn src={ARTICLE_AUDIO} label="ฟังบทความให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [ARTICLE_AUDIO]: true }))} />
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontStyle: 'italic', lineHeight: '1.7', marginBottom: '16px' }}>
-          "หากปล่อยให้เด็กใกล้ชิดจอมือถือ แท็บเล็ตมากเกินไปโดยไม่กำหนดเวลา จะส่งผลเสียหลายด้าน ได้แก่ ด้านการสื่อสาร ร่างกาย อารมณ์ และพฤติกรรม..."
-        </p>
-        {tfQ.map(q => <TFCard key={q.id} q={q} />)}
+        
+        {!completedAudios[ARTICLE_AUDIO] && (
+          <div className="animate-fade-in" style={{ textAlign: 'center', padding: '24px', background: '#fef3c7', color: '#d97706', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.1)' }}>
+            🎧 กรุณาฟังบทความให้จบก่อน แล้วข้อสอบจะแสดงขึ้นมาโดยอัตโนมัติ
+          </div>
+        )}
+
+        {completedAudios[ARTICLE_AUDIO] && (
+          <div className="animate-fade-in" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', fontStyle: 'italic', lineHeight: '1.7', marginBottom: '16px', textAlign: 'center' }}>
+              "หากปล่อยให้เด็กใกล้ชิดจอมือถือ แท็บเล็ตมากเกินไปโดยไม่กำหนดเวลา จะส่งผลเสียหลายด้าน ได้แก่ ด้านการสื่อสาร ร่างกาย อารมณ์ และพฤติกรรม..."
+            </p>
+            {tfQ.map(q => <TFCard key={q.id} q={q} />)}
+          </div>
+        )}
       </div>
 
       {/* Section G: Cold announcement */}
       <SectionHeader num="G" title="ฟังประกาศแจ้งเตือนภัยหนาว (ข้อ 20-21)" icon="ฟังแล้วเลือกคำตอบ" />
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <AudioBtn src={ANN_COLD_AUDIO} label="ฟังประกาศ" />
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+          <AudioBtn src={ANN_COLD_AUDIO} label="ฟังประกาศให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [ANN_COLD_AUDIO]: true }))} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {annColdQ.map(q => (
-            <div key={q.id}>
-              <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {q.options.map((opt, i) => (
-                  <button key={i}
-                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
-                    style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
-                    {opt.text}
-                  </button>
-                ))}
+        
+        {!completedAudios[ANN_COLD_AUDIO] && (
+          <div className="animate-fade-in" style={{ textAlign: 'center', padding: '24px', background: '#fef3c7', color: '#d97706', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.1)' }}>
+            🎧 กรุณาฟังประกาศให้จบก่อน แล้วข้อสอบจะแสดงขึ้นมาโดยอัตโนมัติ
+          </div>
+        )}
+
+        {completedAudios[ANN_COLD_AUDIO] && (
+          <div className="animate-fade-in" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {annColdQ.map(q => (
+              <div key={q.id}>
+                <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {q.options.map((opt, i) => (
+                    <button key={i}
+                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))} className="option-btn"
+                      style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
+                      {opt.text}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section H: Ad */}
       <SectionHeader num="H" title="ฟังโฆษณาสินค้าและวิเคราะห์ (ข้อ 22-23)" icon="ฟังโฆษณาแล้วตอบคำถาม" />
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <AudioBtn src={AD_AUDIO} label="ฟังโฆษณา" />
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+          <AudioBtn src={AD_AUDIO} label="ฟังโฆษณาให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [AD_AUDIO]: true }))} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {adQ.map(q => (
-            <div key={q.id}>
-              <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {q.options.map((opt, i) => (
-                  <button key={i}
-                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))}
-                    style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
-                    {opt.text}
-                  </button>
-                ))}
+        
+        {!completedAudios[AD_AUDIO] && (
+          <div className="animate-fade-in" style={{ textAlign: 'center', padding: '24px', background: '#fef3c7', color: '#d97706', borderRadius: '16px', fontWeight: 'bold', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.1)' }}>
+            🎧 กรุณาฟังโฆษณาให้จบก่อน แล้วข้อสอบจะแสดงขึ้นมาโดยอัตโนมัติ
+          </div>
+        )}
+
+        {completedAudios[AD_AUDIO] && (
+          <div className="animate-fade-in" style={{ borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {adQ.map(q => (
+              <div key={q.id}>
+                <p style={{ fontWeight: '600', color: 'var(--color-primary-dark)', marginBottom: '12px' }}>{q.question}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {q.options.map((opt, i) => (
+                    <button key={i}
+                      onClick={() => setAnswers(prev => ({ ...prev, [q.id]: opt.correct, [`_sel_${q.id}`]: i }))}
+                      style={{ padding: '14px 20px', borderRadius: '10px', border: `2px solid ${answers[`_sel_${q.id}`] === i ? 'var(--color-primary)' : 'rgba(0,0,0,0.08)'}`, background: answers[`_sel_${q.id}`] === i ? 'rgba(168,85,247,0.1)' : 'white', color: '#374151', textAlign: 'left', cursor: 'pointer', fontWeight: answers[`_sel_${q.id}`] === i ? '600' : '400', transition: 'all 0.2s', fontFamily: 'inherit', fontSize: '1.1rem' }}>
+                      {opt.text}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Section I: Last 2 */}
