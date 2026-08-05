@@ -165,31 +165,16 @@ const lastQ = [
 ];
 
 // ===== AUDIO BUTTON =====
-function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
+function AudioBtn({ src, label = 'ฟังเสียง', onComplete, showSeek = false }) {
   const ref = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
-
-  const play = () => {
-    if (!ref.current) {
-      ref.current = new Audio(src);
-      ref.current.onended = () => {
-        setPlaying(false);
-        if (onCompleteRef.current) onCompleteRef.current();
-      };
-    }
-    if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
-    else { 
-      ref.current.src = src; 
-      const p = ref.current.play();
-      if (p !== undefined) p.catch(() => {});
-      setPlaying(true); 
-    }
-  };
 
   useEffect(() => {
     return () => {
@@ -200,10 +185,71 @@ function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
     };
   }, []);
 
+  const initAudio = () => {
+    if (!ref.current) {
+      ref.current = new Audio(src);
+      ref.current.onended = () => {
+        setPlaying(false);
+        if (onCompleteRef.current) onCompleteRef.current();
+        if (!showSeek) ref.current.currentTime = 0;
+      };
+      if (showSeek) {
+        ref.current.ontimeupdate = () => setProgress(ref.current.currentTime);
+        ref.current.onloadedmetadata = () => setDuration(ref.current.duration);
+      }
+    }
+  };
+
+  const togglePlay = () => {
+    initAudio();
+    if (playing) {
+      ref.current.pause();
+      if (!showSeek) ref.current.currentTime = 0;
+      setPlaying(false);
+    } else {
+      if (!showSeek && ref.current.src !== src && !ref.current.src.endsWith(src)) ref.current.src = src;
+      else if (showSeek && !ref.current.src.includes(src)) ref.current.src = src;
+      const p = ref.current.play();
+      if (p !== undefined) p.catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  const handleSeek = (e) => {
+    if (!ref.current) initAudio();
+    const val = parseFloat(e.target.value);
+    ref.current.currentTime = val;
+    setProgress(val);
+  };
+
+  const formatTime = (secs) => {
+    if (isNaN(secs) || secs === Infinity) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
-      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: showSeek ? '100%' : '300px', gap: '12px' }}>
+      <button onClick={togglePlay} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '16px 32px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.25rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
+        {playing ? <Volume2 size={18} /> : <Play size={18} />} 
+        {playing ? (showSeek ? 'หยุดชั่วคราว' : 'กำลังเล่น...') : label}
+      </button>
+      {showSeek && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'rgba(139,92,246,0.08)', padding: '12px 20px', borderRadius: '20px' }}>
+          <span style={{ fontSize: '0.9rem', color: 'var(--color-primary-dark)', fontWeight: '600', fontVariantNumeric: 'tabular-nums', minWidth: '35px', textAlign: 'right' }}>{formatTime(progress)}</span>
+          <input 
+            type="range" 
+            min={0} 
+            max={duration || 100} 
+            value={progress} 
+            onChange={handleSeek} 
+            style={{ flex: 1, accentColor: 'var(--color-primary)', cursor: 'pointer', height: '6px' }}
+          />
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600', fontVariantNumeric: 'tabular-nums', minWidth: '35px' }}>{formatTime(duration)}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -395,8 +441,8 @@ export default function ListeningTest() {
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', textAlign: 'center' }}>
           <img src={STORY_IMG} alt="นิทาน" style={{ width: '180px', borderRadius: '12px' }} />
-          <div>
-            <AudioBtn src={STORY_AUDIO} label="ฟังนิทานให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [STORY_AUDIO]: true }))} />
+          <div style={{ width: '100%', maxWidth: '400px', display: 'flex', justifyContent: 'center' }}>
+            <AudioBtn src={STORY_AUDIO} label="ฟังนิทานให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [STORY_AUDIO]: true }))} showSeek={true} />
           </div>
         </div>
         
@@ -440,8 +486,8 @@ export default function ListeningTest() {
       {/* Section F: Article T/F */}
       <SectionHeader num="F" title="ฟังบทความแล้วทำเครื่องหมายถูก/ผิด (ข้อ 15-19)" icon="ฟังบทความ แล้วตัดสินว่าแต่ละข้อความเป็น ถูก หรือ ผิด" />
       <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px' }}>
-        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-          <AudioBtn src={ARTICLE_AUDIO} label="ฟังบทความให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [ARTICLE_AUDIO]: true }))} />
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center', maxWidth: '400px', margin: '0 auto 16px' }}>
+          <AudioBtn src={ARTICLE_AUDIO} label="ฟังบทความให้จบ" onComplete={() => setCompletedAudios(prev => ({ ...prev, [ARTICLE_AUDIO]: true }))} showSeek={true} />
         </div>
         
         {!completedAudios[ARTICLE_AUDIO] && (

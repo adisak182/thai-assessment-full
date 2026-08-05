@@ -16,31 +16,17 @@ import {
 } from '../data/testData';
 
 // Reusable Audio Button
-function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
+function AudioBtn({ src, label = 'ฟังเสียง', onComplete, showSeek = false }) {
   const ref = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
   const onCompleteRef = useRef(onComplete);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  const play = () => {
-    if (!ref.current) {
-      ref.current = new Audio(src);
-      ref.current.onended = () => {
-        setPlaying(false);
-        if (onCompleteRef.current) onCompleteRef.current();
-      };
-    }
-    if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
-    else { 
-      ref.current.src = src; 
-      const p = ref.current.play();
-      if (p !== undefined) p.catch(() => {});
-      setPlaying(true); 
-    }
-  };
   useEffect(() => {
     return () => {
       if (ref.current) {
@@ -49,10 +35,72 @@ function AudioBtn({ src, label = 'ฟังเสียง', onComplete }) {
       }
     };
   }, []);
+
+  const initAudio = () => {
+    if (!ref.current) {
+      ref.current = new Audio(src);
+      ref.current.onended = () => {
+        setPlaying(false);
+        if (onCompleteRef.current) onCompleteRef.current();
+        if (!showSeek) ref.current.currentTime = 0;
+      };
+      if (showSeek) {
+        ref.current.ontimeupdate = () => setProgress(ref.current.currentTime);
+        ref.current.onloadedmetadata = () => setDuration(ref.current.duration);
+      }
+    }
+  };
+
+  const togglePlay = () => {
+    initAudio();
+    if (playing) {
+      ref.current.pause();
+      if (!showSeek) ref.current.currentTime = 0;
+      setPlaying(false);
+    } else {
+      if (!showSeek && ref.current.src !== src && !ref.current.src.endsWith(src)) ref.current.src = src;
+      else if (showSeek && !ref.current.src.includes(src)) ref.current.src = src;
+      const p = ref.current.play();
+      if (p !== undefined) p.catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  const handleSeek = (e) => {
+    if (!ref.current) initAudio();
+    const val = parseFloat(e.target.value);
+    ref.current.currentTime = val;
+    setProgress(val);
+  };
+
+  const formatTime = (secs) => {
+    if (isNaN(secs) || secs === Infinity) return '0:00';
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px 28px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.1rem', width: '100%', maxWidth: '250px', transition: 'all 0.2s', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
-      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: showSeek ? '100%' : '300px', gap: '12px' }}>
+      <button onClick={togglePlay} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px 28px', borderRadius: '30px', border: '2px solid var(--color-primary)', background: playing ? 'var(--color-primary)' : 'white', color: playing ? 'white' : 'var(--color-primary)', fontWeight: '700', cursor: 'pointer', fontSize: '1.1rem', width: '100%', maxWidth: '300px', transition: 'all 0.2s', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(91, 33, 182, 0.15)' }}>
+        {playing ? <Volume2 size={18} /> : <Play size={18} />} 
+        {playing ? (showSeek ? 'หยุดชั่วคราว' : 'กำลังเล่น...') : label}
+      </button>
+      {showSeek && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', background: 'rgba(139,92,246,0.08)', padding: '12px 20px', borderRadius: '20px' }}>
+          <span style={{ fontSize: '0.9rem', color: 'var(--color-primary-dark)', fontWeight: '600', fontVariantNumeric: 'tabular-nums', minWidth: '35px', textAlign: 'right' }}>{formatTime(progress)}</span>
+          <input 
+            type="range" 
+            min={0} 
+            max={duration || 100} 
+            value={progress} 
+            onChange={handleSeek} 
+            style={{ flex: 1, accentColor: 'var(--color-primary)', cursor: 'pointer', height: '6px' }}
+          />
+          <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: '600', fontVariantNumeric: 'tabular-nums', minWidth: '35px' }}>{formatTime(duration)}</span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -399,6 +447,7 @@ export default function FullTest() {
               onComplete={() => {
                 setCompletedAudios(prev => ({ ...prev, [curQ.contextAudio]: true }));
               }}
+              showSeek={curQ.contextAudio === STORY_AUDIO || curQ.contextAudio === ARTICLE_AUDIO}
             />
           </div>
         )}
