@@ -197,7 +197,7 @@ export default function ReadingTest() {
       </div>
 
       {/* Timer: 30 ข้อ × 30 วินาที = 900 วินาที */}
-      <ExamTimer key={timerKey} totalSeconds={900} onTimeUp={handleSubmit} storageKey="readtest_timer" />
+      <ExamTimer key={timerKey} totalSeconds={900} onTimeUp={handleSubmit} storageKey="readtest_timer" isActive={!submitting && !showResult} />
 
       {/* Section A */}
       <SectionHeader num="A" title='มารยาทการฟังและการดู (ข้อ 41-45)' sub="อ่านบทความแล้วตอบคำถาม" />

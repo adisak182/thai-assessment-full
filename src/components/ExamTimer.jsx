@@ -7,7 +7,7 @@ import { Timer } from 'lucide-react';
  *   totalSeconds  – เวลาทั้งหมด (วินาที), e.g. 25 ข้อ × 30 = 750
  *   onTimeUp      – callback เมื่อหมดเวลา (trigger submit)
  */
-export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey }) {
+export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey, isActive = true }) {
   const [remaining, setRemaining] = useState(() => {
     if (storageKey) {
       const saved = window.sessionStorage.getItem(storageKey);
@@ -21,6 +21,8 @@ export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey 
   const calledRef = useRef(false);
 
   useEffect(() => {
+    if (!isActive) return;
+
     if (storageKey) {
       window.sessionStorage.setItem(storageKey, remaining);
     }
@@ -37,7 +39,7 @@ export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey 
 
     const id = setTimeout(() => setRemaining(r => r - 1), 1000);
     return () => clearTimeout(id);
-  }, [remaining, onTimeUp]);
+  }, [remaining, onTimeUp, isActive, storageKey]);
 
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
