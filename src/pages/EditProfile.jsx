@@ -111,7 +111,7 @@ export default function EditProfile() {
           </div>
 
           <div><label style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
-            <input required type="text" name="name" value={formData.name} onChange={handleChange} placeholder="ชื่อ-นามสกุล" style={inputStyle} /></div>
+            <input required autoFocus type="text" name="name" value={formData.name} onChange={handleChange} placeholder="ชื่อ-นามสกุล" style={inputStyle} /></div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div><label style={labelStyle}>อายุ (ปี)</label>

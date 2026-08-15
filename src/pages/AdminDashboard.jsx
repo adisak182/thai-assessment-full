@@ -673,6 +673,7 @@ export default function AdminDashboard() {
                   value={editForm.name} 
                   onChange={e => setEditForm({...editForm, name: e.target.value})} 
                   style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '1rem' }} 
+                  autoFocus
                 />
               </div>
               <div style={{ display: 'flex', gap: '20px' }}>

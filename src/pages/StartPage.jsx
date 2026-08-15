@@ -70,7 +70,7 @@ export default function StartPage() {
             <div>
               <label style={labelStyle}>ชื่อ-สกุล <span style={{ color: 'red' }}>*</span></label>
               <input type="text" name="name" value={form.name} onChange={handleChange}
-                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
+                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} autoFocus />
             </div>
 
             {/* Age */}
