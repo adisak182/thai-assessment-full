@@ -61,26 +61,19 @@ function AppLayout() {
           <Link to="/" className="nav-item">
             <BookOpen size={20} /> <span className="nav-text">หน้าแรก</span>
           </Link>
-          <Link to="/skills" className="nav-item">
-            <Trophy size={20} /> <span className="nav-text">เริ่มประเมิน</span>
-          </Link>
           <Link to="/ranking" className="nav-item">
             <Trophy size={20} /> <span className="nav-text">จัดอันดับ</span>
           </Link>
           <Link to="/dashboard" className="nav-item">
             <LayoutDashboard size={20} /> <span className="nav-text">แดชบอร์ด</span>
           </Link>
-          {user ? (
+          {user && (
             <Link to="/profile" className="nav-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {user.avatar
                 ? <img src={user.avatar} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-light)' }} />
                 : <UserIcon size={20} />
               }
               <span className="nav-text">{user.name ? user.name.split(' ')[0] : 'โปรไฟล์'}</span>
-            </Link>
-          ) : (
-            <Link to="/start" className="nav-item btn-primary" style={{ padding: '8px 16px', borderRadius: '20px', color: 'white', textDecoration: 'none' }}>
-              <span className="nav-text">เริ่มต้นใช้งาน</span>
             </Link>
           )}
         </nav>

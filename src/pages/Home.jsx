@@ -24,7 +24,7 @@ export default function Home() {
 
         <div className="animate-fade-in delay-300" style={{ display: 'flex', justifyContent: 'center' }}>
           <Link to="/skills" className="btn-primary" style={{ padding: '16px 40px', fontSize: '1.25rem', textDecoration: 'none' }}>
-            เริ่มการประเมิน
+            เริ่มการใช้งาน
           </Link>
         </div>
       </div>
