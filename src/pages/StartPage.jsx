@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { PlayCircle } from 'lucide-react';
+import logoImg from '../assets/logo.jpg';
 
 export default function StartPage() {
   const { startSession } = useUser();
@@ -53,8 +54,8 @@ export default function StartPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px' }}>
       <div style={{ width: '100%', maxWidth: '500px' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div className="animate-float" style={{ display: 'inline-flex', padding: '16px', background: 'rgba(91, 33, 182, 0.08)', borderRadius: '50%', marginBottom: '16px' }}>
-            <User size={48} color="var(--color-primary)" />
+          <div className="animate-float" style={{ display: 'inline-flex', padding: '6px', background: 'rgba(255,255,255,0.8)', borderRadius: '50%', marginBottom: '16px', boxShadow: '0 8px 24px rgba(76, 29, 149, 0.15)' }}>
+            <img src={logoImg} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
           </div>
           <h1 className="text-shimmer" style={{ fontSize: '2rem', color: 'var(--color-primary-dark)', margin: '0 0 8px' }}>ยินดีต้อนรับ</h1>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>กรุณากรอกข้อมูลเพื่อเริ่มต้นทำแบบทดสอบ</p>
