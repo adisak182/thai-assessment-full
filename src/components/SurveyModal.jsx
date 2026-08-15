@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, CheckCircle } from 'lucide-react';
+import { useUser } from '../context/UserContext';
 
 const RATING_CHOICES = [
   { val: 4, label: 'ดีมาก' },
@@ -9,9 +10,15 @@ const RATING_CHOICES = [
 ];
 
 export default function SurveyModal({ onSubmit }) {
+  const { user } = useUser();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
-    gender: '', age: '', target_group: '', district: '', province: '',
+    gender: user?.gender || '', 
+    age: user?.age || '', 
+    status: user?.status || '',
+    education_level: user?.education_level || '',
+    employment_status: user?.employment_status || '',
+    district: '', province: '',
     design_1: 0, design_2: 0, design_3: 0, design_4: 0,
     content_1: 0, content_2: 0, content_3: 0, content_4: 0,
     benefit_1: 0, benefit_2: 0, benefit_3: 0, benefit_4: 0,
@@ -20,7 +27,7 @@ export default function SurveyModal({ onSubmit }) {
 
   const handleChange = (k, v) => setData(prev => ({ ...prev, [k]: v }));
 
-  const canGoStep2 = data.gender && data.age && data.target_group && data.district && data.province;
+  const canGoStep2 = data.gender && data.age && data.status && data.district && data.province;
   const canSubmit = data.design_1 && data.design_2 && data.design_3 && data.design_4 &&
                     data.content_1 && data.content_2 && data.content_3 && data.content_4 &&
                     data.benefit_1 && data.benefit_2 && data.benefit_3 && data.benefit_4;
@@ -76,15 +83,10 @@ export default function SurveyModal({ onSubmit }) {
             </div>
 
             <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>3. กลุ่มเป้าหมาย</label>
-              <select value={data.target_group} onChange={e => handleChange('target_group', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none' }}>
-                <option value="">-- เลือกกลุ่มเป้าหมาย --</option>
-                <option value="นักศึกษาระดับประถม">นักศึกษาระดับประถม</option>
-                <option value="นักศึกษาระดับม.ต้น">นักศึกษาระดับม.ต้น</option>
-                <option value="นักศึกษาระดับม.ปลาย">นักศึกษาระดับม.ปลาย</option>
-                <option value="ผู้ไม่รู้หนังสือ/ผู้ลืมหนังสือ">ผู้ไม่รู้หนังสือ/ผู้ลืมหนังสือ</option>
-                <option value="ประชาชนทั่วไป">ประชาชนทั่วไป</option>
-              </select>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>3. สถานะ (ดึงข้อมูลอัตโนมัติ)</label>
+              <div style={{ padding: '12px', borderRadius: '10px', background: '#f3f4f6', border: '1px solid #e5e7eb', color: '#4b5563' }}>
+                {data.status === 'กำลังศึกษา' ? `กำลังศึกษา (${data.education_level})` : `ไม่ได้ศึกษา (${data.employment_status})`}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>

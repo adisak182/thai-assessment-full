@@ -8,7 +8,7 @@ export default function StartPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: '', age: '', address: ''
+    name: '', age: '', status: '', education_level: '', employment_status: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,9 @@ export default function StartPage() {
       await startSession({
         name: form.name, 
         age: form.age, 
-        address: form.address
+        status: form.status,
+        education_level: form.education_level,
+        employment_status: form.employment_status
       });
       navigate('/skills');
     } catch (err) {
@@ -78,12 +80,41 @@ export default function StartPage() {
                 min="1" max="120" placeholder="เช่น 25" style={inputStyle} />
             </div>
 
-            {/* Address */}
+            {/* Status */}
             <div>
-              <label style={labelStyle}>ที่อยู่ / อำเภอ / จังหวัด</label>
-              <textarea name="address" value={form.address} onChange={handleChange}
-                placeholder="เช่น อ.เมือง จ.นราธิวาส" style={{...inputStyle, resize: 'vertical', minHeight: '80px'}} />
+              <label style={labelStyle}>สถานะ</label>
+              <select name="status" value={form.status} onChange={handleChange} style={inputStyle} required>
+                <option value="">-- เลือกสถานะ --</option>
+                <option value="กำลังศึกษา">กำลังศึกษา</option>
+                <option value="ไม่ได้ศึกษา">ไม่ได้ศึกษา</option>
+              </select>
             </div>
+            
+            {form.status === 'กำลังศึกษา' && (
+              <div>
+                <label style={labelStyle}>ระดับการศึกษา</label>
+                <select name="education_level" value={form.education_level} onChange={handleChange} style={inputStyle} required>
+                  <option value="">-- เลือกระดับการศึกษา --</option>
+                  <option value="ระดับประถมศึกษา">ระดับประถมศึกษา</option>
+                  <option value="ระดับมัธยมศึกษาตอนต้น">ระดับมัธยมศึกษาตอนต้น</option>
+                  <option value="ระดับมัธยมศึกษาตอนปลาย">ระดับมัธยมศึกษาตอนปลาย</option>
+                  <option value="ปวช./ปวส.">ปวช./ปวส.</option>
+                  <option value="ระดับปริญญาตรี">ระดับปริญญาตรี</option>
+                  <option value="สูงกว่าระดับปริญญาตรี">สูงกว่าระดับปริญญาตรี</option>
+                </select>
+              </div>
+            )}
+
+            {form.status === 'ไม่ได้ศึกษา' && (
+              <div>
+                <label style={labelStyle}>สถานะการทำงาน</label>
+                <select name="employment_status" value={form.employment_status} onChange={handleChange} style={inputStyle} required>
+                  <option value="">-- เลือกสถานะการทำงาน --</option>
+                  <option value="ว่างงาน">ว่างงาน</option>
+                  <option value="มีงานทำ">มีงานทำ</option>
+                </select>
+              </div>
+            )}
 
             <button type="submit" disabled={loading} className="btn-primary"
               style={{ padding: '16px', fontSize: '1.1rem', justifyContent: 'center', width: '100%', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>

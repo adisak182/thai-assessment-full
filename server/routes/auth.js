@@ -64,7 +64,7 @@ router.post('/register', async (req, res) => {
 
 // ==================== START SESSION (GUEST / NO PASSWORD) ====================
 router.post('/start', async (req, res) => {
-  const { name, age, address } = req.body;
+  const { name, age, address, status, education_level, employment_status } = req.body;
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ-สกุล' });
   }
@@ -88,6 +88,9 @@ router.post('/start', async (req, res) => {
         name: trimmedName,
         age: age ? Number(age) : null,
         address: address ? address.trim() : null,
+        status: status || null,
+        education_level: education_level || null,
+        employment_status: employment_status || null,
         role: 'user'
       });
       await user.save();
@@ -103,6 +106,9 @@ router.post('/start', async (req, res) => {
       let changed = false;
       if (age && user.age !== Number(age)) { user.age = Number(age); changed = true; }
       if (address && user.address !== address.trim()) { user.address = address.trim(); changed = true; }
+      if (status && user.status !== status) { user.status = status; changed = true; }
+      if (education_level && user.education_level !== education_level) { user.education_level = education_level; changed = true; }
+      if (employment_status && user.employment_status !== employment_status) { user.employment_status = employment_status; changed = true; }
       if (changed) await user.save();
     }
 

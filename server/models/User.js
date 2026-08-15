@@ -26,6 +26,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  status: {
+    type: String,
+    default: null,
+  },
+  education_level: {
+    type: String,
+    default: null,
+  },
+  employment_status: {
+    type: String,
+    default: null,
+  },
   avatar: {
     type: String,
     default: null,

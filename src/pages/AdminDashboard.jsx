@@ -111,7 +111,7 @@ export default function AdminDashboard() {
 
   const downloadSurveyCSV = () => {
     const headers = [
-      'วันที่', 'เพศ', 'อายุ', 'กลุ่มเป้าหมาย', 'อำเภอ', 'จังหวัด',
+      'วันที่', 'เพศ', 'อายุ', 'สถานะ', 'ข้อมูลเพิ่มเติม', 'อำเภอ', 'จังหวัด',
       '1.1 เมนูการใช้งาน', '1.2 ความน่าสนใจ', '1.3 ขนาดตัวอักษร', '1.4 ภาพประกอบ',
       '2.1 ความถูกต้อง', '2.2 ความเหมาะสม', '2.3 การเรียงลำดับ', '2.4 เนื้อหาทันสมัย',
       '3.1 ส่งเสริมความรู้', '3.2 พัฒนาทักษะ', '3.3 ประยุกต์ใช้', '3.4 เห็นคุณค่า',
@@ -119,7 +119,7 @@ export default function AdminDashboard() {
     ];
     
     const rows = surveys.map(data => [
-      formatDate(data.submitted_at), data.gender, data.age, data.target_group, data.district, data.province,
+      formatDate(data.submitted_at), data.gender, data.age, data.status, data.education_level || data.employment_status, data.district, data.province,
       data.design_1, data.design_2, data.design_3, data.design_4,
       data.content_1, data.content_2, data.content_3, data.content_4,
       data.benefit_1, data.benefit_2, data.benefit_3, data.benefit_4,
@@ -166,7 +166,7 @@ export default function AdminDashboard() {
           
           <h3>ส่วนที่ 1 ข้อมูลทั่วไป</h3>
           <div class="row">1. เพศ: ${val()} &nbsp;&nbsp;&nbsp; 2. อายุ: ${val()} ปี</div>
-          <div class="row">3. กลุ่มเป้าหมาย: ${val()}</div>
+          <div class="row">3. สถานะ: ${val()} &nbsp;&nbsp;&nbsp; ข้อมูลเพิ่มเติม: ${val()}</div>
           <div class="row">4. ภูมิลำเนา (อำเภอ): ${val()} &nbsp;&nbsp;&nbsp; จังหวัด: ${val()}</div>
           
           <h3>ส่วนที่ 2 การประเมินความพึงพอใจ</h3>

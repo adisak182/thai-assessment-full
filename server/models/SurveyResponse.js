@@ -5,6 +5,9 @@ const surveySchema = new mongoose.Schema({
   // ส่วนที่ 1
   gender: { type: String },
   age: { type: String },
+  status: { type: String },
+  education_level: { type: String },
+  employment_status: { type: String },
   target_group: { type: String },
   district: { type: String },
   province: { type: String },
