@@ -53,11 +53,14 @@ export default function StartPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px' }}>
       <div style={{ width: '100%', maxWidth: '500px' }}>
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h1 style={{ fontSize: '2rem', color: 'var(--color-primary-dark)', margin: '0 0 8px' }}>ยินดีต้อนรับ</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>กรุณากรอกข้อมูลเพื่อเริ่มต้นทำแบบประเมินภาษาไทย</p>
+          <div className="animate-float" style={{ display: 'inline-flex', padding: '16px', background: 'rgba(91, 33, 182, 0.08)', borderRadius: '50%', marginBottom: '16px' }}>
+            <User size={48} color="var(--color-primary)" />
+          </div>
+          <h1 className="text-shimmer" style={{ fontSize: '2rem', color: 'var(--color-primary-dark)', margin: '0 0 8px' }}>ยินดีต้อนรับ</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>กรุณากรอกข้อมูลเพื่อเริ่มต้นทำแบบทดสอบ</p>
         </div>
 
-        <div className="glass-panel" style={{ padding: '40px' }}>
+        <div className="glass-card animate-slide-up" style={{ padding: '40px' }}>
           {error && (
             <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', marginBottom: '20px' }}>
               ⚠️ {error}
