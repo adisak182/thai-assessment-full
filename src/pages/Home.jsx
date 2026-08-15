@@ -9,10 +9,10 @@ export default function Home() {
       <div style={{ position: 'absolute', width: '350px', height: '350px', background: 'radial-gradient(circle, rgba(212, 175, 55, 0.25) 0%, rgba(212, 175, 55, 0) 70%)', bottom: '-5%', right: '5%', zIndex: 0, filter: 'blur(50px)', animation: 'preloader-pulse 5s infinite alternate-reverse' }}></div>
 
       <div className="glass-card text-center animate-fade-in" style={{ padding: '80px 60px', zIndex: 1, maxWidth: '760px', width: '100%', margin: '0 20px' }}>
-        <div className="animate-fade-in delay-100 animate-float" style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
-          <div style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <div className="animate-fade-in delay-100" style={{ display: 'flex', justifyContent: 'center', marginBottom: '40px' }}>
+          <div className="animate-float" style={{ width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
             {/* Spinning Aura around the logo */}
-            <div style={{ position: 'absolute', inset: -15, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-secondary))', opacity: 0.35, filter: 'blur(15px)', animation: 'preloader-spin 8s linear infinite' }}></div>
+            <div style={{ position: 'absolute', inset: -15, borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-secondary))', opacity: 0.35, filter: 'blur(15px)' }}></div>
             <img src={logoImg} alt="Narathiwat Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', filter: 'drop-shadow(0px 12px 28px rgba(76, 29, 149, 0.4))', position: 'relative', zIndex: 2 }} />
           </div>
         </div>
