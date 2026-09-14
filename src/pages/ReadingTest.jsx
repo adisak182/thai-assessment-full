@@ -145,7 +145,114 @@ export default function ReadingTest() {
   const handleSubmit = async () => {
     setSubmitting(true);
     const score = calcScore();
-    try { await recordScore({ level: 1, skill: 'reading', score, maxScore: totalQ }); } catch (e) {}
+    const detailed_results = [];
+
+    // sectionA
+    sectionAQ.forEach(q => {
+      const isCorrect = !!answers[q.id];
+      const chosenIdx = selIdx[q.id];
+      const userChoice = chosenIdx !== undefined ? q.options?.[chosenIdx]?.text : '(ไม่ได้ตอบ)';
+      const correctChoice = q.options?.find(o => o.correct)?.text || '-';
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: อ่านจับใจความ',
+        type: 'mcq',
+        question: q.question || `ข้อ ${q.id}`,
+        user_answer: userChoice,
+        correct_answer: correctChoice,
+        is_correct: isCorrect
+      });
+    });
+
+    // sectionB
+    sectionBQ.forEach(q => {
+      const isCorrect = !!answers[q.id];
+      const chosenIdx = selIdx[q.id];
+      const userChoice = chosenIdx !== undefined ? q.options?.[chosenIdx]?.text : '(ไม่ได้ตอบ)';
+      const correctChoice = q.options?.find(o => o.correct)?.text || '-';
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: บทความวิชาการ',
+        type: 'mcq',
+        question: q.question || `ข้อ ${q.id}`,
+        user_answer: userChoice,
+        correct_answer: correctChoice,
+        is_correct: isCorrect
+      });
+    });
+
+    // readTfQ
+    readTfQ.forEach(q => {
+      const userAns = tfAnswers[q.id];
+      const isCorrect = userAns === q.correct;
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: ข้อเท็จจริง/ข้อคิดเห็น',
+        type: 'tf',
+        question: q.statement || `ข้อ ${q.id}`,
+        user_answer: userAns === undefined ? '(ไม่ได้ตอบ)' : (userAns === 'fact' ? 'ข้อเท็จจริง' : 'ข้อคิดเห็น'),
+        correct_answer: q.correct === 'fact' ? 'ข้อเท็จจริง' : 'ข้อคิดเห็น',
+        is_correct: isCorrect
+      });
+    });
+
+    // sectionC
+    sectionCQ.forEach(q => {
+      const isCorrect = !!answers[q.id];
+      const chosenIdx = selIdx[q.id];
+      const userChoice = chosenIdx !== undefined ? q.options?.[chosenIdx]?.text : '(ไม่ได้ตอบ)';
+      const correctChoice = q.options?.find(o => o.correct)?.text || '-';
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: การวิเคราะห์ภาษา',
+        type: 'mcq',
+        question: q.question || `ข้อ ${q.id}`,
+        user_answer: userChoice,
+        correct_answer: correctChoice,
+        is_correct: isCorrect
+      });
+    });
+
+    // sectionD (match)
+    sectionDQ.forEach(q => {
+      const chosen = matchSel[q.id] || '(ไม่ได้ตอบ)';
+      const correct = matchAnswers[q.id] || '-';
+      const isCorrect = chosen === correct;
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: คำประพันธ์',
+        type: 'match',
+        question: q.verse || `ข้อ ${q.id}`,
+        user_answer: chosen,
+        correct_answer: correct,
+        is_correct: isCorrect
+      });
+    });
+
+    // readSectionEQ
+    readSectionEQ.forEach(q => {
+      const isCorrect = !!answers[q.id];
+      const chosenIdx = selIdx[q.id];
+      const userChoice = chosenIdx !== undefined ? q.options?.[chosenIdx]?.text : '(ไม่ได้ตอบ)';
+      const correctChoice = q.options?.find(o => o.correct)?.text || '-';
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการอ่าน: วรรณคดีและวรรณกรรม',
+        type: 'mcq',
+        question: q.question || `ข้อ ${q.id}`,
+        user_answer: userChoice,
+        correct_answer: correctChoice,
+        is_correct: isCorrect
+      });
+    });
+
+    const breakdown = {
+      reading: { score, max: totalQ, label: 'ทักษะการอ่าน' }
+    };
+
+    try { 
+      await recordScore({ level: 1, skill: 'reading', score, maxScore: totalQ, breakdown, detailed_results }); 
+    } catch (e) {}
     setShowResult(true);
     setSubmitting(false);
 
@@ -153,6 +260,7 @@ export default function ReadingTest() {
     const keysToClear = ['readtest_answers', 'readtest_selIdx', 'readtest_tfAnswers', 'readtest_matchSel', 'readtest_timer'];
     keysToClear.forEach(k => window.sessionStorage.removeItem(k));
   };
+
 
   const SectionHeader = ({ num, title, sub }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '40px' }}>

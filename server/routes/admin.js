@@ -58,6 +58,46 @@ router.get('/users', authenticateAdmin, async (req, res) => {
   }
 });
 
+// ==================== GET ALL SCORE HISTORY (ACROSS ALL USERS) ====================
+router.get('/history', authenticateAdmin, async (req, res) => {
+  try {
+    const history = await ScoreHistory.find()
+      .populate('user_id', 'username name avatar age address role')
+      .sort({ taken_at: -1 })
+      .limit(300);
+
+    const formatted = history.map(h => {
+      const u = h.user_id;
+      return {
+        id: h._id.toString(),
+        user_id: u ? u._id.toString() : null,
+        user: u ? {
+          id: u._id.toString(),
+          name: u.name,
+          username: u.username,
+          avatar: u.avatar,
+          age: u.age,
+          address: u.address,
+          role: u.role
+        } : { name: 'ผู้ใช้งานทั่วไป', username: '-' },
+        level: h.level,
+        skill: h.skill,
+        score: h.score,
+        max_score: h.max_score,
+        taken_at: h.taken_at,
+        breakdown: h.breakdown || {},
+        detailed_results: h.detailed_results || []
+      };
+    });
+
+    return res.json(formatted);
+  } catch (err) {
+    console.error('Get all history error:', err);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+
 // ==================== GET SPECIFIC USER SCORES ====================
 router.get('/users/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;

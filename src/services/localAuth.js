@@ -117,7 +117,7 @@ function getHistoryKey(userId) {
   return `history_${userId}`;
 }
 
-export function saveScore(userId, { level, skill, score, maxScore }) {
+export function saveScore(userId, { level, skill, score, maxScore, breakdown, detailed_results }) {
   // Save latest score per skill
   localStorage.setItem(getScoreKey(userId, level, skill), JSON.stringify({ score, maxScore }));
 
@@ -125,10 +125,13 @@ export function saveScore(userId, { level, skill, score, maxScore }) {
   const histKey = getHistoryKey(userId);
   const history = JSON.parse(localStorage.getItem(histKey) || '[]');
   history.unshift({
+    id: `hist_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     level,
     skill,
     score,
     max_score: maxScore,
+    breakdown: breakdown || {},
+    detailed_results: detailed_results || [],
     taken_at: new Date().toISOString()
   });
   // Keep only latest 50

@@ -160,6 +160,16 @@ export const getAdminUserScores = async (token, userId) => {
   return result;
 };
 
+export const getAdminAllHistory = async (token) => {
+  const response = await fetch(`${API_URL}/admin/history`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'ดึงประวัติการสอบทั้งหมดไม่สำเร็จ');
+  return result;
+};
+
+
 export const getAdminSurveys = async (token) => {
   const response = await fetch(`${API_URL}/survey`, {
     headers: { 'Authorization': `Bearer ${token}` }

@@ -65,9 +65,9 @@ export const UserProvider = ({ children }) => {
     return profile;
   };
 
-  const recordScore = async ({ level, skill, score, maxScore }) => {
+  const recordScore = async ({ level, skill, score, maxScore, breakdown, detailed_results }) => {
     if (!token) return;
-    const res = await api.saveScore(token, { level, skill, score, maxScore });
+    const res = await api.saveScore(token, { level, skill, score, maxScore, breakdown, detailed_results });
     const profile = await api.getProfile(token);
     setUser(profile);
     return res;

@@ -338,11 +338,64 @@ export default function ListeningTest() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    const score = calcScore();
-    try { await recordScore({ level: 1, skill: 'listening', score, maxScore: totalQ }); } catch (e) { /* ignore */ }
+    let score = 0;
+    const detailed_results = [];
+
+    const allMcq = [
+      ...vocabQ.map(q => ({ ...q, section: 'คำศัพท์และสำนวน' })),
+      ...announcementQ.map(q => ({ ...q, section: 'ประกาศและโฆษณา' })),
+      ...storyQ.map(q => ({ ...q, section: 'นิทานและเรื่องเล่า' })),
+      ...vocab4Q.map(q => ({ ...q, section: 'คำศัพท์ขั้นสูง' })),
+      ...proverbQ.map(q => ({ ...q, section: 'สุภาษิตคำพังเพย' })),
+      ...annColdQ.map(q => ({ ...q, section: 'ประกาศเตือนภัย' })),
+      ...adQ.map(q => ({ ...q, section: 'โฆษณาสินค้า' })),
+      ...lastQ.map(q => ({ ...q, section: 'บทความและการสรุปความ' }))
+    ];
+
+    allMcq.forEach(q => {
+      const isCorrect = !!answers[q.id];
+      if (isCorrect) score++;
+      const chosenIdx = answers[`_sel_${q.id}`];
+      const userChoice = chosenIdx !== undefined ? q.options?.[chosenIdx]?.text : '(ไม่ได้ตอบ)';
+      const correctChoice = q.options?.find(o => o.correct)?.text || '-';
+
+      detailed_results.push({
+        id: q.id,
+        section: `ทักษะการฟัง: ${q.section}`,
+        type: 'mcq',
+        question: q.question || q.script || `ข้อ ${q.id}`,
+        user_answer: userChoice,
+        correct_answer: correctChoice,
+        is_correct: isCorrect
+      });
+    });
+
+    tfQ.forEach(q => {
+      const userAns = tfAnswers[q.id];
+      const isCorrect = userAns === q.correct;
+      if (isCorrect) score++;
+      detailed_results.push({
+        id: q.id,
+        section: 'ทักษะการฟัง: ข้อเท็จจริง/ข้อคิดเห็น',
+        type: 'tf',
+        question: q.statement || q.question || `ข้อ ${q.id}`,
+        user_answer: userAns === undefined ? '(ไม่ได้ตอบ)' : (userAns ? 'จริง' : 'เท็จ'),
+        correct_answer: q.correct ? 'จริง' : 'เท็จ',
+        is_correct: isCorrect
+      });
+    });
+
+    const breakdown = {
+      listening: { score, max: totalQ, label: 'ทักษะการฟัง' }
+    };
+
+    try {
+      await recordScore({ level: 1, skill: 'listening', score, maxScore: totalQ, breakdown, detailed_results });
+    } catch (e) { /* ignore */ }
     setShowResult(true);
     setSubmitting(false);
   };
+
 
   const [timerKey, setTimerKey] = useState(0); // reset timer on retry
 

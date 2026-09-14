@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys } from '../services/api';
-import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List } from 'lucide-react';
+import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory } from '../services/api';
+import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
+import ScoreDetailModal from '../components/ScoreDetailModal';
 
 function formatDate(isoStr) {
   const d = new Date(isoStr);
@@ -17,6 +18,20 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Tab State: 'users' | 'all_history'
+  const [adminTab, setAdminTab] = useState('users');
+
+  // All History State
+  const [allHistory, setAllHistory] = useState([]);
+  const [allHistoryLoading, setAllHistoryLoading] = useState(false);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState('all'); // 'all' | 'passed' | 'notPassed'
+  const [historyDateFilter, setHistoryDateFilter] = useState('all'); // 'all' | 'today' | 'week' | 'month'
+
+  // ScoreDetailModal state
+  const [activeDetailAttempt, setActiveDetailAttempt] = useState(null);
+  const [activeDetailUser, setActiveDetailUser] = useState(null);
   
   // Modal State
   const [selectedUser, setSelectedUser] = useState(null);
@@ -41,6 +56,7 @@ export default function AdminDashboard() {
   const [expandedSurveyId, setExpandedSurveyId] = useState(null);
 
   const answerKeyData = useMemo(() => getAllQuestions(), []);
+
 
   const surveySummaryData = useMemo(() => {
     if (!surveys || surveys.length === 0) return [];
@@ -70,10 +86,11 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!user) return;
     if (user.role !== 'admin') {
-      navigate('/levels');
+      navigate('/skills');
       return;
     }
     fetchUsers();
+    fetchAllHistory();
   }, [user]);
 
   const filteredUsers = users.filter(u => {
@@ -96,7 +113,6 @@ export default function AdminDashboard() {
     notTested: users.filter(u => !u.full_test_score).length,
   };
 
-
   const fetchUsers = async () => {
     try {
       setLoading(true);
@@ -108,6 +124,103 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  const fetchAllHistory = async () => {
+    try {
+      setAllHistoryLoading(true);
+      const data = await getAdminAllHistory(token);
+      setAllHistory(data || []);
+    } catch (err) {
+      console.error('Fetch all history error:', err);
+    } finally {
+      setAllHistoryLoading(false);
+    }
+  };
+
+  const filteredAllHistory = useMemo(() => {
+    return allHistory.filter(h => {
+      const uName = (h.user?.name || '').toLowerCase();
+      const uUser = (h.user?.username || '').toLowerCase();
+      const sQuery = historySearch.toLowerCase().trim();
+      const matchesSearch = !sQuery || uName.includes(sQuery) || uUser.includes(sQuery);
+      if (!matchesSearch) return false;
+
+      const pct = Math.round((h.score / (h.max_score || 100)) * 100);
+      if (historyStatusFilter === 'passed' && pct < 70) return false;
+      if (historyStatusFilter === 'notPassed' && pct >= 70) return false;
+
+      if (historyDateFilter !== 'all' && h.taken_at) {
+        const itemDate = new Date(h.taken_at);
+        const now = new Date();
+        if (historyDateFilter === 'today') {
+          if (itemDate.toDateString() !== now.toDateString()) return false;
+        } else if (historyDateFilter === 'week') {
+          const diffDays = (now - itemDate) / (1000 * 60 * 60 * 24);
+          if (diffDays > 7) return false;
+        } else if (historyDateFilter === 'month') {
+          const diffDays = (now - itemDate) / (1000 * 60 * 60 * 24);
+          if (diffDays > 30) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allHistory, historySearch, historyStatusFilter, historyDateFilter]);
+
+  const historyStats = useMemo(() => {
+    const total = allHistory.length;
+    const passed = allHistory.filter(h => Math.round((h.score / (h.max_score || 100)) * 100) >= 70).length;
+    const notPassed = total - passed;
+    const avg = total > 0 ? Math.round(allHistory.reduce((acc, h) => acc + (h.score || 0), 0) / total) : 0;
+    const uniqueStudents = new Set(allHistory.map(h => h.user_id || h.user?.username).filter(Boolean)).size;
+    return { total, passed, notPassed, avg, uniqueStudents };
+  }, [allHistory]);
+
+  const downloadAllHistoryCSV = () => {
+    const headers = [
+      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'ที่อยู่', 'แบบทดสอบ',
+      'คะแนนที่ได้', 'คะแนนเต็ม', 'ร้อยละ (%)', 'ผลการประเมิน', 'ระดับ',
+      'การฟัง (25)', 'การพูด (15)', 'การอ่าน (30)', 'การเขียน (30)'
+    ];
+
+    const rows = filteredAllHistory.map(h => {
+      const pct = Math.round((h.score / (h.max_score || 100)) * 100);
+      const passed = pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
+      let grade = 'ปรับปรุง';
+      if (pct >= 80) grade = 'ดีมาก';
+      else if (pct >= 60) grade = 'ดี';
+      else if (pct >= 50) grade = 'พอใช้';
+
+      const bd = h.breakdown || {};
+      const lScore = bd.listening?.score ?? '-';
+      const sScore = bd.speaking?.score ?? '-';
+      const rScore = bd.reading?.score ?? '-';
+      const wScore = bd.writing?.score ?? '-';
+
+      const uName = h.user?.name || '-';
+      const uUsername = h.user?.username || '-';
+      const uAge = h.user?.age || '-';
+      const uAddress = `"${(h.user?.address || '-').replace(/"/g, '""')}"`;
+      const skillName = h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : h.skill;
+
+      return [
+        formatDate(h.taken_at), uName, uUsername, uAge, uAddress, skillName,
+        h.score, h.max_score, `${pct}%`, passed, grade,
+        lScore, sScore, rScore, wScore
+      ];
+    });
+
+    const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `ประวัติการทำแบบทดสอบทั้งหมด_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   const downloadSurveyCSV = () => {
     const headers = [
@@ -328,191 +441,466 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Statistics Header */}
-      <div className="admin-grid">
-        <div className="stat-card">
-          <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Users size={28} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>ผู้ใช้งานทั้งหมด</div>
-            <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>{stats.total}</div>
-          </div>
-        </div>
-        {[
-          { label: 'สอบผ่าน', count: stats.passed, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
-          { label: 'ยังไม่ผ่าน', count: stats.notPassed, color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)' },
-          { label: 'ยังไม่ได้สอบ', count: stats.notTested, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
-        ].map((s, idx) => (
-          <div key={idx} className="stat-card">
-            <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Award size={28} />
-            </div>
-            <div>
-              <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>{s.label}</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
-                {s.count} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>({stats.total > 0 ? Math.round(s.count/stats.total*100) : 0}%)</span>
+      {/* Top View Navigation Tabs */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', borderBottom: '2px solid #f1f5f9', paddingBottom: '14px', flexWrap: 'wrap' }}>
+        <button 
+          onClick={() => setAdminTab('users')}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '14px',
+            border: 'none',
+            background: adminTab === 'users' ? 'var(--color-primary)' : '#f8fafc',
+            color: adminTab === 'users' ? 'white' : '#64748b',
+            fontWeight: '700',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: adminTab === 'users' ? '0 4px 14px rgba(139, 92, 246, 0.25)' : 'none',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Users size={20} /> รายชื่อผู้ใช้งาน ({users.length})
+        </button>
+
+        <button 
+          onClick={() => setAdminTab('all_history')}
+          style={{
+            padding: '12px 24px',
+            borderRadius: '14px',
+            border: 'none',
+            background: adminTab === 'all_history' ? 'var(--color-primary)' : '#f8fafc',
+            color: adminTab === 'all_history' ? 'white' : '#64748b',
+            fontWeight: '700',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: adminTab === 'all_history' ? '0 4px 14px rgba(139, 92, 246, 0.25)' : 'none',
+            transition: 'all 0.2s'
+          }}
+        >
+          <History size={20} /> ประวัติการสอบทั้งหมด ({allHistory.length})
+        </button>
+      </div>
+
+      {adminTab === 'users' ? (
+        <>
+          {/* Statistics Header */}
+          <div className="admin-grid">
+            <div className="stat-card">
+              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Users size={28} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>ผู้ใช้งานทั้งหมด</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>{stats.total}</div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {error && <div style={{ padding: '16px 24px', background: '#fee2e2', color: '#dc2626', borderRadius: '16px', marginBottom: '32px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '12px' }}><XCircle size={24} /> {error}</div>}
-
-      {/* Search and Filters */}
-      <div className="search-container">
-        <div className="search-input">
-          <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input 
-            type="text" 
-            placeholder="ค้นหาชื่อผู้ใช้ หรือ Username..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <Filter size={20} color="#64748b" />
-          <select 
-            className="filter-select"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">ทั้งหมด</option>
-            <option value="passed">สอบผ่าน {">="} 60</option>
-            <option value="notPassed">ยังไม่ผ่าน / ยังไม่ได้สอบ</option>
-          </select>
-        </div>
-        <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
-          พบ {filteredUsers.length} รายการ
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '100px 0' }}>
-          <RefreshCw size={48} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
-          <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>กำลังดึงข้อมูลผู้ใช้งาน...</div>
-        </div>
-      ) : filteredUsers.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '80px 0', textAlign: 'center' }}>
-          <Users size={64} color="#d1d5db" style={{ marginBottom: '20px' }} />
-          <h3 style={{ fontSize: '1.4rem', color: '#64748b', margin: 0 }}>ไม่พบผู้ใช้งานที่ตรงตามเงื่อนไข</h3>
-          <button onClick={() => {setSearchTerm(''); setFilterStatus('all');}} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}>ล้างตัวกรองทั้งหมด</button>
-        </div>
-      ) : (
-        <>
-          {/* Desktop View */}
-          <div className="glass-panel desktop-view" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
-            <table className="desktop-table">
-              <thead>
-                <tr>
-                  <th style={{ paddingLeft: '24px' }}>รายชื่อผู้ใช้งาน</th>
-                  <th style={{ textAlign: 'center' }}>ความคืบหน้า</th>
-                  <th style={{ textAlign: 'center' }}>วันที่เข้าร่วม</th>
-                  <th style={{ textAlign: 'center', paddingRight: '24px' }}>การจัดการ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((u) => (
-                  <tr key={u.id}>
-                    <td style={{ paddingLeft: '24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                          {u.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {u.name} 
-                            {u.role === 'admin' && <span style={{ fontSize: '0.7rem', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin</span>}
-                          </div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.address || 'ไม่ระบุที่อยู่'} • {u.age ? u.age+' ปี' : 'ไม่ระบุอายุ'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <div style={{ padding: '6px 12px', borderRadius: '8px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#f1f5f9'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
-                            {u.full_test_passed ? <><CheckCircle size={16} /> ผ่านแล้ว</> : (u.full_test_score > 0 ? <><XCircle size={16} /> ไม่ผ่าน</> : 'ยังไม่ได้สอบ')}
-                          </div>
-                          {u.full_test_score > 0 && <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>{u.full_test_score} / 100 คะแนน</div>}
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <Calendar size={14} /> {formatDate(u.created_at)}
-                      </div>
-                    </td>
-                    <td style={{ paddingRight: '24px' }}>
-                      <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ดูคะแนน">
-                          <Eye size={20} />
-                        </button>
-                        <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="แก้ไขข้อมูล">
-                          <Edit2 size={20} />
-                        </button>
-                        {u.role !== 'admin' && (
-                          <button onClick={() => handleDelete(u.id, u.name)} style={{ background: '#fef2f2', color: '#ef4444', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ลบผู้ใช้">
-                            <Trash2 size={20} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile View */}
-          <div className="mobile-cards">
-            {filteredUsers.map((u) => (
-              <div key={u.id} className="user-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                      {u.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.1rem' }}>{u.name}</div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>@{u.username} • {u.role}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '8px', borderRadius: '10px' }}><Eye size={18} /></button>
-                    <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '8px', borderRadius: '10px' }}><Edit2 size={18} /></button>
-                  </div>
+            {[
+              { label: 'สอบผ่าน', count: stats.passed, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
+              { label: 'ยังไม่ผ่าน', count: stats.notPassed, color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)' },
+              { label: 'ยังไม่ได้สอบ', count: stats.notTested, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
+            ].map((s, idx) => (
+              <div key={idx} className="stat-card">
+                <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Award size={28} />
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    <strong>ที่อยู่:</strong> {u.address || '-'}
+                <div>
+                  <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>{s.label}</div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
+                    {s.count} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>({stats.total > 0 ? Math.round(s.count/stats.total*100) : 0}%)</span>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                    <strong>อายุ:</strong> {u.age || '-'} ปี
-                  </div>
-                  <div style={{ fontSize: '0.85rem', color: '#64748b', gridColumn: 'span 2' }}>
-                    <strong>วันที่สมัคร:</strong> {formatDate(u.created_at)}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>สถานะ:</span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <div style={{ padding: '4px 10px', borderRadius: '6px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#e2e8f0'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                      {u.full_test_passed ? `ผ่าน (${u.full_test_score}/100)` : (u.full_test_score > 0 ? `ไม่ผ่าน (${u.full_test_score}/100)` : 'ยังไม่ได้สอบ')}
-                    </div>
-                  </div>
-                  {u.role !== 'admin' && (
-                    <button onClick={() => handleDelete(u.id, u.name)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ef4444', padding: '4px' }}><Trash2 size={18} /></button>
-                  )}
                 </div>
               </div>
             ))}
           </div>
+
+          {error && <div style={{ padding: '16px 24px', background: '#fee2e2', color: '#dc2626', borderRadius: '16px', marginBottom: '32px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '12px' }}><XCircle size={24} /> {error}</div>}
+
+          {/* Search and Filters */}
+          <div className="search-container">
+            <div className="search-input">
+              <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input 
+                type="text" 
+                placeholder="ค้นหาชื่อผู้ใช้ หรือ Username..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <Filter size={20} color="#64748b" />
+              <select 
+                className="filter-select"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="all">ทั้งหมด</option>
+                <option value="passed">สอบผ่าน {">="} 60</option>
+                <option value="notPassed">ยังไม่ผ่าน / ยังไม่ได้สอบ</option>
+              </select>
+            </div>
+            <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
+              พบ {filteredUsers.length} รายการ
+            </div>
+          </div>
+
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+              <RefreshCw size={48} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
+              <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>กำลังดึงข้อมูลผู้ใช้งาน...</div>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '80px 0', textAlign: 'center' }}>
+              <Users size={64} color="#d1d5db" style={{ marginBottom: '20px' }} />
+              <h3 style={{ fontSize: '1.4rem', color: '#64748b', margin: 0 }}>ไม่พบผู้ใช้งานที่ตรงตามเงื่อนไข</h3>
+              <button onClick={() => {setSearchTerm(''); setFilterStatus('all');}} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}>ล้างตัวกรองทั้งหมด</button>
+            </div>
+          ) : (
+            <>
+              {/* Desktop View */}
+              <div className="glass-panel desktop-view" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <table className="desktop-table">
+                  <thead>
+                    <tr>
+                      <th style={{ paddingLeft: '24px' }}>รายชื่อผู้ใช้งาน</th>
+                      <th style={{ textAlign: 'center' }}>ความคืบหน้า</th>
+                      <th style={{ textAlign: 'center' }}>วันที่เข้าร่วม</th>
+                      <th style={{ textAlign: 'center', paddingRight: '24px' }}>การจัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td style={{ paddingLeft: '24px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                              {u.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {u.name} 
+                                {u.role === 'admin' && <span style={{ fontSize: '0.7rem', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin</span>}
+                              </div>
+                              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.address || 'ไม่ระบุที่อยู่'} • {u.age ? u.age+' ปี' : 'ไม่ระบุอายุ'}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ padding: '6px 12px', borderRadius: '8px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#f1f5f9'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
+                                {u.full_test_passed ? <><CheckCircle size={16} /> ผ่านแล้ว</> : (u.full_test_score > 0 ? <><XCircle size={16} /> ไม่ผ่าน</> : 'ยังไม่ได้สอบ')}
+                              </div>
+                              {u.full_test_score > 0 && <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>{u.full_test_score} / 100 คะแนน</div>}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <Calendar size={14} /> {formatDate(u.created_at)}
+                          </div>
+                        </td>
+                        <td style={{ paddingRight: '24px' }}>
+                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ดูคะแนน">
+                              <Eye size={20} />
+                            </button>
+                            <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="แก้ไขข้อมูล">
+                              <Edit2 size={20} />
+                            </button>
+                            {u.role !== 'admin' && (
+                              <button onClick={() => handleDelete(u.id, u.name)} style={{ background: '#fef2f2', color: '#ef4444', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ลบผู้ใช้">
+                                <Trash2 size={20} />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View */}
+              <div className="mobile-cards">
+                {filteredUsers.map((u) => (
+                  <div key={u.id} className="user-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
+                          {u.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.1rem' }}>{u.name}</div>
+                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>@{u.username} • {u.role}</div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '8px', borderRadius: '10px' }}><Eye size={18} /></button>
+                        <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '8px', borderRadius: '10px' }}><Edit2 size={18} /></button>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', marginBottom: '16px' }}>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        <strong>ที่อยู่:</strong> {u.address || '-'}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
+                        <strong>อายุ:</strong> {u.age || '-'} ปี
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#64748b', gridColumn: 'span 2' }}>
+                        <strong>วันที่สมัคร:</strong> {formatDate(u.created_at)}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>สถานะ:</span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ padding: '4px 10px', borderRadius: '6px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#e2e8f0'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          {u.full_test_passed ? `ผ่าน (${u.full_test_score}/100)` : (u.full_test_score > 0 ? `ไม่ผ่าน (${u.full_test_score}/100)` : 'ยังไม่ได้สอบ')}
+                        </div>
+                      </div>
+                      {u.role !== 'admin' && (
+                        <button onClick={() => handleDelete(u.id, u.name)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ef4444', padding: '4px' }}><Trash2 size={18} /></button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
+      ) : (
+        /* ALL EXAM HISTORY TAB */
+        <div>
+          {/* History Statistics Cards */}
+          <div className="admin-grid">
+            <div className="stat-card">
+              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ClipboardList size={28} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>การสอบทั้งหมด</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>{historyStats.total} ครั้ง</div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={28} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>สอบผ่านเกณฑ์ (≥70%)</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
+                  {historyStats.passed} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>({historyStats.total > 0 ? Math.round(historyStats.passed/historyStats.total*100) : 0}%)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(244, 63, 94, 0.1)', color: '#f43f5e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XCircle size={28} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>ยังไม่ผ่าน</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
+                  {historyStats.notPassed} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>({historyStats.total > 0 ? Math.round(historyStats.notPassed/historyStats.total*100) : 0}%)</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.1)', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Award size={28} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>คะแนนเฉลี่ย</div>
+                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
+                  {historyStats.avg} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>/ 100</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search, Filters and CSV Export Toolbar */}
+          <div className="search-container">
+            <div className="search-input">
+              <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
+              <input 
+                type="text" 
+                placeholder="ค้นหาชื่อผู้เข้าสอบ หรือ Username..." 
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <Filter size={20} color="#64748b" />
+              <select 
+                className="filter-select"
+                value={historyStatusFilter}
+                onChange={(e) => setHistoryStatusFilter(e.target.value)}
+              >
+                <option value="all">ผลสอบทั้งหมด</option>
+                <option value="passed">เฉพาะที่ผ่านเกณฑ์ (≥70%)</option>
+                <option value="notPassed">เฉพาะที่ไม่ผ่าน (&lt;70%)</option>
+              </select>
+
+              <select 
+                className="filter-select"
+                value={historyDateFilter}
+                onChange={(e) => setHistoryDateFilter(e.target.value)}
+              >
+                <option value="all">ทุกช่วงเวลา</option>
+                <option value="today">วันนี้</option>
+                <option value="week">7 วันล่าสุด</option>
+                <option value="month">30 วันล่าสุด</option>
+              </select>
+
+              <button 
+                onClick={downloadAllHistoryCSV}
+                className="btn-primary"
+                style={{ 
+                  padding: '12px 20px', 
+                  borderRadius: '12px', 
+                  fontWeight: '700', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  background: '#059669',
+                  boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)'
+                }}
+              >
+                <FileSpreadsheet size={18} /> ส่งออก CSV ({filteredAllHistory.length})
+              </button>
+
+              <button 
+                onClick={fetchAllHistory}
+                style={{ 
+                  background: '#f1f5f9', 
+                  border: 'none', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+                title="รีเฟรชข้อมูลประวัติ"
+              >
+                <RefreshCw size={18} className={allHistoryLoading ? 'spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          {allHistoryLoading ? (
+            <div style={{ textAlign: 'center', padding: '100px 0' }}>
+              <RefreshCw size={48} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
+              <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>กำลังดึงข้อมูลประวัติการสอบทั้งหมด...</div>
+            </div>
+          ) : filteredAllHistory.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '80px 0', textAlign: 'center' }}>
+              <History size={64} color="#d1d5db" style={{ marginBottom: '20px' }} />
+              <h3 style={{ fontSize: '1.4rem', color: '#64748b', margin: 0 }}>ไม่พบประวัติการสอบที่ตรงตามเงื่อนไข</h3>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <table className="desktop-table">
+                <thead>
+                  <tr>
+                    <th style={{ paddingLeft: '24px' }}>ผู้เข้าสอบ</th>
+                    <th>แบบทดสอบ</th>
+                    <th style={{ textAlign: 'center' }}>วันที่สอบ</th>
+                    <th style={{ textAlign: 'center' }}>คะแนน</th>
+                    <th style={{ textAlign: 'center' }}>ผลประเมิน</th>
+                    <th style={{ textAlign: 'center', paddingRight: '24px' }}>การจัดการ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAllHistory.map((h, idx) => {
+                    const pct = Math.round((h.score / (h.max_score || 100)) * 100);
+                    const passed = pct >= 70;
+                    let grade = 'ปรับปรุง';
+                    let gradeColor = '#dc2626';
+                    let gradeBg = '#fee2e2';
+                    if (pct >= 80) { grade = 'ดีมาก'; gradeColor = '#059669'; gradeBg = '#d1fae5'; }
+                    else if (pct >= 60) { grade = 'ดี'; gradeColor = '#2563eb'; gradeBg = '#dbeafe'; }
+                    else if (pct >= 50) { grade = 'พอใช้'; gradeColor = '#d97706'; gradeBg = '#fef3c7'; }
+
+                    const student = h.user || { name: 'ผู้ใช้งาน', username: '-' };
+
+                    return (
+                      <tr key={h.id || idx}>
+                        <td style={{ paddingLeft: '24px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: 'linear-gradient(135deg, #c084fc, #9333ea)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                              {(student.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: '700', color: '#1e293b' }}>{student.name}</div>
+                              <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
+                                @{student.username} {student.address ? `• ${student.address}` : ''}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: '600', color: '#334155' }}>
+                            {h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : `ทักษะ${h.skill}`}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                            <Calendar size={14} /> {formatDate(h.taken_at)}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: '800', color: passed ? '#10b981' : '#f43f5e' }}>
+                            {h.score} <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>/ {h.max_score}</span>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>({pct}%)</div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: '700', padding: '4px 10px', borderRadius: '12px', background: gradeBg, color: gradeColor }}>
+                            {passed ? '✓ ผ่าน' : '✕ ไม่ผ่าน'} ({grade})
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center', paddingRight: '24px' }}>
+                          <button 
+                            onClick={() => {
+                              setActiveDetailAttempt(h);
+                              setActiveDetailUser(student);
+                            }}
+                            style={{
+                              background: '#f5f3ff',
+                              color: '#7c3aed',
+                              border: 'none',
+                              padding: '8px 16px',
+                              borderRadius: '10px',
+                              cursor: 'pointer',
+                              fontWeight: '700',
+                              fontSize: '0.85rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <Eye size={16} /> ตรวจคำตอบละเอียด
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       )}
+
 
 
       {/* Score Details Modal */}
@@ -603,44 +991,81 @@ export default function AdminDashboard() {
                           </div>
                         )}
                         
-                        {h.detailed_results && h.detailed_results.length > 0 && (
-                          <div style={{ marginTop: '8px' }}>
+                        <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+                          <button 
+                            onClick={() => {
+                              setActiveDetailAttempt(h);
+                              setActiveDetailUser(selectedUser);
+                            }}
+                            style={{ 
+                              flex: 1, 
+                              background: 'var(--color-primary)', 
+                              border: 'none', 
+                              padding: '8px 14px', 
+                              borderRadius: '8px', 
+                              fontSize: '0.85rem', 
+                              fontWeight: '700', 
+                              color: 'white', 
+                              cursor: 'pointer', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              justifyContent: 'center',
+                              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.25)' 
+                            }}
+                          >
+                            <Eye size={15} /> ตรวจคำตอบละเอียด 100 ข้อ / พิมพ์ใบคะแนน
+                          </button>
+                          {h.detailed_results && h.detailed_results.length > 0 && (
                             <button 
                               onClick={() => setExpandedAttemptId(expandedAttemptId === h.id ? null : h.id)}
-                              style={{ background: 'white', border: '1px solid #e2e8f0', padding: '8px 16px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', justifyContent: 'center' }}
+                              style={{ 
+                                background: 'white', 
+                                border: '1px solid #e2e8f0', 
+                                padding: '8px 12px', 
+                                borderRadius: '8px', 
+                                fontSize: '0.85rem', 
+                                fontWeight: '600', 
+                                color: '#64748b', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '4px' 
+                              }}
+                              title="ย่อ/ขยายดูคำตอบแบบเร็ว"
                             >
-                              <Eye size={16} /> {expandedAttemptId === h.id ? 'ซ่อนรายละเอียดคำตอบ' : 'ดูรายละเอียดคำตอบ'}
+                              {expandedAttemptId === h.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </button>
-                            
-                            {expandedAttemptId === h.id && (
-                              <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                                {h.detailed_results.map((r, rIdx) => (
-                                  <div key={rIdx} style={{ padding: '12px', borderBottom: rIdx < h.detailed_results.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                      <div style={{ marginTop: '2px' }}>
-                                        {r.is_correct ? <CheckCircle size={18} color="#10b981" /> : <XCircle size={18} color="#f43f5e" />}
+                          )}
+                        </div>
+                        
+                        {h.detailed_results && h.detailed_results.length > 0 && expandedAttemptId === h.id && (
+                          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            {h.detailed_results.map((r, rIdx) => (
+                              <div key={rIdx} style={{ padding: '12px', borderBottom: rIdx < h.detailed_results.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                                  <div style={{ marginTop: '2px' }}>
+                                    {r.is_correct ? <CheckCircle size={18} color="#10b981" /> : <XCircle size={18} color="#f43f5e" />}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>{r.section}</div>
+                                    <div style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>{r.question}</div>
+                                    <div style={{ fontSize: '0.85rem', display: 'grid', gap: '4px' }}>
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <span style={{ color: '#64748b', width: '80px' }}>คำตอบผู้ใช้:</span>
+                                        <span style={{ color: r.is_correct ? '#10b981' : '#f43f5e', fontWeight: '600' }}>{r.user_answer || '-'}</span>
                                       </div>
-                                      <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>{r.section}</div>
-                                        <div style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>{r.question}</div>
-                                        <div style={{ fontSize: '0.85rem', display: 'grid', gap: '4px' }}>
-                                          <div style={{ display: 'flex', gap: '8px' }}>
-                                            <span style={{ color: '#64748b', width: '80px' }}>คำตอบผู้ใช้:</span>
-                                            <span style={{ color: r.is_correct ? '#10b981' : '#f43f5e', fontWeight: '600' }}>{r.user_answer || '-'}</span>
-                                          </div>
-                                          {!r.is_correct && (
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                              <span style={{ color: '#64748b', width: '80px' }}>เฉลย:</span>
-                                              <span style={{ color: '#10b981', fontWeight: '600' }}>{r.correct_answer || '-'}</span>
-                                            </div>
-                                          )}
+                                      {!r.is_correct && (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                          <span style={{ color: '#64748b', width: '80px' }}>เฉลย:</span>
+                                          <span style={{ color: '#10b981', fontWeight: '600' }}>{r.correct_answer || '-'}</span>
                                         </div>
-                                      </div>
+                                      )}
                                     </div>
                                   </div>
-                                ))}
+                                </div>
                               </div>
-                            )}
+                            ))}
                           </div>
                         )}
                       </div>
@@ -941,6 +1366,19 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* SCORE DETAIL MODAL */}
+      {activeDetailAttempt && (
+        <ScoreDetailModal
+          attempt={activeDetailAttempt}
+          user={activeDetailUser}
+          onClose={() => {
+            setActiveDetailAttempt(null);
+            setActiveDetailUser(null);
+          }}
+        />
+      )}
+
 
     </div>
   );
