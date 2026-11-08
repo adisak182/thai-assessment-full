@@ -7,7 +7,7 @@ export function subscribeMicrophoneRelease(listener) {
 }
 const notifyRelease = () => releaseListeners.forEach(listener => listener());
 
-function abortAndWaitForEnd(recognition) {
+export function abortAndWaitForEnd(recognition) {
   closingRecognition = recognition;
   const done = () => {
     clearTimeout(timer);
@@ -19,6 +19,27 @@ function abortAndWaitForEnd(recognition) {
   recognition.onend = done;
   notifyRelease();
   try { recognition.abort(); } catch { done(); }
+}
+
+export function waitForMicrophoneRelease(timeoutMs = 1500) {
+  if (!isMicrophoneReleasing()) return Promise.resolve();
+  return new Promise(resolve => {
+    let resolved = false;
+    const unsub = subscribeMicrophoneRelease(() => {
+      if (!isMicrophoneReleasing() && !resolved) {
+        resolved = true;
+        unsub();
+        resolve();
+      }
+    });
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        unsub();
+        resolve();
+      }
+    }, timeoutMs);
+  });
 }
 
 const browserHelp = 'บน iPad/iPhone ให้เปิดเว็บด้วย Safari และเปิด Siri ในการตั้งค่าเครื่อง ส่วนคอมพิวเตอร์หรือ Android ให้ใช้ Chrome';

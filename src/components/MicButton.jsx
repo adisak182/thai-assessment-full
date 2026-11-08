@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, Square, RefreshCw, Edit3, Check, AlertCircle } from 'lucide-react';
 import { pausePromptAudio } from '../utils/promptAudio';
+import {
+  abortAndWaitForEnd,
+  waitForMicrophoneRelease,
+  speechErrorMessage
+} from '../utils/speechRecognition';
 
 export default function MicButton({
   onResult,
@@ -18,24 +23,36 @@ export default function MicButton({
 
   const recognitionRef = useRef(null);
   const isMountedRef = useRef(true);
+  const latestTranscriptRef = useRef('');
+  const onResultRef = useRef(onResult);
+
+  useEffect(() => {
+    onResultRef.current = onResult;
+  }, [onResult]);
 
   // Clean up any active speech recognition on unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      const lastText = latestTranscriptRef.current?.trim();
+      if (lastText && onResultRef.current) {
+        onResultRef.current(lastText);
+      }
       if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore cleanup errors
-        }
+        abortAndWaitForEnd(recognitionRef.current);
         recognitionRef.current = null;
       }
     };
   }, []);
 
   const stopRecognition = () => {
+    // If we heard speech before stopping, immediately save it so it's not lost
+    const textToSave = latestTranscriptRef.current?.trim() || preview.trim();
+    if (textToSave && onResultRef.current) {
+      onResultRef.current(textToSave);
+    }
+
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -48,6 +65,7 @@ export default function MicButton({
       }
       recognitionRef.current = null;
     }
+
     if (isMountedRef.current) {
       setRecording(false);
       setProcessing(false);
@@ -55,39 +73,53 @@ export default function MicButton({
     }
   };
 
-  const startListening = () => {
-    if (disabled || recording) return;
+  const startListening = async () => {
+    if (disabled || recording || processing) return;
 
     // Reset error & states
     setErrorMsg('');
     setPreview('');
+    latestTranscriptRef.current = '';
     pausePromptAudio();
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition =
+      typeof window !== 'undefined'
+        ? window.SpeechRecognition || window.webkitSpeechRecognition
+        : null;
+
     if (!SpeechRecognition) {
-      setErrorMsg('เบราว์เซอร์นี้ไม่รองรับระบบแปลงเสียงเป็นข้อความอัตโนมัติ (แนะนำให้ใช้ Google Chrome หรือ Safari) คุณสามารถพิมพ์คำตอบในช่องด้านล่างได้ครับ');
+      setErrorMsg(
+        'เบราว์เซอร์นี้ไม่รองรับระบบแปลงเสียงเป็นข้อความอัตโนมัติ (บน iPad/iPhone แนะนำให้ใช้ Safari และเปิด Siri ในการตั้งค่า ส่วนคอมพิวเตอร์/Android ให้ใช้ Chrome) หรือพิมพ์คำตอบในช่องด้านล่างได้ครับ'
+      );
       setIsEditing(true);
       return;
     }
 
-    // Stop any previous session cleanly
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null;
+    if (isMountedRef.current) {
+      setProcessing(true);
     }
+
+    // Safely wait for any previous question's speech engine to release the microphone
+    try {
+      await waitForMicrophoneRelease(1200);
+    } catch {
+      // Proceed even if wait timed out
+    }
+
+    if (!isMountedRef.current) return;
 
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'th-TH';
-      recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
-      let finalSpokenText = '';
+      // Continuous listening gives the user time to speak without immediate silence cutoff
+      try {
+        recognition.continuous = true;
+      } catch {
+        recognition.continuous = false;
+      }
 
       recognition.onstart = () => {
         if (!isMountedRef.current) return;
@@ -99,6 +131,7 @@ export default function MicButton({
       recognition.onaudiostart = () => {
         if (!isMountedRef.current) return;
         setRecording(true);
+        setProcessing(false);
       };
 
       recognition.onspeechstart = () => {
@@ -108,50 +141,77 @@ export default function MicButton({
 
       recognition.onresult = (event) => {
         if (!isMountedRef.current) return;
+
         let interimText = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        let finalText = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
           const item = event.results[i];
+          const transcript = item[0]?.transcript || '';
           if (item.isFinal) {
-            finalSpokenText += item[0].transcript;
+            finalText += transcript;
           } else {
-            interimText += item[0].transcript;
+            interimText += transcript;
           }
         }
 
-        if (interimText) {
-          setPreview(interimText);
+        const combined = (finalText + ' ' + interimText).trim();
+        const bestText = combined || finalText.trim() || interimText.trim();
+
+        if (bestText) {
+          latestTranscriptRef.current = bestText;
+          setPreview(bestText);
+          setErrorMsg('');
         }
 
-        if (finalSpokenText.trim()) {
-          const cleaned = finalSpokenText.trim();
-          setPreview(cleaned);
-          onResult(cleaned);
+        // When a segment is finalized, update the parent state immediately
+        if (finalText.trim()) {
+          onResultRef.current(finalText.trim());
         }
       };
 
       recognition.onerror = (event) => {
         if (!isMountedRef.current) return;
         console.warn('SpeechRecognition error:', event.error);
+
+        // If we already collected speech before error, commit it
+        const savedSoFar = latestTranscriptRef.current?.trim() || preview.trim();
+        if (savedSoFar && onResultRef.current) {
+          onResultRef.current(savedSoFar);
+        }
+
         setRecording(false);
         setProcessing(false);
 
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setErrorMsg('ยังไม่ได้รับอนุญาตให้ใช้ไมโครโฟน กรุณากดอนุญาตการใช้ไมโครโฟนบนเบราว์เซอร์ หรือพิมพ์คำตอบแทนได้ครับ');
+          setErrorMsg(
+            'ยังไม่ได้รับอนุญาตให้ใช้ไมโครโฟนหรือการรู้จำเสียง (บน iPad/iPhone ให้เปิดสิทธิ์ใน Safari และเปิด Siri ในการตั้งค่าเครื่อง) หรือพิมพ์คำตอบแทนได้ครับ'
+          );
         } else if (event.error === 'no-speech') {
-          if (!currentText) {
-            setErrorMsg('ยังไม่ได้ยินเสียงพูด กรุณากดปุ่มแล้วพูดใกล้ไมโครโฟน หรือพิมพ์คำตอบแทนได้ครับ');
+          if (!currentText && !savedSoFar) {
+            setErrorMsg(
+              'ยังไม่ได้ยินเสียงพูดชัดเจน กรุณากดปุ่มแล้วพูดใกล้ไมโครโฟน หรือพิมพ์คำตอบแทนได้ครับ'
+            );
           }
         } else if (event.error === 'audio-capture') {
-          setErrorMsg('ไม่พบไมโครโฟนที่ใช้งานได้ กรุณาตรวจสอบการเชื่อมต่อไมโครโฟน');
+          setErrorMsg('ไม่พบไมโครโฟนที่ใช้งานได้ กรุณาตรวจไมโครโฟนหรือปิดแอปอื่นที่กำลังใช้ไมค์');
         } else if (event.error === 'network') {
           setErrorMsg('บริการแปลงเสียงเชื่อมต่อไม่ได้ชั่วคราว กรุณาลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
         } else if (event.error !== 'aborted') {
-          setErrorMsg(`เกิดข้อผิดพลาดในการฟังเสียง (${event.error}) สามารถพิมพ์คำตอบแทนได้ครับ`);
+          setErrorMsg(speechErrorMessage(event.error));
         }
       };
 
       recognition.onend = () => {
         if (!isMountedRef.current) return;
+
+        // CRITICAL FIX: If speech was captured in interim or latestTranscriptRef,
+        // ALWAYS save it on speech end! Never drop the user's spoken answer!
+        const finalCandidate = latestTranscriptRef.current?.trim() || preview.trim();
+        if (finalCandidate && onResultRef.current) {
+          onResultRef.current(finalCandidate);
+        }
+
         setRecording(false);
         setProcessing(false);
         setPreview('');
@@ -163,7 +223,7 @@ export default function MicButton({
     } catch (err) {
       console.error('Failed to start speech recognition:', err);
       if (isMountedRef.current) {
-        setErrorMsg('ไม่สามารถเปิดใช้งานไมโครโฟนได้ กรุณาลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
+        setErrorMsg('ไม่สามารถเปิดใช้งานไมโครโฟนได้ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
         setRecording(false);
         setProcessing(false);
       }
@@ -182,7 +242,7 @@ export default function MicButton({
   const handleSaveEdit = (e) => {
     e?.preventDefault();
     if (editText.trim()) {
-      onResult(editText.trim());
+      onResultRef.current(editText.trim());
       setIsEditing(false);
       setErrorMsg('');
     }
@@ -191,8 +251,8 @@ export default function MicButton({
   // Check tongue twister matching if expectedText is provided
   let isMatch = null;
   if (currentText && expectedText) {
-    const cleanSource = expectedText.replace(/[\s.\-?!,]/g, '');
-    const cleanAnswer = currentText.replace(/[\s.\-?!,]/g, '');
+    const cleanSource = expectedText.replace(/[\s.\-?!,]/g, '').trim();
+    const cleanAnswer = currentText.replace(/[\s.\-?!,]/g, '').trim();
     isMatch = cleanSource === cleanAnswer;
   }
 
@@ -250,7 +310,7 @@ export default function MicButton({
         ) : processing ? (
           <>
             <RefreshCw size={20} className="spin" />
-            <span>กำลังประมวลผลเสียง...</span>
+            <span>กำลังเตรียมไมโครโฟน...</span>
           </>
         ) : (
           <>
@@ -410,7 +470,10 @@ export default function MicButton({
         <div style={{ textAlign: 'right' }}>
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setEditText('');
+              setIsEditing(true);
+            }}
             style={{
               background: 'none',
               border: 'none',
