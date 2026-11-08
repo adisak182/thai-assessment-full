@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "migrate:mysql": "node scripts/migrate_mongo_to_mysql.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

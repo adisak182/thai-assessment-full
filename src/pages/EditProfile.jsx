@@ -81,11 +81,11 @@ export default function EditProfile() {
   const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--color-primary-dark)', fontWeight: '600', fontSize: '0.95rem' };
 
   return (
-    <div className="animate-fade-in" style={{ padding: '40px 16px', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="page-content animate-fade-in" style={{ padding: '40px 16px', maxWidth: '800px', margin: '0 auto' }}>
 
       {/* Profile Form */}
-      <div className="glass-panel" style={{ padding: '40px', marginBottom: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div className="glass-panel responsive-panel" style={{ padding: '40px', marginBottom: '32px' }}>
+        <div className="profile-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', margin: 0 }}>ข้อมูลส่วนตัว</h2>
           <button onClick={handleLogout}
             style={{ background: 'none', border: '1.5px solid #ef4444', color: '#ef4444', padding: '8px 18px', borderRadius: '20px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.95rem' }}>
@@ -113,7 +113,7 @@ export default function EditProfile() {
           <div><label style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
             <input required autoFocus type="text" name="name" value={formData.name} onChange={handleChange} placeholder="ชื่อ-นามสกุล" style={inputStyle} /></div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div className="profile-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div><label style={labelStyle}>อายุ (ปี)</label>
               <input type="number" name="age" value={formData.age} onChange={handleChange} min="1" max="120" placeholder="เช่น 25" style={inputStyle} /></div>
             <div><label style={labelStyle}>เพศ</label>
@@ -135,7 +135,7 @@ export default function EditProfile() {
       </div>
 
       {/* Score History */}
-      <div className="glass-panel" style={{ padding: '40px' }}>
+      <div className="glass-panel responsive-panel" style={{ padding: '40px' }}>
         <h3 style={{ fontSize: '1.4rem', color: 'var(--color-primary-dark)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Clock size={22} /> ประวัติการทำแบบทดสอบ
         </h3>

@@ -9,7 +9,8 @@ const SALT_ROUNDS = 10;
 
 // ==================== REGISTER ====================
 router.post('/register', async (req, res) => {
-  const { username, password, name, age, gender, address, avatar } = req.body;
+  const { username, password, name, age, gender, address, avatar, is_literacy_learner = false } = req.body;
+  if (typeof is_literacy_learner !== 'boolean') return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
 
   if (!username || !password || !name) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อผู้ใช้, รหัสผ่าน และชื่อ-นามสกุล' });
@@ -23,7 +24,7 @@ router.post('/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    const role = username.toLowerCase() === 'admin' ? 'admin' : 'user';
+    const role = 'user';
 
     const newUser = new User({
       username,
@@ -33,6 +34,7 @@ router.post('/register', async (req, res) => {
       gender: gender || null,
       address: address || null,
       avatar: avatar || null,
+      is_literacy_learner,
       role
     });
 
@@ -64,7 +66,8 @@ router.post('/register', async (req, res) => {
 
 // ==================== START SESSION (GUEST / NO PASSWORD) ====================
 router.post('/start', async (req, res) => {
-  const { name, age, address, status, education_level, employment_status } = req.body;
+  const { name, age, address, status, education_level, employment_status, is_literacy_learner = false } = req.body;
+  if (typeof is_literacy_learner !== 'boolean') return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
   if (!name || !name.trim()) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ-สกุล' });
   }
@@ -91,6 +94,7 @@ router.post('/start', async (req, res) => {
         status: status || null,
         education_level: education_level || null,
         employment_status: employment_status || null,
+        is_literacy_learner,
         role: 'user'
       });
       await user.save();
@@ -104,6 +108,7 @@ router.post('/start', async (req, res) => {
     } else {
       // อัปเดตข้อมูลถ้ามีการเปลี่ยนแปลง
       let changed = false;
+      if (user.is_literacy_learner !== is_literacy_learner) { user.is_literacy_learner = is_literacy_learner; changed = true; }
       if (age && user.age !== Number(age)) { user.age = Number(age); changed = true; }
       if (address && user.address !== address.trim()) { user.address = address.trim(); changed = true; }
       if (status && user.status !== status) { user.status = status; changed = true; }

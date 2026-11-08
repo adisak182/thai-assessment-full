@@ -1,0 +1,14 @@
+.git
+.vercel
+node_modules
+dist
+.env*
+server/.env*
+server/node_modules
+scratch
+**/*.sql
+**/*.test.js
+server/scripts
+server/test*.js
+
+tests

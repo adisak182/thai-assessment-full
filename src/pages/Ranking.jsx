@@ -32,7 +32,7 @@ export default function Ranking() {
 
   const getRankStyle = (index) => {
     switch (index) {
-      case 0: return { background: 'linear-gradient(135deg, rgba(253,224,71,0.15), rgba(234,179,8,0.05))', border: '1px solid rgba(234,179,8,0.3)', transform: 'scale(1.02)' };
+      case 0: return { background: 'linear-gradient(135deg, rgba(253,224,71,0.15), rgba(234,179,8,0.05))', border: '1px solid rgba(234,179,8,0.3)', transform: 'none' };
       case 1: return { background: 'linear-gradient(135deg, rgba(226,232,240,0.4), rgba(148,163,184,0.1))', border: '1px solid rgba(148,163,184,0.2)' };
       case 2: return { background: 'linear-gradient(135deg, rgba(253,186,116,0.2), rgba(180,83,9,0.05))', border: '1px solid rgba(180,83,9,0.2)' };
       default: return { background: 'var(--bg-glass)', border: '1px solid rgba(0,0,0,0.05)' };
@@ -40,7 +40,7 @@ export default function Ranking() {
   };
 
   return (
-    <div className="animate-fade-in delay-100" style={{ padding: '32px 16px', maxWidth: '800px', margin: '0 auto' }}>
+    <div className="page-content animate-fade-in delay-100" style={{ padding: '32px 16px', maxWidth: '800px', margin: '0 auto' }}>
       
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '80px', height: '80px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--color-primary-light), var(--color-primary))', color: 'white', marginBottom: '16px', boxShadow: '0 8px 24px rgba(168,85,247,0.3)' }}>
@@ -50,7 +50,7 @@ export default function Ranking() {
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', margin: 0 }}>ตารางจัดอันดับผู้ที่ได้คะแนนรวมสูงสุด (Top 100)</p>
       </div>
 
-      <div className="glass-panel" style={{ padding: '24px' }}>
+      <div className="glass-panel responsive-panel" style={{ padding: '24px' }}>
         {loading ? (
           <p style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>กำลังโหลดข้อมูล...</p>
         ) : ranking.length === 0 ? (
@@ -61,7 +61,7 @@ export default function Ranking() {
               const isCurrentUser = user && (user._id === r.userId || user.id === r.userId);
               
               return (
-                <div key={r.userId} style={{
+                <div key={r.userId} className="ranking-row" style={{
                   display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 24px', borderRadius: '16px',
                   ...getRankStyle(index),
                   boxShadow: isCurrentUser ? '0 0 0 2px var(--color-primary)' : 'none',
@@ -85,7 +85,7 @@ export default function Ranking() {
                     )}
                   </div>
                   
-                  <div style={{ flex: 1 }}>
+                  <div className="ranking-name" style={{ flex: 1 }}>
                     <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {r.name || 'ไม่ระบุชื่อ'}
                       {isCurrentUser && <span style={{ fontSize: '0.75rem', padding: '2px 8px', background: 'var(--color-primary)', color: 'white', borderRadius: '12px' }}>คุณ</span>}

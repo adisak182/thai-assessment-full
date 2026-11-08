@@ -1,4 +1,4 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, Fragment } from 'react';
 import * as api from '../services/api';
 
 const UserContext = createContext();
@@ -8,24 +8,29 @@ export const UserProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('jwt_token') || null);
   const [loading, setLoading] = useState(true);
 
+  const [apiError,setApiError]=useState(null);
+  const [retryCount,setRetryCount]=useState(0);
+
   // Initial load
   useEffect(() => {
-    const init = async () => {
-      if (token) {
-        try {
-          const profile = await api.getProfile(token);
-          setUser(profile);
-        } catch (err) {
-          console.error("Session expired or invalid", err);
-          localStorage.removeItem('jwt_token');
-          setToken(null);
-          setUser(null);
+    let cancelled=false;
+    const init=async()=>{
+      setLoading(true);
+      try{
+        if(token){
+          const profile=await api.getProfile(token);
+          if(!cancelled){setUser(profile);setApiError(null);}
         }
-      }
-      setLoading(false);
+      }catch(error){
+        if(cancelled)return;
+        if(error.status===401 || error.status===404){
+          localStorage.removeItem('jwt_token');setToken(null);setUser(null);
+        }else setApiError('offline');
+      }finally{if(!cancelled)setLoading(false);}
     };
     init();
-  }, [token]);
+    return ()=>{cancelled=true;};
+  },[token,retryCount]);
 
   const login = async ({ username, password }) => {
     const result = await api.loginUser({ username, password });
@@ -65,16 +70,13 @@ export const UserProvider = ({ children }) => {
     return profile;
   };
 
-  const recordScore = async ({ level, skill, score, maxScore, breakdown, detailed_results }) => {
-    if (!token) return;
-    const res = await api.saveScore(token, { level, skill, score, maxScore, breakdown, detailed_results });
-    const profile = await api.getProfile(token);
-    setUser(profile);
-    return res;
+  const recordScore = async (data) => {
+    if(!token)throw new Error('กรุณาเข้าสู่ระบบก่อน');
+    return api.saveScore(token,data);
   };
 
   const submitSurvey = async (data) => {
-    if (!token) return;
+    if (!token) throw new Error('กรุณาเข้าสู่ระบบก่อน');
     return await api.saveSurvey(token, data);
   };
 
@@ -114,7 +116,7 @@ export const UserProvider = ({ children }) => {
       user,
       token,
       loading,
-      apiError: null,
+      apiError,
       login,
       register,
       startSession,
@@ -128,7 +130,12 @@ export const UserProvider = ({ children }) => {
       updateScore,
       submitSurvey
     }}>
-      {!loading && children}
+      {!loading && (token && !user && apiError ? (
+        <div role="alert" style={{padding:32,textAlign:'center'}}>
+          <p>เชื่อมต่อระบบไม่ได้ชั่วคราว ข้อมูลเข้าสู่ระบบยังอยู่</p>
+          <button onClick={()=>setRetryCount(n=>n+1)}>ลองเชื่อมต่อใหม่</button>
+        </div>
+      ) : <Fragment key={user?.id || user?._id || 'anonymous'}>{children}</Fragment>)}
     </UserContext.Provider>
   );
 };

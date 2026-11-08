@@ -1,3 +1,4 @@
+import authenticateAdmin from '../authenticateAdmin.js';
 import express from 'express';
 import SurveyResponse from '../models/SurveyResponse.js';
 import jwt from 'jsonwebtoken';
@@ -12,6 +13,7 @@ function optionalAuth(req, res, next) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
       req.userId = decoded.userId;
+      req.userRole = decoded.role;
     } catch (e) {
       // ignore token error
     }
@@ -36,7 +38,7 @@ router.post('/', optionalAuth, async (req, res) => {
 });
 
 // ==================== GET ALL SURVEYS (ADMIN) ====================
-router.get('/', optionalAuth, async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const surveys = await SurveyResponse.find().sort({ submitted_at: -1 }).populate('user_id', 'name');
     return res.json(surveys);

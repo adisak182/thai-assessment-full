@@ -1,29 +1,12 @@
+import SpeakingAudio from '../models/SpeakingAudio.js';
 import express from 'express';
-import jwt from 'jsonwebtoken';
+import authenticateAdmin from '../authenticateAdmin.js';
+import { summarizeResults } from '../grading.js';
 import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 
 const router = express.Router();
-
-// Middleware: Verify Admin
-function authenticateAdmin(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'กรุณาเข้าสู่ระบบก่อน' });
-  }
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret');
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ message: 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้' });
-    }
-    req.userId = decoded.userId;
-    next();
-  } catch {
-    return res.status(401).json({ message: 'Token ไม่ถูกต้องหรือหมดอายุ' });
-  }
-}
 
 // ==================== GET ALL USERS ====================
 router.get('/users', authenticateAdmin, async (req, res) => {
@@ -31,23 +14,28 @@ router.get('/users', authenticateAdmin, async (req, res) => {
     // Get all users
     const users = await User.find().select('-password').sort({ created_at: -1 });
     
-    // Get max full_test score for all users
     const scores = await ScoreHistory.aggregate([
       { $match: { skill: 'full_test' } },
-      { $group: { _id: '$user_id', maxScore: { $max: '$score' } } }
+      { $group: {
+        _id: '$user_id', attempts: { $sum: 1 }, lastAt: { $max: '$taken_at' },
+        completed: { $sum: { $cond: [{ $gt: [{ $ifNull: ['$pending_count',0] },0] },0,1] } },
+        maxScore: { $max: { $cond: [{ $gt: [{ $ifNull: ['$pending_count',0] },0] },null,'$score'] } },
+        pending: { $sum: { $cond: [{ $gt: [{ $ifNull: ['$pending_count',0] },0] },1,0] } },
+        pendingQuestions: { $sum: { $ifNull: ['$pending_count',0] } },
+      } },
     ]);
-    
-    const scoreMap = {};
-    scores.forEach(s => {
-      scoreMap[s._id.toString()] = s.maxScore;
-    });
-
+    const scoreMap = new Map(scores.map(item => [item._id.toString(),item]));
     const result = users.map(u => {
-      const maxScore = scoreMap[u._id.toString()] || 0;
+      const score = scoreMap.get(u._id.toString());
       return {
         ...u.toJSON(),
-        full_test_score: maxScore,
-        full_test_passed: maxScore >= 70 // เกณฑ์ผ่าน 70 คะแนน
+        full_test_score: score?.maxScore ?? 0,
+        full_test_completed: (score?.completed || 0) > 0,
+        full_test_pending: score?.pending || 0,
+        full_test_pending_questions: score?.pendingQuestions || 0,
+        full_test_attempts: score?.attempts || 0,
+        full_test_last_at: score?.lastAt || null,
+        full_test_passed: (score?.maxScore ?? 0) >= 70,
       };
     });
 
@@ -86,6 +74,7 @@ router.get('/history', authenticateAdmin, async (req, res) => {
         max_score: h.max_score,
         taken_at: h.taken_at,
         breakdown: h.breakdown || {},
+        pending_count: h.pending_count || 0,
         detailed_results: h.detailed_results || []
       };
     });
@@ -138,6 +127,7 @@ router.get('/users/:id/scores', authenticateAdmin, async (req, res) => {
 router.delete('/users/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
   try {
+    await SpeakingAudio.deleteMany({ user_id: id });
     await ScoreHistory.deleteMany({ user_id: id });
     await LevelProgress.deleteOne({ user_id: id });
     
@@ -169,6 +159,27 @@ router.put('/users/:id', authenticateAdmin, async (req, res) => {
     console.error('Update user error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
   }
+});
+
+
+router.put('/attempts/:id/review', authenticateAdmin, async (req,res)=>{
+  const {questionId,correct}=req.body;
+  if(!Number.isInteger(questionId)||typeof correct!=='boolean')return res.status(400).json({message:'ผลตรวจไม่ถูกต้อง'});
+  try{
+    const attempt=await ScoreHistory.findById(req.params.id);
+    if(!attempt)return res.status(404).json({message:'ไม่พบผลสอบ'});
+    const item=attempt.detailed_results.find(d=>d.id===questionId);
+    if(!item || item.is_correct!==null)return res.status(409).json({message:'ข้อนี้ไม่ได้อยู่ระหว่างรอตรวจ กรุณาโหลดข้อมูลใหม่'});
+    const details=attempt.detailed_results.map(d=>d.id===questionId?{...d,is_correct:correct,reviewed_by:req.userId}:d);
+    const result=summarizeResults(details,attempt.max_score);
+    const updated=await ScoreHistory.findOneAndUpdate(
+      {_id:attempt._id,__v:attempt.__v},
+      {$set:{score:result.score,breakdown:result.breakdown,detailed_results:details,pending_count:result.pending_count},$inc:{__v:1}},
+      {new:true}
+    );
+    if(!updated)return res.status(409).json({message:'มีการตรวจพร้อมกัน กรุณาโหลดข้อมูลใหม่'});
+    return res.json(updated);
+  }catch{return res.status(500).json({message:'บันทึกผลตรวจไม่สำเร็จ'});}
 });
 
 export default router;

@@ -1,23 +1,41 @@
-import { useState, useMemo } from 'react';
-import { 
-  X, CheckCircle, XCircle, Printer, Search, Filter, 
-  Calendar, Trophy, Award, BookOpen, Volume2, MessageCircle, 
+import SpeakingAudioPlayer from './SpeakingAudioPlayer';
+import ModalPortal from './ModalPortal';
+import { historyLabels } from '../utils/historyLabels';
+import { useUser } from '../context/UserContext';
+import { reviewAttempt } from '../services/api';
+import { useState } from 'react';
+import {
+  X, CheckCircle, XCircle, Printer, Search, Filter,
+  Calendar, Trophy, Award, BookOpen, Volume2, MessageCircle,
   PenTool, User as UserIcon, HelpCircle, ChevronDown, Check, ArrowRight
 } from 'lucide-react';
 
 function formatDate(isoStr) {
   if (!isoStr) return '-';
   const d = new Date(isoStr);
-  return d.toLocaleDateString('th-TH', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric', 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return d.toLocaleDateString('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
   });
 }
 
-export default function ScoreDetailModal({ attempt, user, onClose }) {
+export default function ScoreDetailModal({ attempt: initialAttempt, user, onClose }) {
+  const {user:viewer,token}=useUser();
+  const [reviewedAttempt,setReviewedAttempt]=useState(null);
+  const [reviewError,setReviewError]=useState('');
+  const [reviewing,setReviewing]=useState(false);
+  const attempt=reviewedAttempt?.id===initialAttempt?.id?reviewedAttempt:initialAttempt;
+  const pendingCount=(attempt?.detailed_results || []).filter(r=>r.is_correct===null).length;
+  const handleReview=async(questionId,correct)=>{
+    if(reviewing)return;
+    setReviewing(true);setReviewError('');
+    try{const updated=await reviewAttempt(token,attempt.id,questionId,correct);setReviewedAttempt(updated);window.dispatchEvent(new CustomEvent('score-reviewed',{detail:updated}));}
+    catch(error){setReviewError(error.message);}
+    finally{setReviewing(false);}
+  };
   const [filterType, setFilterType] = useState('all'); // 'all' | 'incorrect' | 'correct'
   const [sectionFilter, setSectionFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +64,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
     gradeBg = '#fef3c7';
   }
 
-  const detailedResults = attempt.detailed_results || [];
+  const detailedResults = (attempt.detailed_results || []).map(historyLabels);
   const hasDetailedResults = detailedResults.length > 0;
 
   // Breakdown data
@@ -54,22 +72,22 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
   const hasBreakdown = Object.keys(breakdown).length > 0;
 
   // Sections available in results
-  const sections = useMemo(() => {
+  const sections = (() => {
     if (!hasDetailedResults) return [];
     const set = new Set();
     detailedResults.forEach(r => {
       if (r.section) set.add(r.section);
     });
     return Array.from(set);
-  }, [detailedResults, hasDetailedResults]);
+  })();
 
   // Filtered detailed results
-  const filteredResults = useMemo(() => {
+  const filteredResults = (() => {
     if (!hasDetailedResults) return [];
     return detailedResults.filter(r => {
       // Correct / Incorrect filter
       if (filterType === 'correct' && !r.is_correct) return false;
-      if (filterType === 'incorrect' && r.is_correct) return false;
+      if (filterType === 'incorrect' && r.is_correct!==false) return false;
 
       // Section filter
       if (sectionFilter !== 'all' && r.section !== sectionFilter) return false;
@@ -86,13 +104,13 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
 
       return true;
     });
-  }, [detailedResults, filterType, sectionFilter, searchQuery, hasDetailedResults]);
+  })();
 
   const correctCount = detailedResults.filter(r => r.is_correct).length;
-  const incorrectCount = detailedResults.length - correctCount;
+  const incorrectCount = detailedResults.filter(r=>r.is_correct===false).length;
 
-  const testTitle = attempt.skill === 'full_test' 
-    ? 'แบบทดสอบวัดระดับทักษะภาษาไทย (100 ข้อ)' 
+  const testTitle = attempt.skill === 'full_test'
+    ? 'แบบทดสอบวัดระดับทักษะภาษาไทย (100 ข้อ)'
     : `แบบทดสอบทักษะ${attempt.skill}`;
 
   const studentName = user?.name || attempt.user?.name || 'ผู้เข้าประเมิน';
@@ -105,7 +123,8 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
   };
 
   return (
-    <div 
+    <ModalPortal label="รายละเอียดผลสอบ" onClose={onClose}>
+    <div
       className="score-detail-overlay"
       style={{
         position: 'fixed',
@@ -159,8 +178,8 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
         }
       `}</style>
 
-      <div 
-        className="score-detail-modal animate-scale-in"
+      <div
+        className="score-detail-modal modal-surface"
         style={{
           background: '#ffffff',
           width: '100%',
@@ -175,7 +194,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
         }}
       >
         {/* MODAL HEADER */}
-        <div 
+        <div className="score-detail-header"
           style={{
             padding: '20px 28px',
             background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
@@ -188,7 +207,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div 
+            <div
               style={{
                 width: '46px',
                 height: '46px',
@@ -218,7 +237,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
           </div>
 
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button 
+            <button
               onClick={handlePrint}
               style={{
                 padding: '9px 16px',
@@ -239,7 +258,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
             >
               <Printer size={16} /> พิมพ์ใบคะแนน
             </button>
-            <button 
+            <button
               onClick={onClose}
               style={{
                 background: '#e2e8f0',
@@ -261,13 +280,13 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
         </div>
 
         {/* MODAL BODY */}
-        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
+        <div className="score-detail-body" style={{ padding: '24px 28px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
           {/* STUDENT INFO & OVERALL SCORE SUMMARY */}
-          <div 
+          <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '16px',
               padding: '20px',
               background: '#f8fafc',
@@ -277,7 +296,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
           >
             {/* Student Info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div 
+              <div
                 style={{
                   width: '60px',
                   height: '60px',
@@ -333,7 +352,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
 
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '6px' }}>ผลการประเมิน</div>
-                <div 
+                <div
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -347,10 +366,10 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                   }}
                 >
                   {isPassed ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                  {isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+                  {pendingCount ? `รอตรวจ ${pendingCount} ข้อ` : isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
                 </div>
                 <div style={{ marginTop: '6px' }}>
-                  <span 
+                  <span
                     style={{
                       fontSize: '0.82rem',
                       fontWeight: '700',
@@ -360,7 +379,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                       color: gradeColor
                     }}
                   >
-                    ระดับ: {grade}
+                    ระดับ: {pendingCount ? 'รอตรวจ' : grade}
                   </span>
                 </div>
               </div>
@@ -374,7 +393,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                 <Award size={18} color="var(--color-primary)" />
                 คะแนนแยกตามทักษะ (4 ทักษะ)
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', gap: '12px' }}>
                 {Object.entries(breakdown).map(([key, b]) => {
                   const bPct = Math.round((b.score / (b.max || 1)) * 100);
                   let skillPassed = false;
@@ -400,7 +419,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                   const color = colors[key] || '#8b5cf6';
 
                   return (
-                    <div 
+                    <div
                       key={key}
                       style={{
                         padding: '16px',
@@ -417,7 +436,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: color, fontWeight: '700', fontSize: '0.95rem' }}>
                           {icons[key]} {b.label || key}
                         </div>
-                        <span 
+                        <span
                           style={{
                             fontSize: '0.72rem',
                             fontWeight: '700',
@@ -427,7 +446,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                             color: skillPassed ? '#059669' : '#dc2626'
                           }}
                         >
-                          {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                          {b.pending > 0 ? 'รอตรวจ' : skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
                         </span>
                       </div>
 
@@ -441,7 +460,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                       </div>
 
                       <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div 
+                        <div
                           style={{
                             width: `${bPct}%`,
                             height: '100%',
@@ -481,7 +500,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
             {hasDetailedResults ? (
               <>
                 {/* Filters & Search Toolbar */}
-                <div 
+                <div
                   className="no-print"
                   style={{
                     display: 'flex',
@@ -604,9 +623,10 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                   ) : (
                     filteredResults.map((r, idx) => {
                       const isCorrect = r.is_correct;
+                      const isPending = isCorrect === null;
 
                       return (
-                        <div 
+                        <div
                           key={idx}
                           style={{
                             padding: '16px',
@@ -619,7 +639,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                             transition: 'all 0.2s'
                           }}
                         >
-                          <div 
+                          <div
                             style={{
                               width: '32px',
                               height: '32px',
@@ -634,7 +654,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                               marginTop: '2px'
                             }}
                           >
-                            {isCorrect ? <Check size={18} /> : <X size={18} />}
+                            {isPending ? <HelpCircle size={18} /> : isCorrect ? <Check size={18} /> : <X size={18} />}
                           </div>
 
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -643,7 +663,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                                 ข้อที่ {r.id || idx + 1} • {r.section || 'แบบทดสอบ'}
                               </span>
                               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: isCorrect ? '#059669' : '#dc2626' }}>
-                                {isCorrect ? '✓ ได้ 1 คะแนน' : '✕ ได้ 0 คะแนน'}
+                                {isPending ? 'รอเจ้าหน้าที่ตรวจ' : isCorrect ? '✓ ได้ 1 คะแนน' : '✕ ได้ 0 คะแนน'}
                               </span>
                             </div>
 
@@ -652,16 +672,16 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                             </div>
 
                             {/* Answers Comparison */}
-                            <div 
+                            <div
                               style={{
                                 display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
                                 gap: '8px',
                                 marginTop: '4px',
                                 fontSize: '0.88rem'
                               }}
                             >
-                              <div 
+                              <div
                                 style={{
                                   padding: '8px 12px',
                                   borderRadius: '8px',
@@ -671,11 +691,22 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                                 }}
                               >
                                 <span style={{ fontWeight: '700' }}>คำตอบของคุณ: </span>
-                                <span>{r.user_answer || '(ไม่ได้ตอบ)'}</span>
+                                <span>{r.audio_id ? 'บันทึกคำตอบเป็นเสียง' : r.user_answer || '(ไม่ได้ตอบ)'}</span>
+                                {r.audio_id && <SpeakingAudioPlayer audioId={r.audio_id}/>}
+
+                                {r.is_correct===null && <div style={{marginTop:12,color:'#92400e'}}>
+                                  <p>รอเจ้าหน้าที่ตรวจ</p>
+                                  {viewer?.role==='admin' && <div>
+                                    <button disabled={reviewing} onClick={()=>handleReview(r.id,true)}>ให้ 1 คะแนน</button>{' '}
+                                    <button disabled={reviewing} onClick={()=>handleReview(r.id,false)}>ให้ 0 คะแนน</button>
+                                  </div>}
+                                  {reviewError && <p role="alert">{reviewError}</p>}
+                                </div>}
+
                               </div>
 
                               {!isCorrect && (
-                                <div 
+                                <div
                                   style={{
                                     padding: '8px 12px',
                                     borderRadius: '8px',
@@ -697,7 +728,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
                 </div>
               </>
             ) : (
-              <div 
+              <div
                 style={{
                   padding: '32px 20px',
                   background: '#f8fafc',
@@ -720,8 +751,8 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
         </div>
 
         {/* MODAL FOOTER */}
-        <div 
-          className="no-print"
+        <div
+          className="no-print score-detail-footer"
           style={{
             padding: '16px 28px',
             background: '#f8fafc',
@@ -734,7 +765,7 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
           <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
             รหัสผลสอบ: {attempt.id || attempt._id || '-'}
           </div>
-          <button 
+          <button
             onClick={onClose}
             style={{
               padding: '10px 24px',
@@ -753,5 +784,6 @@ export default function ScoreDetailModal({ attempt, user, onClose }) {
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

@@ -1,4 +1,8 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import './AdminDashboard.css';
+import ModalPortal from '../components/ModalPortal';
+import AdminUserSummary from '../components/AdminUserSummary';
+import { filterUsers, summarizeLearners, summarizeAttempts } from '../utils/adminSummary';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory } from '../services/api';
@@ -7,8 +11,12 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCont
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
 
+const SKILL_LABELS = {full_test:'แบบทดสอบรวม 100 ข้อ',listening:'การฟัง',conversation:'การพูด',speaking:'การพูด',reading:'การอ่าน',writing:'การเขียน'};
+
 function formatDate(isoStr) {
+  if (!isoStr) return 'ไม่ได้ระบุ';
   const d = new Date(isoStr);
+  if (Number.isNaN(d.getTime())) return 'ไม่ได้ระบุ';
   return d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
@@ -37,7 +45,6 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [userScores, setUserScores] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
-  const [expandedAttemptId, setExpandedAttemptId] = useState(null);
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
@@ -46,6 +53,11 @@ export default function AdminDashboard() {
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [enrollmentFilter,setEnrollmentFilter] = useState('all');
+  const [userSort,setUserSort] = useState('newest');
+  const [userPage,setUserPage] = useState(1);
+  const [modalError,setModalError] = useState('');
+  const scoreRequest = useRef(0);
 
   // Surveys & Answer Key State
   const [showSurveyModal, setShowSurveyModal] = useState(false);
@@ -91,31 +103,24 @@ export default function AdminDashboard() {
     }
     fetchUsers();
     fetchAllHistory();
+    const refresh=event=>{
+      fetchUsers();fetchAllHistory();
+      setUserScores(previous=>previous.map(attempt=>attempt.id===event.detail.id?{...attempt,...event.detail}:attempt));
+    };
+    window.addEventListener('score-reviewed',refresh);
+    return ()=>window.removeEventListener('score-reviewed',refresh);
   }, [user]);
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.username.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!matchesSearch) return false;
-
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'passed') return u.full_test_passed;
-    if (filterStatus === 'notPassed') return !u.full_test_passed;
-    return true;
-  });
-
-  const stats = {
-    total: users.length,
-    passed: users.filter(u => u.full_test_passed).length,
-    notPassed: users.filter(u => !u.full_test_passed && u.full_test_score > 0).length,
-    notTested: users.filter(u => !u.full_test_score).length,
-  };
+  const filteredUsers = filterUsers(users,{search:searchTerm,status:filterStatus,enrollment:enrollmentFilter,sort:userSort});
+  const stats = summarizeLearners(users);
+  const pageCount = Math.max(1,Math.ceil(filteredUsers.length / 20));
+  const currentPage = Math.min(userPage,pageCount);
+  const pageUsers = filteredUsers.slice((currentPage-1)*20,currentPage*20);
+  const resetFilters = () => {setSearchTerm('');setFilterStatus('all');setEnrollmentFilter('all');setUserPage(1);};
 
   const fetchUsers = async () => {
     try {
-      setLoading(true);
+      setLoading(true);setError('');
       const data = await getAdminUsers(token);
       setUsers(data);
     } catch (err) {
@@ -131,7 +136,7 @@ export default function AdminDashboard() {
       const data = await getAdminAllHistory(token);
       setAllHistory(data || []);
     } catch (err) {
-      console.error('Fetch all history error:', err);
+      setError('โหลดประวัติสอบไม่สำเร็จ: ' + err.message);
     } finally {
       setAllHistoryLoading(false);
     }
@@ -146,8 +151,9 @@ export default function AdminDashboard() {
       if (!matchesSearch) return false;
 
       const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-      if (historyStatusFilter === 'passed' && pct < 70) return false;
-      if (historyStatusFilter === 'notPassed' && pct >= 70) return false;
+      if (historyStatusFilter === 'pending' && !(h.pending_count > 0)) return false;
+      if (historyStatusFilter === 'passed' && (h.pending_count > 0 || pct < 70)) return false;
+      if (historyStatusFilter === 'notPassed' && (h.pending_count > 0 || pct >= 70)) return false;
 
       if (historyDateFilter !== 'all' && h.taken_at) {
         const itemDate = new Date(h.taken_at);
@@ -168,12 +174,8 @@ export default function AdminDashboard() {
   }, [allHistory, historySearch, historyStatusFilter, historyDateFilter]);
 
   const historyStats = useMemo(() => {
-    const total = allHistory.length;
-    const passed = allHistory.filter(h => Math.round((h.score / (h.max_score || 100)) * 100) >= 70).length;
-    const notPassed = total - passed;
-    const avg = total > 0 ? Math.round(allHistory.reduce((acc, h) => acc + (h.score || 0), 0) / total) : 0;
-    const uniqueStudents = new Set(allHistory.map(h => h.user_id || h.user?.username).filter(Boolean)).size;
-    return { total, passed, notPassed, avg, uniqueStudents };
+    const summary = summarizeAttempts(allHistory);
+    return {total:summary.total,passed:summary.passed,notPassed:summary.reviewed-summary.passed,avg:summary.average,pending:summary.pending};
   }, [allHistory]);
 
   const downloadAllHistoryCSV = () => {
@@ -185,7 +187,7 @@ export default function AdminDashboard() {
 
     const rows = filteredAllHistory.map(h => {
       const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-      const passed = pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
+      const passed = h.pending_count > 0 ? 'รอตรวจ' : pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
       let grade = 'ปรับปรุง';
       if (pct >= 80) grade = 'ดีมาก';
       else if (pct >= 60) grade = 'ดี';
@@ -349,17 +351,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const closeScoreModal = () => {scoreRequest.current++;setSelectedUser(null);};
   const openScoreModal = async (u) => {
-    setSelectedUser(u);
-    setUserScores([]);
-    setModalLoading(true);
+    const request = ++scoreRequest.current;
+    setSelectedUser(u);setUserScores([]);setModalError('');setModalLoading(true);
     try {
-      const data = await getAdminUserScores(token, u.id);
-      setUserScores(data.history || []);
+      const data = await getAdminUserScores(token,u.id);
+      if (request === scoreRequest.current) setUserScores(data.history || []);
     } catch (err) {
-      alert('ดึงข้อมูลคะแนนไม่สำเร็จ: ' + err.message);
+      if (request === scoreRequest.current) setModalError(err.message || 'โหลดผลสอบไม่สำเร็จ');
     } finally {
-      setModalLoading(false);
+      if (request === scoreRequest.current) setModalLoading(false);
     }
   };
 
@@ -383,300 +385,61 @@ export default function AdminDashboard() {
   if (!user || user.role !== 'admin') return null;
 
   return (
-    <div className="animate-fade-in" style={{ padding: '24px 16px', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh' }}>
-      <style>{`
-        .admin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 32px; }
-        .stat-card { background: white; padding: 24px; borderRadius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); display: flex; align-items: center; gap: 20px; transition: transform 0.2s; }
-        .stat-card:hover { transform: translateY(-5px); }
-        .search-container { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
-        .search-input { flex: 1; min-width: 280px; position: relative; }
-        .search-input input { width: 100%; padding: 12px 16px 12px 48px; borderRadius: 12px; border: 1.5px solid rgba(0,0,0,0.1); outline: none; font-size: 1rem; transition: all 0.2s; }
-        .search-input input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.1); }
-        .filter-select { padding: 12px 16px; borderRadius: 12px; border: 1.5px solid rgba(0,0,0,0.1); outline: none; font-size: 1rem; background: white; cursor: pointer; min-width: 180px; }
-        
-        .desktop-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        .desktop-table th { padding: 16px; background: #f8fafc; color: #64748b; font-weight: 600; text-align: left; border-bottom: 2px solid #f1f5f9; }
-        .desktop-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        
-        .mobile-cards { display: none; flex-direction: column; gap: 16px; }
-        .user-card { background: white; padding: 20px; borderRadius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05); }
-
-        @media (max-width: 992px) {
-          .desktop-view { display: none; }
-          .mobile-cards { display: flex; }
-        }
-
-        @keyframes animate-scale-in {
-          0% { opacity: 0; transform: scale(0.95); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        .animate-scale-in { animation: animate-scale-in 0.3s ease-out forwards; }
-        
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
+    <div className="admin-page page-content animate-fade-in" style={{ padding: '24px 16px', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh' }}>
 
 
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
-        <div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: '800', color: 'var(--color-primary-dark)', margin: 0, display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 16px rgba(168, 85, 247, 0.3)' }}>
-              <Shield size={32} />
-            </div>
-            Admin Dashboard
-          </h1>
-          <p style={{ color: 'var(--text-muted)', margin: '8px 0 0 72px', fontSize: '1.1rem' }}>จัดการผู้ใช้งานและติดตามความคืบหน้า</p>
+
+      <header className="admin-header">
+        <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และคำตอบที่รอตรวจ</p></div>
+        <div className="admin-header-actions">
+          <button onClick={() => {fetchUsers();fetchAllHistory();}} className="btn-secondary" disabled={loading || allHistoryLoading}><RefreshCw size={16}/> รีเฟรช</button>
+          <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary"><List size={16}/> เฉลยข้อสอบ</button>
+          <button onClick={openSurveys} className="btn-primary"><ClipboardList size={16}/> แบบสอบถาม</button>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <List size={20} /> ดูเฉลยข้อสอบ
-          </button>
-          <button onClick={openSurveys} className="btn-primary" style={{ padding: '12px 24px', borderRadius: '30px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ClipboardList size={20} /> ดูผลแบบสอบถาม
-          </button>
-          <Link to="/" className="btn-secondary" style={{ textDecoration: 'none', padding: '12px 24px', borderRadius: '30px', fontWeight: '600' }}>
-            กลับไปหน้าหลัก
-          </Link>
-        </div>
-      </div>
-
-      {/* Top View Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', borderBottom: '2px solid #f1f5f9', paddingBottom: '14px', flexWrap: 'wrap' }}>
-        <button 
-          onClick={() => setAdminTab('users')}
-          style={{
-            padding: '12px 24px',
-            borderRadius: '14px',
-            border: 'none',
-            background: adminTab === 'users' ? 'var(--color-primary)' : '#f8fafc',
-            color: adminTab === 'users' ? 'white' : '#64748b',
-            fontWeight: '700',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: adminTab === 'users' ? '0 4px 14px rgba(139, 92, 246, 0.25)' : 'none',
-            transition: 'all 0.2s'
-          }}
-        >
-          <Users size={20} /> รายชื่อผู้ใช้งาน ({users.length})
-        </button>
-
-        <button 
-          onClick={() => setAdminTab('all_history')}
-          style={{
-            padding: '12px 24px',
-            borderRadius: '14px',
-            border: 'none',
-            background: adminTab === 'all_history' ? 'var(--color-primary)' : '#f8fafc',
-            color: adminTab === 'all_history' ? 'white' : '#64748b',
-            fontWeight: '700',
-            fontSize: '1rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: adminTab === 'all_history' ? '0 4px 14px rgba(139, 92, 246, 0.25)' : 'none',
-            transition: 'all 0.2s'
-          }}
-        >
-          <History size={20} /> ประวัติการสอบทั้งหมด ({allHistory.length})
-        </button>
-      </div>
-
+      </header>
+      <nav className="admin-tabs" aria-label="ส่วนข้อมูลผู้ดูแล">
+        <button aria-pressed={adminTab === 'users'} onClick={()=>setAdminTab('users')}><Users size={18}/> ผู้เรียนและผู้ใช้งาน <span>{users.length}</span></button>
+        <button aria-pressed={adminTab === 'all_history'} onClick={()=>setAdminTab('all_history')}><History size={18}/> ประวัติสอบล่าสุด <span>{allHistory.length}</span></button>
+      </nav>
+      {error && <div className="admin-error" role="alert">{error}</div>}
       {adminTab === 'users' ? (
         <>
-          {/* Statistics Header */}
-          <div className="admin-grid">
-            <div className="stat-card">
-              <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Users size={28} />
-              </div>
-              <div>
-                <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>ผู้ใช้งานทั้งหมด</div>
-                <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>{stats.total}</div>
-              </div>
-            </div>
+          <div className="admin-metrics">
             {[
-              { label: 'สอบผ่าน', count: stats.passed, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)' },
-              { label: 'ยังไม่ผ่าน', count: stats.notPassed, color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)' },
-              { label: 'ยังไม่ได้สอบ', count: stats.notTested, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)' },
-            ].map((s, idx) => (
-              <div key={idx} className="stat-card">
-                <div style={{ width: '50px', height: '50px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Award size={28} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>{s.label}</div>
-                  <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
-                    {s.count} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>({stats.total > 0 ? Math.round(s.count/stats.total*100) : 0}%)</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              {label:'ผู้เรียนทั้งหมด',value:stats.total,unit:'คน',note:'ไม่รวมบัญชีเจ้าหน้าที่',status:'all',tone:'purple'},
+              {label:'กิจกรรมรู้หนังสือ',value:stats.literacy,unit:'คน',note:'ผู้เรียนที่ระบุเข้าร่วมกิจกรรม',status:'all',enrollment:'literacy',tone:'blue'},
+              {label:'ผ่านการประเมิน',value:stats.passed,unit:'คน',note:'คะแนนรวมที่ตรวจครบ ≥ 70%',status:'passed',tone:'green'},
+              {label:'งานรอตรวจ',value:stats.pendingAttempts,unit:'ครั้ง',note:`รวม ${stats.pendingQuestions} ข้อที่ต้องตรวจ`,status:'pending',tone:'amber'},
+            ].map(item=><button key={item.label} className={`admin-metric ${item.tone}`} onClick={()=>{setFilterStatus(item.status);setEnrollmentFilter(item.enrollment || 'all');setUserPage(1);}}>
+              <span>{item.label}</span><strong>{loading ? '—' : item.value} <small>{item.unit}</small></strong><p>{item.note}</p>
+            </button>)}
           </div>
-
-          {error && <div style={{ padding: '16px 24px', background: '#fee2e2', color: '#dc2626', borderRadius: '16px', marginBottom: '32px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '12px' }}><XCircle size={24} /> {error}</div>}
-
-          {/* Search and Filters */}
-          <div className="search-container">
-            <div className="search-input">
-              <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input 
-                type="text" 
-                placeholder="ค้นหาชื่อผู้ใช้ หรือ Username..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <section className="admin-users-panel">
+            <div className="admin-section-heading"><div><h2>รายชื่อผู้ใช้งาน</h2><p className="admin-muted">ดูข้อมูลส่วนตัว ประวัติสอบ และผลรายทักษะได้จากรายละเอียด</p></div><span className="admin-count" role="status">{filteredUsers.length} รายการ</span></div>
+            <div className="admin-filters">
+              <label className="admin-search"><span>ค้นหาผู้ใช้งาน</span><input placeholder="ชื่อ บัญชี ที่อยู่ หรือระดับการศึกษา" value={searchTerm} onChange={e=>{setSearchTerm(e.target.value);setUserPage(1);}}/></label>
+              <label><span>ผลการประเมิน</span><select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value);setUserPage(1);}}><option value="all">ทุกสถานะ</option><option value="passed">ผ่านเกณฑ์ ≥ 70%</option><option value="notPassed">ตรวจครบ · ยังไม่ผ่าน</option><option value="pending">มีผลรอตรวจ</option><option value="notTested">ยังไม่ได้สอบแบบรวม</option></select></label>
+              <label><span>กิจกรรมรู้หนังสือ</span><select value={enrollmentFilter} onChange={e=>{setEnrollmentFilter(e.target.value);setUserPage(1);}}><option value="all">ผู้ใช้งานทั้งหมด</option><option value="literacy">เป็นผู้เรียนกิจกรรม</option><option value="other">ไม่ใช่ผู้เรียนกิจกรรม</option></select></label>
+              <label><span>เรียงตาม</span><select value={userSort} onChange={e=>{setUserSort(e.target.value);setUserPage(1);}}><option value="newest">สมัครล่าสุด</option><option value="latest">ทำข้อสอบล่าสุด</option><option value="score">คะแนนสูงสุด</option></select></label>
             </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <Filter size={20} color="#64748b" />
-              <select 
-                className="filter-select"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-              >
-                <option value="all">ทั้งหมด</option>
-                <option value="passed">สอบผ่าน {">="} 60</option>
-                <option value="notPassed">ยังไม่ผ่าน / ยังไม่ได้สอบ</option>
-              </select>
-            </div>
-            <div style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.9rem', fontWeight: '500' }}>
-              พบ {filteredUsers.length} รายการ
-            </div>
-          </div>
-
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '100px 0' }}>
-              <RefreshCw size={48} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
-              <div style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>กำลังดึงข้อมูลผู้ใช้งาน...</div>
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '80px 0', textAlign: 'center' }}>
-              <Users size={64} color="#d1d5db" style={{ marginBottom: '20px' }} />
-              <h3 style={{ fontSize: '1.4rem', color: '#64748b', margin: 0 }}>ไม่พบผู้ใช้งานที่ตรงตามเงื่อนไข</h3>
-              <button onClick={() => {setSearchTerm(''); setFilterStatus('all');}} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline' }}>ล้างตัวกรองทั้งหมด</button>
-            </div>
-          ) : (
-            <>
-              {/* Desktop View */}
-              <div className="glass-panel desktop-view" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
-                <table className="desktop-table">
-                  <thead>
-                    <tr>
-                      <th style={{ paddingLeft: '24px' }}>รายชื่อผู้ใช้งาน</th>
-                      <th style={{ textAlign: 'center' }}>ความคืบหน้า</th>
-                      <th style={{ textAlign: 'center' }}>วันที่เข้าร่วม</th>
-                      <th style={{ textAlign: 'center', paddingRight: '24px' }}>การจัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((u) => (
-                      <tr key={u.id}>
-                        <td style={{ paddingLeft: '24px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'linear-gradient(135deg, #f1f5f9, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                              {u.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                {u.name} 
-                                {u.role === 'admin' && <span style={{ fontSize: '0.7rem', background: '#ef4444', color: 'white', padding: '2px 8px', borderRadius: '20px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Admin</span>}
-                              </div>
-                              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{u.address || 'ไม่ระบุที่อยู่'} • {u.age ? u.age+' ปี' : 'ไม่ระบุอายุ'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                              <div style={{ padding: '6px 12px', borderRadius: '8px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#f1f5f9'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold' }}>
-                                {u.full_test_passed ? <><CheckCircle size={16} /> ผ่านแล้ว</> : (u.full_test_score > 0 ? <><XCircle size={16} /> ไม่ผ่าน</> : 'ยังไม่ได้สอบ')}
-                              </div>
-                              {u.full_test_score > 0 && <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 'bold' }}>{u.full_test_score} / 100 คะแนน</div>}
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.9rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <Calendar size={14} /> {formatDate(u.created_at)}
-                          </div>
-                        </td>
-                        <td style={{ paddingRight: '24px' }}>
-                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                            <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ดูคะแนน">
-                              <Eye size={20} />
-                            </button>
-                            <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="แก้ไขข้อมูล">
-                              <Edit2 size={20} />
-                            </button>
-                            {u.role !== 'admin' && (
-                              <button onClick={() => handleDelete(u.id, u.name)} style={{ background: '#fef2f2', color: '#ef4444', border: 'none', padding: '10px', borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s' }} title="ลบผู้ใช้">
-                                <Trash2 size={20} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile View */}
-              <div className="mobile-cards">
-                {filteredUsers.map((u) => (
-                  <div key={u.id} className="user-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--color-primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
-                          {u.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '700', color: '#1e293b', fontSize: '1.1rem' }}>{u.name}</div>
-                          <div style={{ fontSize: '0.85rem', color: '#64748b' }}>@{u.username} • {u.role}</div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => openScoreModal(u)} style={{ background: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '8px', borderRadius: '10px' }}><Eye size={18} /></button>
-                        <button onClick={() => openEditModal(u)} style={{ background: '#f0f9ff', color: '#0ea5e9', border: 'none', padding: '8px', borderRadius: '10px' }}><Edit2 size={18} /></button>
-                      </div>
-                    </div>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px', background: '#f8fafc', borderRadius: '12px', marginBottom: '16px' }}>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                        <strong>ที่อยู่:</strong> {u.address || '-'}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                        <strong>อายุ:</strong> {u.age || '-'} ปี
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b', gridColumn: 'span 2' }}>
-                        <strong>วันที่สมัคร:</strong> {formatDate(u.created_at)}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#64748b' }}>สถานะ:</span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <div style={{ padding: '4px 10px', borderRadius: '6px', background: u.full_test_passed ? '#10b981' : (u.full_test_score > 0 ? '#f43f5e' : '#e2e8f0'), color: (u.full_test_score > 0) ? 'white' : '#94a3b8', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          {u.full_test_passed ? `ผ่าน (${u.full_test_score}/100)` : (u.full_test_score > 0 ? `ไม่ผ่าน (${u.full_test_score}/100)` : 'ยังไม่ได้สอบ')}
-                        </div>
-                      </div>
-                      {u.role !== 'admin' && (
-                        <button onClick={() => handleDelete(u.id, u.name)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#ef4444', padding: '4px' }}><Trash2 size={18} /></button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+            {loading ? <p className="admin-empty" role="status">กำลังโหลดข้อมูลผู้ใช้งาน...</p> : !pageUsers.length ? <div className="admin-empty"><p>ไม่พบผู้ใช้งานที่ตรงกับตัวกรอง</p><button className="btn-secondary" onClick={resetFilters}>ล้างตัวกรอง</button></div> : <>
+              <table className="admin-learners-table"><thead><tr><th>ผู้เรียน / ผู้ใช้งาน</th><th>สถานะการเรียน</th><th>ผลประเมินแบบรวม</th><th>สอบแบบรวม</th><th>จัดการ</th></tr></thead><tbody>
+                {pageUsers.map(u=><tr key={u.id}>
+                  <td><div className="admin-identity"><span className="admin-avatar">{(u.name || '?').charAt(0)}</span><div><strong>{u.name || 'ไม่ได้ระบุชื่อ'}</strong><small>@{u.username} {u.role === 'admin' && '· เจ้าหน้าที่'}</small><span className={`admin-tag ${u.is_literacy_learner ? 'blue' : ''}`}>{u.is_literacy_learner ? 'ผู้เรียนกิจกรรมรู้หนังสือ' : 'ไม่ได้เข้าร่วมกิจกรรมรู้หนังสือ'}</span></div></div></td>
+                  <td data-label="สถานะการเรียน"><strong>{u.status || 'ไม่ได้ระบุ'}</strong><small>{u.education_level || u.employment_status || 'ไม่มีข้อมูลเพิ่มเติม'}</small><small>{u.age ? `${u.age} ปี` : 'ไม่ระบุอายุ'} · {u.address || 'ไม่ระบุที่อยู่'}</small></td>
+                  <td data-label="ผลประเมิน"><span className={`admin-tag ${u.full_test_completed ? u.full_test_passed ? 'green' : 'red' : ''}`}>{u.full_test_completed ? u.full_test_passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน' : u.full_test_pending ? 'อยู่ระหว่างตรวจ' : 'ยังไม่ได้สอบ'}</span><strong className="admin-score">{u.full_test_completed ? `${u.full_test_score} / 100` : '—'}</strong>{u.full_test_pending > 0 && <small className="admin-pending">รอตรวจ {u.full_test_pending_questions} ข้อ · {u.full_test_pending} ครั้ง</small>}</td>
+                  <td data-label="สอบแบบรวม"><strong>{u.full_test_attempts || 0} ครั้ง</strong><small>{u.full_test_last_at ? `ล่าสุด ${formatDate(u.full_test_last_at)}` : 'ยังไม่มีประวัติแบบรวม'}</small><small>สมัคร {formatDate(u.created_at)}</small></td>
+                  <td><div className="admin-row-actions"><button className="admin-detail-button" onClick={()=>openScoreModal(u)} aria-label={`ดูรายละเอียด ${u.name}`}><Eye size={16}/> รายละเอียด</button><button onClick={()=>openEditModal(u)} aria-label={`แก้ไข ${u.name}`} title="แก้ไขข้อมูล"><Edit2 size={16}/></button>{u.role !== 'admin' && <button className="admin-delete-button" onClick={()=>handleDelete(u.id,u.name)} aria-label={`ลบ ${u.name}`} title="ลบผู้ใช้"><Trash2 size={16}/></button>}</div></td>
+                </tr>)}
+              </tbody></table>
+              <div className="admin-pagination"><span>แสดง {(currentPage-1)*20+1}–{Math.min(currentPage*20,filteredUsers.length)} จาก {filteredUsers.length} รายการ</span><div><button className="btn-secondary" disabled={currentPage===1} onClick={()=>setUserPage(currentPage-1)}>ก่อนหน้า</button><span>{currentPage} / {pageCount}</span><button className="btn-secondary" disabled={currentPage===pageCount} onClick={()=>setUserPage(currentPage+1)}>ถัดไป</button></div></div>
+            </>}
+          </section>
         </>
       ) : (
         /* ALL EXAM HISTORY TAB */
         <div>
+          <p className="admin-muted">แสดงประวัติล่าสุดสูงสุด 300 ครั้ง สถิติส่วนนี้คำนวณจากรายการที่โหลด · ค่าเฉลี่ยใช้เฉพาะผลที่ตรวจครบ</p>
           {/* History Statistics Cards */}
           <div className="admin-grid">
             <div className="stat-card">
@@ -720,10 +483,11 @@ export default function AdminDashboard() {
               <div>
                 <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500' }}>คะแนนเฉลี่ย</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: '800', color: '#1e293b' }}>
-                  {historyStats.avg} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>/ 100</span>
+                  {historyStats.avg ?? '—'} <span style={{ fontSize: '0.9rem', fontWeight: '500', color: '#94a3b8' }}>% ของคะแนนเต็ม</span>
                 </div>
               </div>
             </div>
+            <div className="stat-card"><div><div style={{fontSize:'.9rem',color:'#64748b'}}>รอเจ้าหน้าที่ตรวจ</div><strong style={{fontSize:'1.8rem',color:'#b45309'}}>{historyStats.pending} <small style={{fontSize:'.85rem'}}>ครั้ง</small></strong></div></div>
           </div>
 
           {/* Search, Filters and CSV Export Toolbar */}
@@ -746,6 +510,7 @@ export default function AdminDashboard() {
                 onChange={(e) => setHistoryStatusFilter(e.target.value)}
               >
                 <option value="all">ผลสอบทั้งหมด</option>
+                <option value="pending">รอเจ้าหน้าที่ตรวจ</option>
                 <option value="passed">เฉพาะที่ผ่านเกณฑ์ (≥70%)</option>
                 <option value="notPassed">เฉพาะที่ไม่ผ่าน (&lt;70%)</option>
               </select>
@@ -806,7 +571,7 @@ export default function AdminDashboard() {
               <h3 style={{ fontSize: '1.4rem', color: '#64748b', margin: 0 }}>ไม่พบประวัติการสอบที่ตรงตามเงื่อนไข</h3>
             </div>
           ) : (
-            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <div className="glass-panel" style={{ padding: '0', overflowX: 'auto', border: '1px solid rgba(0,0,0,0.05)' }}>
               <table className="desktop-table">
                 <thead>
                   <tr>
@@ -821,7 +586,7 @@ export default function AdminDashboard() {
                 <tbody>
                   {filteredAllHistory.map((h, idx) => {
                     const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-                    const passed = pct >= 70;
+                    const passed = !(h.pending_count > 0) && pct >= 70;
                     let grade = 'ปรับปรุง';
                     let gradeColor = '#dc2626';
                     let gradeBg = '#fee2e2';
@@ -848,7 +613,7 @@ export default function AdminDashboard() {
                         </td>
                         <td>
                           <div style={{ fontWeight: '600', color: '#334155' }}>
-                            {h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : `ทักษะ${h.skill}`}
+                            {SKILL_LABELS[h.skill] || h.skill}
                           </div>
                         </td>
                         <td style={{ textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
@@ -857,14 +622,14 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '1.2rem', fontWeight: '800', color: passed ? '#10b981' : '#f43f5e' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: '800', color: h.pending_count > 0 ? '#b45309' : passed ? '#10b981' : '#f43f5e' }}>
                             {h.score} <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>/ {h.max_score}</span>
                           </div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>({pct}%)</div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '700', padding: '4px 10px', borderRadius: '12px', background: gradeBg, color: gradeColor }}>
-                            {passed ? '✓ ผ่าน' : '✕ ไม่ผ่าน'} ({grade})
+                          <span style={{ fontSize: '0.78rem', fontWeight: '700', padding: '4px 10px', borderRadius: '12px', background: h.pending_count > 0 ? '#fffbeb' : gradeBg, color: h.pending_count > 0 ? '#b45309' : gradeColor }}>
+                            {h.pending_count > 0 ? `รอตรวจ ${h.pending_count} ข้อ` : `${passed ? '✓ ผ่าน' : '✕ ไม่ผ่าน'} (${grade})`}
                           </span>
                         </td>
                         <td style={{ textAlign: 'center', paddingRight: '24px' }}>
@@ -905,191 +670,64 @@ export default function AdminDashboard() {
 
       {/* Score Details Modal */}
       {selectedUser && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+        <ModalPortal label="รายละเอียดผู้เรียนและผลสอบ" onClose={closeScoreModal}>
+        <div className="admin-user-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div className="admin-user-dialog modal-surface glass-panel" style={{ background: 'white', width: '100%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="admin-user-dialog-header" style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b' }}>ประวัติการทำแบบทดสอบ</h3>
+                <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b' }}>ข้อมูลผู้เรียนและผลสอบ</h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary)' }}></div>
                   <span style={{ fontSize: '1rem', color: '#64748b', fontWeight: '600' }}>{selectedUser.name} (@{selectedUser.username})</span>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
+              <button onClick={closeScoreModal} aria-label="ปิดรายละเอียดผู้เรียน" style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
             </div>
-            <div style={{ padding: '32px', overflowY: 'auto', flex: 1, background: 'white' }}>
+            <div className="admin-user-dialog-body" style={{ padding: '32px', overflowY: 'auto', flex: 1, background: 'white' }}>
+              <AdminUserSummary user={selectedUser} history={modalLoading || modalError ? null : userScores}/>
+              <h4 className="admin-attempts-title">ประวัติการสอบทุกครั้ง</h4>
               {modalLoading ? (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>
                   <RefreshCw size={40} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
                   <div style={{ color: '#64748b' }}>กำลังโหลดข้อมูลประวัติ...</div>
                 </div>
-              ) : userScores.length === 0 ? (
+              ) : modalError ? <p role="alert" className="admin-error">{modalError}</p> : userScores.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 0', background: '#f8fafc', borderRadius: '20px', border: '2px dashed #e2e8f0' }}>
                   <Award size={48} color="#cbd5e1" style={{ marginBottom: '16px' }} />
                   <div style={{ color: '#64748b', fontSize: '1.1rem' }}>ยังไม่พบประวัติการทำแบบทดสอบในระบบ</div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
-                  {userScores.map((h, i) => {
-                    const pct = Math.round((h.score / h.max_score) * 100);
-                    const passed = pct >= 70;
-                    let evaluationLevel = '';
-                    let evaluationColor = '';
-                    if (pct >= 80) { evaluationLevel = 'ดีมาก'; evaluationColor = '#059669'; }
-                    else if (pct >= 60) { evaluationLevel = 'ดี'; evaluationColor = '#2563eb'; }
-                    else if (pct >= 50) { evaluationLevel = 'พอใช้'; evaluationColor = '#d97706'; }
-                    else { evaluationLevel = 'ปรับปรุง'; evaluationColor = '#dc2626'; }
-
-                    return (
-                      <div key={i} style={{ padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: h.level === 1 ? '#10b981' : h.level === 2 ? '#3b82f6' : '#f59e0b', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
-                              L{h.level}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: '700', color: '#334155' }}>ทักษะ{h.skill === 'full_test' ? 'รวม (100 ข้อ)' : h.skill}</div>
-                              <div style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                                <Calendar size={12} /> {formatDate(h.taken_at)}
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '1.4rem', fontWeight: '800', color: passed ? '#10b981' : '#f43f5e' }}>
-                              {h.score} <span style={{ fontSize: '0.9rem', color: '#94a3b8', fontWeight: '500' }}>/ {h.max_score}</span>
-                            </div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: evaluationColor, marginTop: '2px' }}>
-                              {evaluationLevel} <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>({pct}%)</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {h.breakdown && Object.keys(h.breakdown).length > 0 && (
-                          <div style={{ marginTop: '4px', padding: '12px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#475569', marginBottom: '8px' }}>คะแนนรายทักษะ</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                              {Object.entries(h.breakdown).map(([key, b], idx) => {
-                                let skillPassed = false;
-                                if (key === 'listening' && b.score >= 18) skillPassed = true;
-                                if (key === 'speaking' && b.score >= 11) skillPassed = true;
-                                if (key === 'reading' && b.score >= 21) skillPassed = true;
-                                if (key === 'writing' && b.score >= 21) skillPassed = true;
-
-                                return (
-                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px' }}>
-                                    <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                      {b.label}
-                                      <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '10px', background: skillPassed ? '#d1fae5' : '#fee2e2', color: skillPassed ? '#059669' : '#dc2626' }}>
-                                        {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
-                                      </span>
-                                    </span>
-                                    <span style={{ fontWeight: '600', color: 'var(--color-primary)' }}>{b.score}/{b.max}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
-                          <button 
-                            onClick={() => {
-                              setActiveDetailAttempt(h);
-                              setActiveDetailUser(selectedUser);
-                            }}
-                            style={{ 
-                              flex: 1, 
-                              background: 'var(--color-primary)', 
-                              border: 'none', 
-                              padding: '8px 14px', 
-                              borderRadius: '8px', 
-                              fontSize: '0.85rem', 
-                              fontWeight: '700', 
-                              color: 'white', 
-                              cursor: 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '6px', 
-                              justifyContent: 'center',
-                              boxShadow: '0 2px 8px rgba(139, 92, 246, 0.25)' 
-                            }}
-                          >
-                            <Eye size={15} /> ตรวจคำตอบละเอียด 100 ข้อ / พิมพ์ใบคะแนน
-                          </button>
-                          {h.detailed_results && h.detailed_results.length > 0 && (
-                            <button 
-                              onClick={() => setExpandedAttemptId(expandedAttemptId === h.id ? null : h.id)}
-                              style={{ 
-                                background: 'white', 
-                                border: '1px solid #e2e8f0', 
-                                padding: '8px 12px', 
-                                borderRadius: '8px', 
-                                fontSize: '0.85rem', 
-                                fontWeight: '600', 
-                                color: '#64748b', 
-                                cursor: 'pointer', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '4px' 
-                              }}
-                              title="ย่อ/ขยายดูคำตอบแบบเร็ว"
-                            >
-                              {expandedAttemptId === h.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                            </button>
-                          )}
-                        </div>
-                        
-                        {h.detailed_results && h.detailed_results.length > 0 && expandedAttemptId === h.id && (
-                          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', padding: '8px', background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                            {h.detailed_results.map((r, rIdx) => (
-                              <div key={rIdx} style={{ padding: '12px', borderBottom: rIdx < h.detailed_results.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                                  <div style={{ marginTop: '2px' }}>
-                                    {r.is_correct ? <CheckCircle size={18} color="#10b981" /> : <XCircle size={18} color="#f43f5e" />}
-                                  </div>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', marginBottom: '4px' }}>{r.section}</div>
-                                    <div style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500', marginBottom: '8px' }}>{r.question}</div>
-                                    <div style={{ fontSize: '0.85rem', display: 'grid', gap: '4px' }}>
-                                      <div style={{ display: 'flex', gap: '8px' }}>
-                                        <span style={{ color: '#64748b', width: '80px' }}>คำตอบผู้ใช้:</span>
-                                        <span style={{ color: r.is_correct ? '#10b981' : '#f43f5e', fontWeight: '600' }}>{r.user_answer || '-'}</span>
-                                      </div>
-                                      {!r.is_correct && (
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                          <span style={{ color: '#64748b', width: '80px' }}>เฉลย:</span>
-                                          <span style={{ color: '#10b981', fontWeight: '600' }}>{r.correct_answer || '-'}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
+                <div className="admin-attempt-list">
+                  {userScores.map(h => {
+                    const pending = h.pending_count > 0;
+                    const passed = h.score / (h.max_score || 100) >= .7;
+                    return <article key={h.id} className="admin-attempt-row">
+                      <div><strong>{SKILL_LABELS[h.skill] || h.skill}</strong><time dateTime={h.taken_at}>{formatDate(h.taken_at)}</time></div>
+                      <div><strong>{h.score} <small>/ {h.max_score} คะแนน</small></strong><span className={`admin-tag ${pending ? 'amber' : passed ? 'green' : 'red'}`}>{pending ? `รอตรวจ ${h.pending_count} ข้อ` : passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน'}</span></div>
+                      <button className="admin-detail-button" onClick={()=>{closeScoreModal();setActiveDetailAttempt(h);setActiveDetailUser(selectedUser);}}><Eye size={16}/> ดูคำตอบ / ตรวจคะแนน</button>
+                    </article>;
                   })}
                 </div>
               )}
             </div>
             <div style={{ padding: '24px 32px', background: '#f8fafc', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setSelectedUser(null)} className="btn-primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>ปิดหน้าต่าง</button>
+              <button onClick={closeScoreModal} aria-label="ปิดรายละเอียดผู้เรียน" className="btn-primary" style={{ padding: '12px 32px', borderRadius: '12px' }}>ปิดหน้าต่าง</button>
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Edit User Modal */}
       {editingUser && (
+        <ModalPortal label="แก้ไขข้อมูลสมาชิก" onClose={()=>setEditingUser(null)}>
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '500px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div className="glass-panel modal-surface admin-responsive-dialog" style={{ background: 'white', width: '100%', maxWidth: '500px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="admin-dialog-header" style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
               <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b' }}>แก้ไขข้อมูลสมาชิก</h3>
-              <button onClick={() => setEditingUser(null)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px' }}><X size={24} /></button>
+              <button aria-label="ปิดแก้ไขข้อมูลสมาชิก" onClick={() => setEditingUser(null)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px' }}><X size={24} /></button>
             </div>
-            <form onSubmit={handleSaveEdit} style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <form className="admin-responsive-dialog-body" onSubmit={handleSaveEdit} style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div className="input-group">
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ชื่อ-นามสกุล</label>
                 <input 
@@ -1101,7 +739,7 @@ export default function AdminDashboard() {
                   autoFocus
                 />
               </div>
-              <div style={{ display: 'flex', gap: '20px' }}>
+              <div className="form-pair" style={{ display: 'flex', gap: '20px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>อายุ</label>
                   <input 
@@ -1139,13 +777,15 @@ export default function AdminDashboard() {
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Surveys Modal */}
       {showSurveyModal && (
+        <ModalPortal label="ผลแบบสอบถาม" onClose={()=>setShowSurveyModal(false)}>
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div className="glass-panel modal-surface admin-responsive-dialog" style={{ background: 'white', width: '100%', maxWidth: '1000px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="admin-dialog-header" style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <ClipboardList size={28} color="var(--color-primary)" />
@@ -1159,11 +799,11 @@ export default function AdminDashboard() {
                 <button onClick={downloadSurveyCSV} style={{ padding: '8px 16px', borderRadius: '12px', border: 'none', background: 'var(--color-primary)', color: 'white', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   📊 ดาวน์โหลด CSV ทั้งหมด
                 </button>
-                <button onClick={() => setShowSurveyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '12px' }}><X size={24} /></button>
+                <button aria-label="ปิดผลแบบสอบถาม" onClick={() => setShowSurveyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: '12px' }}><X size={24} /></button>
               </div>
             </div>
             
-            <div style={{ padding: '0 32px', display: 'flex', gap: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+            <div className="admin-dialog-tabs" style={{ padding: '0 32px', display: 'flex', gap: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
               <button onClick={() => setSurveyTab('overview')} style={{ padding: '16px 24px', background: 'transparent', border: 'none', borderBottom: surveyTab === 'overview' ? '3px solid var(--color-primary)' : '3px solid transparent', color: surveyTab === 'overview' ? 'var(--color-primary)' : '#64748b', fontWeight: surveyTab === 'overview' ? '700' : '500', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', transition: 'all 0.2s' }}>
                 <BarChart2 size={20} /> ภาพรวมคะแนน
               </button>
@@ -1172,7 +812,7 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white' }}>
+            <div className="admin-responsive-dialog-body" style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white' }}>
               {surveysLoading ? (
                 <div style={{ textAlign: 'center', padding: '60px 0' }}>
                   <RefreshCw size={40} className="spin" color="var(--color-primary)" style={{ marginBottom: '16px' }} />
@@ -1266,7 +906,7 @@ export default function AdminDashboard() {
                                 {isExpanded && (
                                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                                     <td colSpan={6} style={{ padding: '24px 32px' }}>
-                                      <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                                      <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px', marginBottom: '20px' }}>
                                         {/* Design */}
                                         <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
                                           <div style={{ fontWeight: 'bold', color: '#3b82f6', marginBottom: '12px', borderBottom: '2px solid #f1f5f9', paddingBottom: '8px' }}>1. ด้านการออกแบบ</div>
@@ -1317,23 +957,25 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Answer Key Modal */}
       {showAnswerKeyModal && (
+        <ModalPortal label="เฉลยข้อสอบ" onClose={()=>setShowAnswerKeyModal(false)}>
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
-          <div className="glass-panel animate-scale-in" style={{ background: 'white', width: '100%', maxWidth: '900px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <div style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
+          <div className="glass-panel modal-surface admin-responsive-dialog" style={{ background: 'white', width: '100%', maxWidth: '900px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div className="admin-dialog-header" style={{ padding: '24px 32px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '800', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <List size={28} color="var(--color-primary)" />
                   เฉลยข้อสอบทั้งหมด ({answerKeyData.length} ข้อ)
                 </h3>
               </div>
-              <button onClick={() => setShowAnswerKeyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
+              <button aria-label="ปิดเฉลยข้อสอบ" onClick={() => setShowAnswerKeyModal(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24} /></button>
             </div>
             
-            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="admin-responsive-dialog-body" style={{ padding: '24px', overflowY: 'auto', flex: 1, background: 'white', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {answerKeyData.map((q, idx) => {
                 let correctAnswerText = '';
                 if (q.type === 'mcq') {
@@ -1365,6 +1007,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* SCORE DETAIL MODAL */}

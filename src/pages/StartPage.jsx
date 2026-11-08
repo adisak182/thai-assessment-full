@@ -9,7 +9,7 @@ export default function StartPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: '', age: '', status: '', education_level: '', employment_status: ''
+    name: '', age: '', status: '', education_level: '', employment_status: '', is_literacy_learner: false
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,8 @@ export default function StartPage() {
         age: form.age, 
         status: form.status,
         education_level: form.education_level,
-        employment_status: form.employment_status
+        employment_status: form.employment_status,
+        is_literacy_learner: form.is_literacy_learner
       });
       navigate('/skills');
     } catch (err) {
@@ -51,8 +52,8 @@ export default function StartPage() {
   const labelStyle = { display: 'block', marginBottom: '8px', color: 'var(--color-primary-dark)', fontWeight: '600', fontSize: '0.95rem' };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px' }}>
-      <div style={{ width: '100%', maxWidth: '500px' }}>
+    <div className="auth-shell">
+      <div className="auth-content">
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div className="animate-float" style={{ display: 'inline-flex', padding: '6px', background: 'rgba(255,255,255,0.8)', borderRadius: '50%', marginBottom: '16px', boxShadow: '0 8px 24px rgba(76, 29, 149, 0.15)' }}>
             <img src={logoImg} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
@@ -61,7 +62,7 @@ export default function StartPage() {
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>กรุณากรอกข้อมูลเพื่อเริ่มต้นทำแบบทดสอบ</p>
         </div>
 
-        <div className="glass-card animate-slide-up" style={{ padding: '40px' }}>
+        <div className="glass-card auth-card">
           {error && (
             <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', color: '#dc2626', marginBottom: '20px' }}>
               ⚠️ {error}
@@ -72,32 +73,45 @@ export default function StartPage() {
             
             {/* Name */}
             <div>
-              <label style={labelStyle}>ชื่อ-สกุล <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" name="name" value={form.name} onChange={handleChange}
-                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} autoFocus />
+              <label htmlFor="start-name" style={labelStyle}>ชื่อ-สกุล <span style={{ color: 'red' }}>*</span></label>
+              <input type="text" id="start-name" name="name" value={form.name} onChange={handleChange}
+                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
             </div>
 
             {/* Age */}
             <div>
-              <label style={labelStyle}>อายุ (ปี)</label>
-              <input type="number" name="age" value={form.age} onChange={handleChange}
+              <label htmlFor="start-age" style={labelStyle}>อายุ (ปี)</label>
+              <input type="number" id="start-age" name="age" value={form.age} onChange={handleChange}
                 min="1" max="120" placeholder="เช่น 25" style={inputStyle} />
             </div>
 
+            <label className="literacy-checkbox" htmlFor="start-is-literacy-learner">
+              <input type="checkbox" id="start-is-literacy-learner" name="is_literacy_learner"
+                checked={form.is_literacy_learner}
+                onChange={e => setForm(prev => ({ ...prev, is_literacy_learner: e.target.checked }))}
+                aria-describedby="literacy-learner-help" />
+              <span>
+                <strong>ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</strong>
+                <small id="literacy-learner-help">ไม่ติ๊กหมายถึงไม่ใช่ผู้เรียนกิจกรรมนี้</small>
+              </span>
+            </label>
+
             {/* Status */}
             <div>
-              <label style={labelStyle}>สถานะ</label>
-              <select name="status" value={form.status} onChange={handleChange} style={inputStyle} required>
+              <label htmlFor="start-status" style={labelStyle}>สถานะ</label>
+              <select id="start-status" name="status" value={form.status} onChange={handleChange} style={inputStyle} required>
                 <option value="">-- เลือกสถานะ --</option>
                 <option value="กำลังศึกษา">กำลังศึกษา</option>
                 <option value="ไม่ได้ศึกษา">ไม่ได้ศึกษา</option>
               </select>
             </div>
             
+
+
             {form.status === 'กำลังศึกษา' && (
               <div>
-                <label style={labelStyle}>ระดับการศึกษา</label>
-                <select name="education_level" value={form.education_level} onChange={handleChange} style={inputStyle} required>
+                <label htmlFor="start-education_level" style={labelStyle}>ระดับการศึกษา</label>
+                <select id="start-education_level" name="education_level" value={form.education_level} onChange={handleChange} style={inputStyle} required>
                   <option value="">-- เลือกระดับการศึกษา --</option>
                   <option value="ระดับประถมศึกษา">ระดับประถมศึกษา</option>
                   <option value="ระดับมัธยมศึกษาตอนต้น">ระดับมัธยมศึกษาตอนต้น</option>
@@ -111,8 +125,8 @@ export default function StartPage() {
 
             {form.status === 'ไม่ได้ศึกษา' && (
               <div>
-                <label style={labelStyle}>สถานะการทำงาน</label>
-                <select name="employment_status" value={form.employment_status} onChange={handleChange} style={inputStyle} required>
+                <label htmlFor="start-employment_status" style={labelStyle}>สถานะการทำงาน</label>
+                <select id="start-employment_status" name="employment_status" value={form.employment_status} onChange={handleChange} style={inputStyle} required>
                   <option value="">-- เลือกสถานะการทำงาน --</option>
                   <option value="ว่างงาน">ว่างงาน</option>
                   <option value="มีงานทำ">มีงานทำ</option>
@@ -126,13 +140,13 @@ export default function StartPage() {
             </button>
           </form>
         </div>
-      </div>
       
       {/* Admin Login Link */}
-      <div style={{ textAlign: 'center', marginTop: '24px' }}>
+      <div className="auth-footer">
         <a href="/login" style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textDecoration: 'none' }}>
           🔒 สำหรับเจ้าหน้าที่
         </a>
+      </div>
       </div>
     </div>
   );

@@ -1,251 +1,113 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle, Volume2, Play, Mic, MicOff, CheckCircle, ArrowRight, Trophy, XCircle, RefreshCw } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
-import confetti from 'canvas-confetti';
+import { useSessionStorage } from '../hooks/useSessionStorage';
+import MicButton from '../components/MicButton';
+import QuestionNumbers from '../components/QuestionNumbers';
+import QuestionNavigation from '../components/QuestionNavigation';
+import AudioBtn from '../components/AudioButton';
+import ResultModal from '../components/ResultModal';
 import ExamTimer from '../components/ExamTimer';
 
-// ===== QUESTION DATA =====
+import { introQ, situQ, tongueQ } from '../data/conversationQuestions.js';
 
-// Section A: Personal intro (ข้อ 26-30) – open-ended speaking
-const introQ = [
-  { id: 26, audio: '/audio/spk_q26.mp3', question: '"สวัสดีค่ะ คุณชื่ออะไรคะ"', hint: 'บอกชื่อ-นามสกุล และชื่อเล่นอย่างเป็นทางการ' },
-  { id: 27, audio: '/audio/spk_q27.mp3', question: '"คุณเป็นคนที่ไหนคะ (บ้านเกิดอยู่ที่ไหน)"', hint: 'บอกชื่อจังหวัด หรืออำเภอที่ตนเองเติบโตมา' },
-  { id: 28, audio: '/audio/spk_q28.mp3', question: '"คุณเรียนจบระดับไหน และจบจากที่ไหนมาคะ"', hint: 'ระบุระดับการศึกษาล่าสุด หรือสถานศึกษาที่จบมา' },
-  { id: 29, audio: '/audio/spk_q29.mp3', question: '"ตอนนี้คุณทำงานอะไร หรือทำอาชีพอะไรอยู่คะ"', hint: 'บอกตำแหน่งงาน หน่วยงาน หรือลักษณะงานที่ทำ' },
-  { id: 30, audio: '/audio/spk_q30.mp3', question: '"เวลาว่างคุณชอบทำกิจกรรมอะไรมากที่สุดคะ"', hint: 'อธิบายสิ่งที่ชอบทำ พร้อมให้เหตุผลสั้น ๆ ได้' },
-];
-
-// Section B: Situational conversations (ข้อ 31-35)
-const situQ = [
-  { id: 31, audio: '/audio/spk_q31.mp3', situation: 'ซื้อของในร้าน', prompt: 'แม่ค้า: "ลูกค้าต้องการซื้ออะไรคะ"', hint: 'ตอบด้วยชื่อสินค้าที่ต้องการซื้อ' },
-  { id: 32, audio: '/audio/spk_q32.mp3', situation: 'หลงทาง', prompt: 'ป้าอ้อย: "ขอโทษค่ะ ช่วยบอกทางไปโรงพยาบาลได้ไหมคะ"', hint: 'ตอบด้วยการบอกทาง เช่น เลี้ยวซ้าย ตรงไป' },
-  { id: 33, audio: '/audio/spk_q33.mp3', situation: 'ไปพบหมอที่โรงพยาบาล', prompt: 'หมอ: "วันนี้คนไข้มีอาการอย่างไรคะ"', hint: 'บอกอาการที่รู้สึก เช่น ปวดหัว มีไข้ เป็นต้น' },
-  { id: 34, audio: '/audio/spk_q34.mp3', situation: 'ชวนเพื่อนไปทำกิจกรรมจิตอาสา', prompt: 'เพื่อน: "เราต้องเตรียมอุปกรณ์อะไรบ้างในการทำกิจกรรมจิตอาสา"', hint: 'บอกวัสดุอุปกรณ์ในการทำความสะอาด เช่น ไม้กวาด ถุงขยะ' },
-  { id: 35, audio: '/audio/spk_q35.mp3', situation: 'นัดเพื่อนทำการบ้าน', prompt: 'เพื่อน: "พรุ่งนี้เรานัดทำการบ้านที่ไหนดี"', hint: 'บอกสถานที่ เช่น ห้องสมุด บ้าน ร้านกาแฟ' },
-];
-
-// Section C: Tongue twisters (ข้อ 36-40) – repeat aloud
-const tongueQ = [
-  { id: 36, audio: '/audio/tongue_1.mp3', text: 'ชามเขียวคว่ำเช้า ชามขาวคว่ำค่ำ' },
-  { id: 37, audio: '/audio/tongue_2.mp3', text: 'สำลีขายหวย สำรวยขายสี สำลีเล่นหวย สำรวยเล่นสี' },
-  { id: 38, audio: '/audio/tongue_3.mp3', text: 'ยายกินลำไย น้ำลายยายไหลย้อย' },
-  { id: 39, audio: '/audio/tongue_4.mp3', text: 'เช้าฟาดผัดฟัก เย็นฟาดฟักผัด' },
-  { id: 40, audio: '/audio/tongue_5.mp3', text: 'กินมันติดเหงือก กินเผือกติดฟัน' },
-];
-
-function AudioBtn({ src, label = 'ฟังคำถาม' }) {
-  const ref = useRef(null);
-  const [playing, setPlaying] = useState(false);
-  const play = () => {
-    if (!ref.current) { ref.current = new Audio(src); ref.current.onended = () => setPlaying(false); }
-    if (playing) { ref.current.pause(); ref.current.currentTime = 0; setPlaying(false); }
-    else { 
-      ref.current.src = src; 
-      const p = ref.current.play();
-      if (p !== undefined) p.catch(() => {});
-      setPlaying(true); 
-    }
-  };
-  useEffect(() => {
-    return () => {
-      if (ref.current) {
-        ref.current.pause();
-        ref.current.src = '';
-      }
-    };
-  }, []);
-  return (
-    <button onClick={play} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '30px', border: 'none', background: playing ? 'var(--color-primary)' : 'rgba(59,130,246,0.12)', color: playing ? 'white' : '#2563eb', fontWeight: '600', cursor: 'pointer', fontSize: '1.1rem', transition: 'all 0.2s', fontFamily: 'inherit' }}>
-      {playing ? <Volume2 size={18} /> : <Play size={18} />} {playing ? 'กำลังเล่น...' : label}
-    </button>
-  );
-}
-
-function MicBtn({ onResult, currentText, expectedText }) {
-  const [recording, setRecording] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const recognitionRef = useRef(null);
-
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
-    setRecording(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      stopRecording();
-    };
-  }, []);
-
-  const toggleListen = () => {
-    if (recording) {
-      stopRecording();
-      return;
-    }
-    
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setErrorMsg("เบราว์เซอร์ไม่รองรับระบบแยกแยะเสียง");
-      onResult("PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123");
-      return;
-    }
-    
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'th-TH';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      
-      recognition.onstart = () => {
-        setRecording(true);
-        setErrorMsg('');
-      };
-      
-      recognition.onresult = (event) => {
-        if (event.results && event.results.length > 0) {
-          const transcript = event.results[0][0].transcript;
-          onResult(transcript);
-        }
-      };
-      
-      recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-        if (event.error === 'not-allowed') {
-          setErrorMsg("โปรดอนุญาตให้ใช้งานไมโครโฟนบนเบราว์เซอร์ของคุณ");
-        } else {
-          setErrorMsg("เกิดข้อผิดพลาดในการฟังเสียง (" + event.error + ")");
-        }
-        setRecording(false);
-      };
-      
-      recognition.onend = () => {
-        setRecording(false);
-      };
-      
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch (e) {
-      console.error("Failed to start speech recognition:", e);
-      setErrorMsg("ไม่สามารถเริ่มการใช้งานไมโครโฟนได้");
-      setRecording(false);
-    }
-  };
-
-  let isMatch = null;
-  if (currentText && expectedText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
-    const cleanSource = expectedText.replace(/[\s\.\-\?!]/g, '');
-    const cleanAnswer = currentText.replace(/[\s\.\-\?!]/g, '');
-    isMatch = cleanSource === cleanAnswer;
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-      <button onClick={toggleListen} 
-        className="option-btn" style={{ padding: '10px 16px', borderRadius: '10px', border: `2px solid ${recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#10b981') : 'rgba(0,0,0,0.08)'}`, background: recording ? '#fef2f2' : currentText ? (isMatch === false ? '#fef2f2' : 'rgba(16,185,129,0.1)') : 'white', color: recording ? '#ef4444' : currentText ? (isMatch === false ? '#ef4444' : '#059669') : '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: '600', transition: 'all 0.2s', width: '100%' }}>
-        <Mic size={18} className={recording ? "pulse-anim" : ""} /> {recording ? 'กำลังฟังเสียง... (กดเพื่อหยุด)' : currentText ? 'บันทึกเสียงแล้ว (กดเพื่อพูดใหม่)' : 'กดปุ่มแล้วเริ่มพูดได้เลย'}
-      </button>
-      {errorMsg && <div style={{ fontSize: '0.9rem', color: '#ef4444', textAlign: 'center' }}>{errorMsg}</div>}
-      {currentText && currentText !== "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123" && (
-        <div style={{ background: isMatch === false ? '#fef2f2' : '#f8fafc', padding: '12px 16px', borderRadius: '8px', color: isMatch === false ? '#ef4444' : '#334155', fontSize: '1rem', fontStyle: 'italic', borderLeft: `4px solid ${isMatch === false ? '#ef4444' : '#10b981'}`, alignSelf: 'flex-start', width: '100%' }}>
-          " {currentText} "
-          {isMatch === false && <div style={{ marginTop: '8px', fontSize: '0.95rem', fontWeight: 'bold', color: '#ef4444' }}>❌ อ่านผิด กรุณากดพูดใหม่</div>}
-          {isMatch === true && <div style={{ marginTop: '8px', fontSize: '0.95rem', fontWeight: 'bold', color: '#059669' }}>✅ อ่านถูกต้อง</div>}
-        </div>
-      )}
+const SectionHeader = ({ num, title, icon }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', marginTop: '16px' }}>
+    <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>
+      {num}
     </div>
-  );
-}
-
-function ResultModal({ score, total, onClose, onRetry }) {
-  const pct = Math.round((score / total) * 100);
-  const passed = score >= 11;
-  const fire = useCallback(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.55 }, colors: ['#3b82f6', '#2563eb', '#fbbf24'], zIndex: 9999 }), []);
-  useEffect(() => { if (passed) { fire(); setTimeout(fire, 1000); } }, [passed, fire]);
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="animate-fade-in" style={{ background: 'white', borderRadius: '24px', padding: '48px 40px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
-        <div style={{ width: '90px', height: '90px', borderRadius: '50%', margin: '0 auto 24px', background: passed ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          {passed ? <Trophy size={44} /> : <XCircle size={44} />}
-        </div>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', marginBottom: '8px' }}>{passed ? '🎉 ยอดเยี่ยม!' : '❌ ยังไม่ผ่านเกณฑ์'}</h2>
-        <p style={{ color: '#6b7280', marginBottom: '28px' }}>{passed ? 'คุณทำทักษะการพูดสำเร็จแล้วครับ!' : 'ลองทำใหม่ได้เลยนะครับ'}</p>
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '28px' }}>
-          <div style={{ padding: '16px 28px', background: 'rgba(59,130,246,0.08)', borderRadius: '16px', border: '2px solid rgba(59,130,246,0.2)' }}>
-            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>คะแนน</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#2563eb', lineHeight: 1 }}>{score}</div>
-            <div style={{ fontSize: '1.1rem', color: '#9ca3af' }}>จาก {total}</div>
-          </div>
-          <div style={{ padding: '16px 28px', background: passed ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)', borderRadius: '16px', border: `2px solid ${passed ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
-            <div style={{ fontSize: '1.1rem', color: '#6b7280', marginBottom: '4px' }}>ร้อยละ</div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: passed ? '#059669' : '#dc2626', lineHeight: 1 }}>{pct}%</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-          <button onClick={onRetry} className="btn-secondary" style={{ padding: '12px 24px', borderRadius: '30px' }}>ทำใหม่</button>
-          <button onClick={onClose} className="btn-primary" style={{ padding: '12px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <ArrowRight size={18} /> ออก
-          </button>
-        </div>
-      </div>
+    <div>
+      <h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3>
+      <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>{icon}</p>
     </div>
-  );
-}
+  </div>
+);
+
+const questionOrder = [...introQ, ...situQ, ...tongueQ].sort((a, b) => a.id - b.id);
 
 export default function SpeakingTest() {
   const { recordScore } = useUser();
   const navigate = useNavigate();
-  const [checked, setChecked] = useState({}); // { qId: true } = self-marked done
-  const [speechTexts, setSpeechTexts] = useState({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const currentQuestionId = questionOrder[currentIndex].id;
+
+  const [speechTexts, setSpeechTexts] = useSessionStorage('speaking_speechTexts', {});
   const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [savedResult, setSavedResult] = useState(null);
+  const [submissionId, setSubmissionId] = useSessionStorage('speaking_submissionId', crypto.randomUUID());
+  const [timerKey, setTimerKey] = useState(0);
 
-  const handleSpeechResult = (qId, text, expectedText) => {
-    setSpeechTexts(prev => ({ ...prev, [qId]: text }));
-    if (text === "PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123") {
-      setChecked(prev => ({ ...prev, [qId]: true }));
-      return;
-    }
-    const cleanSource = expectedText.replace(/[\s\.\-\?!]/g, '');
-    const cleanAnswer = text.replace(/[\s\.\-\?!]/g, '');
-    if (cleanSource === cleanAnswer) {
-      setChecked(prev => ({ ...prev, [qId]: true }));
-    } else {
-      setChecked(prev => ({ ...prev, [qId]: false }));
-    }
-  };
-
-  // Speaking is self-assessed: each question checked = 1 point
   const totalQ = 15;
-  const score = Object.values(checked).filter(Boolean).length;
-  const answeredCount = Object.keys(checked).length;
+  const answeredCount = questionOrder.filter(q => speechTexts[q.id]?.trim()).length;
   const progress = Math.round((answeredCount / totalQ) * 100);
 
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try { await recordScore({ level: 1, skill: 'conversation', score, maxScore: totalQ }); } catch (e) {}
-    setShowResult(true);
-    setSubmitting(false);
+  const handleSpeechResult = (questionId, text) => {
+    setSpeechTexts(prev => ({
+      ...prev,
+      [questionId]: text
+    }));
   };
 
-  const SectionHeader = ({ num, title, icon }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', marginTop: '40px' }}>
-      <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>{num}</div>
-      <div><h3 style={{ margin: 0, color: 'var(--color-primary-dark)', fontSize: '1.1rem' }}>{title}</h3><p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '1.1rem' }}>{icon}</p></div>
-    </div>
-  );
+  const handleSubmit = async () => {
+    if (submitting || showResult) return;
+    setSubmitting(true);
+    setSubmitError('');
 
-  const OpenEndedCard = ({ q, type = 'intro' }) => {
-    const done = checked[q.id];
+    const responses = questionOrder.map(q => ({
+      id: q.id,
+      value: speechTexts[q.id] || ''
+    }));
+
+    try {
+      const result = await recordScore({
+        level: 1,
+        skill: 'conversation',
+        responses,
+        submissionId
+      });
+      setSavedResult(result);
+      setShowResult(true);
+    } catch (error) {
+      setSubmitError(error.message || 'บันทึกไม่สำเร็จ คำตอบยังอยู่ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderOpenEndedCard = ({ q }) => {
+    const done = Boolean(speechTexts[q.id]?.trim());
     return (
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', borderLeft: done ? '4px solid #10b981' : '4px solid transparent', transition: 'all 0.3s' }}>
-        {q.situation && <div style={{ display: 'inline-block', padding: '4px 12px', background: 'rgba(59,130,246,0.1)', borderRadius: '20px', color: '#2563eb', fontSize: '1.1rem', fontWeight: '600', marginBottom: '10px' }}>สถานการณ์: {q.situation}</div>}
+      <div
+        key={q.id}
+        className="glass-panel practice-panel"
+        style={{
+          padding: '24px',
+          marginBottom: '16px',
+          borderLeft: done ? '4px solid #10b981' : '4px solid transparent',
+          transition: 'all 0.3s'
+        }}
+      >
+        {q.situation && (
+          <div
+            style={{
+              display: 'inline-block',
+              padding: '4px 12px',
+              background: 'rgba(59,130,246,0.1)',
+              borderRadius: '20px',
+              color: '#2563eb',
+              fontSize: '1.1rem',
+              fontWeight: '600',
+              marginBottom: '10px'
+            }}
+          >
+            สถานการณ์: {q.situation}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <AudioBtn src={q.audio} label="ฟังคำถาม" />
+          {q.audio && <AudioBtn src={q.audio} label="ฟังคำถาม" />}
           <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', flex: 1, minWidth: '200px', lineHeight: '1.6' }}>
             ข้อ {q.id}. {q.question || q.prompt}
           </p>
@@ -253,82 +115,154 @@ export default function SpeakingTest() {
         <div style={{ padding: '10px 16px', background: 'rgba(0,0,0,0.03)', borderRadius: '8px', marginBottom: '16px' }}>
           <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>💡 แนวทางการตอบ: {q.hint}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.08)', borderRadius: '10px', color: '#dc2626', fontSize: '1.1rem', fontWeight: '500', flex: 1 }}>
-            <Mic size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
-            พูดตอบเข้าไมค์ด้วยตนเอง
-          </div>
-          <button onClick={() => setChecked(prev => ({ ...prev, [q.id]: !done }))}
-            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderRadius: '10px', border: `2px solid ${done ? '#10b981' : 'rgba(0,0,0,0.12)'}`, background: done ? 'rgba(16,185,129,0.1)' : 'white', color: done ? '#059669' : '#6b7280', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s', whiteSpace: 'nowrap' }}>
-            <CheckCircle size={16} /> {done ? 'ตอบแล้ว' : 'ทำเครื่องหมาย'}
-          </button>
-        </div>
+        <MicButton
+          key={q.id}
+          onResult={(text) => handleSpeechResult(q.id, text)}
+          currentText={speechTexts[q.id] || ''}
+          disabled={submitting || showResult}
+          placeholder="พิมพ์คำตอบสำหรับข้อนี้..."
+        />
       </div>
     );
   };
 
-  const TongueCard = ({ q }) => {
-    const done = checked[q.id];
+  const renderTongueCard = ({ q }) => {
+    const done = Boolean(speechTexts[q.id]?.trim());
     return (
-      <div className="glass-panel" style={{ padding: '24px', marginBottom: '16px', borderLeft: done ? '4px solid #10b981' : '4px solid transparent', transition: 'all 0.3s' }}>
+      <div
+        key={q.id}
+        className="glass-panel practice-panel"
+        style={{
+          padding: '24px',
+          marginBottom: '16px',
+          borderLeft: done ? '4px solid #10b981' : '4px solid transparent',
+          transition: 'all 0.3s'
+        }}
+      >
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap' }}>
           {q.audio && <AudioBtn src={q.audio} label="ฟังต้นแบบ" />}
           <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-primary-dark)', fontSize: '1.15rem' }}>ข้อ {q.id}.</p>
         </div>
-        <div style={{ padding: '16px 20px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))', borderRadius: '12px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '16px' }}>
-          <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600', color: '#1e3a8a', lineHeight: '1.8', textAlign: 'center' }}>{q.text}</p>
+        <div
+          style={{
+            padding: '16px 20px',
+            background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))',
+            borderRadius: '12px',
+            border: '1px solid rgba(59,130,246,0.15)',
+            marginBottom: '16px'
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '1.15rem', fontWeight: '600', color: '#1e3a8a', lineHeight: '1.8', textAlign: 'center' }}>
+            {q.text}
+          </p>
         </div>
-        <MicBtn onResult={(txt) => handleSpeechResult(q.id, txt, q.text)} currentText={speechTexts[q.id]} expectedText={q.text} />
+        <MicButton
+          key={q.id}
+          onResult={(text) => handleSpeechResult(q.id, text)}
+          currentText={speechTexts[q.id] || ''}
+          expectedText={q.text}
+          disabled={submitting || showResult}
+          placeholder="พิมพ์คำอ่านของข้อความนี้..."
+        />
       </div>
     );
   };
 
-  const [timerKey, setTimerKey] = useState(0);
-
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
-      {showResult && <ResultModal score={score} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setChecked({}); setShowResult(false); setTimerKey(k => k + 1); }} />}
+    <div className="page-content practice-page exam-page animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
+      {submitError && (
+        <div role="alert" style={{ padding: 16, background: '#fef2f2', color: '#b91c1c', borderRadius: '12px', marginBottom: '16px' }}>
+          <p style={{ margin: 0, marginBottom: '8px' }}>{submitError}</p>
+          <button onClick={handleSubmit} disabled={submitting} className="btn-secondary" style={{ padding: '6px 16px' }}>
+            ลองส่งอีกครั้ง
+          </button>
+        </div>
+      )}
+
+      {showResult && (
+        <ResultModal
+          pendingCount={savedResult?.pending_count || 0}
+          score={savedResult?.score ?? 0}
+          total={totalQ}
+          onClose={() => navigate('/skills')}
+          onRetry={() => {
+            setSpeechTexts({});
+            setShowResult(false);
+            setCurrentIndex(0);
+            setSubmissionId(crypto.randomUUID());
+            setTimerKey(k => k + 1);
+          }}
+        />
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <Link to="/skills" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>← กลับหน้าเลือกทักษะ</Link>
+          <Link to="/skills" style={{ color: 'var(--color-primary)', textDecoration: 'none', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px' }}>
+            ← กลับหน้าเลือกทักษะ
+          </Link>
           <h1 style={{ margin: 0, color: 'var(--color-primary-dark)', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <MessageCircle size={28} color="#2563eb" /> ทักษะการพูด (15 ข้อ)
           </h1>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>ทำแล้ว {answeredCount} / {totalQ}</div>
+          <div style={{ fontSize: '1.1rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+            ทำแล้ว {answeredCount} / {totalQ}
+          </div>
           <div style={{ height: '8px', width: '150px', borderRadius: '999px', background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
             <div style={{ width: `${progress}%`, height: '100%', background: 'linear-gradient(90deg,#3b82f6,#2563eb)', borderRadius: '999px', transition: 'width 0.3s' }} />
           </div>
         </div>
       </div>
 
-      {/* Timer: 15 ข้อ × 30 วินาที = 450 วินาที */}
-      <ExamTimer key={timerKey} totalSeconds={450} onTimeUp={handleSubmit} />
+      {/* Question numbers navigation & Timer */}
+      <QuestionNumbers
+        index={currentIndex}
+        answered={questionOrder.map(q => Boolean(speechTexts[q.id]?.trim()))}
+        onChange={setCurrentIndex}
+        disabled={submitting || showResult}
+      />
+      <h2 data-current-question tabIndex={-1} aria-live="polite" className="question-step" style={{ fontSize: '1.15rem', margin: '16px 0' }}>
+        ข้อที่ {currentIndex + 1} / {totalQ}
+      </h2>
+      <ExamTimer key={timerKey} totalSeconds={450} onTimeUp={handleSubmit} isActive={!submitting && !showResult} />
 
-      <div className="glass-panel" style={{ padding: '20px', marginBottom: '32px', borderLeft: '4px solid #3b82f6', background: 'rgba(59,130,246,0.04)' }}>
+      <div className="glass-panel practice-panel" style={{ padding: '20px', marginBottom: '32px', borderLeft: '4px solid #3b82f6', background: 'rgba(59,130,246,0.04)' }}>
         <strong style={{ color: 'var(--color-primary-dark)' }}>คำชี้แจง:</strong>
-        <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>กดปุ่มฟังคำถาม พูดตอบออกเสียงด้วยตนเอง แล้วกดทำเครื่องหมายว่าทำแล้ว ผู้ประเมินจะให้คะแนนตามเกณฑ์การพูด</span>
+        <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>
+          กดปุ่มฟังคำถาม แล้วกดไมโครโฟนเพื่อพูดตอบเป็นภาษาไทย ระบบจะแปลงเสียงพูดเป็นข้อความอัตโนมัติ (สามารถพูดใหม่หรือพิมพ์แก้ไขได้) จากนั้นกดถัดไปเพื่อทำข้อต่อไป
+        </span>
       </div>
 
-      <SectionHeader num="A" title="สนทนาโต้ตอบ — ข้อมูลส่วนตัว (ข้อ 26-30)" icon="บอกชื่อ บ้านเกิด การศึกษา อาชีพ และงานอดิเรก" />
-      {introQ.map(q => <OpenEndedCard key={q.id} q={q} />)}
+      {/* Sections rendering based on current question */}
+      {introQ.some(q => q.id === currentQuestionId) && (
+        <section data-question-id={currentQuestionId}>
+          <SectionHeader num="A" title="สนทนาโต้ตอบ — ข้อมูลส่วนตัว (ข้อ 26-30)" icon="บอกชื่อ บ้านเกิด การศึกษา อาชีพ และงานอดิเรก" />
+          {introQ.filter(q => q.id === currentQuestionId).map(q => renderOpenEndedCard({ q }))}
+        </section>
+      )}
 
-      <SectionHeader num="B" title="สนทนาโต้ตอบในสถานการณ์จำลอง (ข้อ 31-35)" icon="ตอบในบทบาทสมมติตามสถานการณ์ที่กำหนด" />
-      {situQ.map(q => <OpenEndedCard key={q.id} q={q} type="situ" />)}
+      {situQ.some(q => q.id === currentQuestionId) && (
+        <section data-question-id={currentQuestionId}>
+          <SectionHeader num="B" title="สนทนาโต้ตอบในสถานการณ์จำลอง (ข้อ 31-35)" icon="ตอบในบทบาทสมมติตามสถานการณ์ที่กำหนด" />
+          {situQ.filter(q => q.id === currentQuestionId).map(q => renderOpenEndedCard({ q }))}
+        </section>
+      )}
 
-      <SectionHeader num="C" title="อ่านออกเสียงลิ้นพันกัน Tongue Twister (ข้อ 36-40)" icon="ฟังต้นแบบ แล้วอ่านออกเสียงตามให้ถูกต้องและคล่องแคล่ว" />
-      {tongueQ.map(q => <TongueCard key={q.id} q={q} />)}
+      {tongueQ.some(q => q.id === currentQuestionId) && (
+        <section data-question-id={currentQuestionId}>
+          <SectionHeader num="C" title="อ่านออกเสียงลิ้นพันกัน Tongue Twister (ข้อ 36-40)" icon="ฟังต้นแบบ แล้วอ่านออกเสียงตามให้ถูกต้องและคล่องแคล่ว" />
+          {tongueQ.filter(q => q.id === currentQuestionId).map(q => renderTongueCard({ q }))}
+        </section>
+      )}
 
-      <div style={{ marginTop: '40px', textAlign: 'center' }}>
-        <button onClick={handleSubmit} disabled={submitting} className="btn-primary"
-          style={{ padding: '16px 48px', fontSize: '1.1rem', borderRadius: '30px', display: 'inline-flex', alignItems: 'center', gap: '14px', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', boxShadow: '0 8px 20px rgba(59,130,246,0.4)', opacity: submitting ? 0.7 : 1 }}>
-          {submitting ? <><RefreshCw size={20} className="spin" /> บันทึก...</> : <><Trophy size={20} /> ส่งคำตอบและดูผล</>}
-        </button>
-        <p style={{ color: 'var(--text-muted)', marginTop: '12px', fontSize: '1.1rem' }}>ทำเครื่องหมายแล้ว {answeredCount} จาก {totalQ} ข้อ</p>
-      </div>
+      <QuestionNavigation
+        index={currentIndex}
+        total={totalQ}
+        onChange={setCurrentIndex}
+        onSubmit={handleSubmit}
+        disabled={submitting || showResult}
+      />
     </div>
   );
 }

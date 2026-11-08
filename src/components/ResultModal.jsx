@@ -1,8 +1,9 @@
+import ModalPortal from './ModalPortal';
 import React, { useEffect, useCallback } from 'react';
 import { Trophy, XCircle, ArrowRight } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function ResultModal({ score, total, breakdown, onClose, onRetry }) {
+export default function ResultModal({ score, total, breakdown, onClose, onRetry, pendingCount = 0 }) {
   const pct = Math.round((score / total) * 100);
   
   let evaluationLevel = '';
@@ -14,16 +15,16 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry 
 
   let failedSkills = [];
   if (breakdown) {
-    Object.entries(breakdown).forEach(([key, item]) => {
+    Object.values(breakdown).forEach((item) => {
       if (item.max > 0) {
-        // ใช้เกณฑ์ 60% ของคะแนนเต็มในแต่ละทักษะ
-        const skillPassed = (item.score / item.max) >= 0.6;
+        // ใช้เกณฑ์ 70% ของคะแนนเต็มในแต่ละทักษะ
+        const skillPassed = (item.score / item.max) >= 0.7;
         if (!skillPassed) failedSkills.push(item.label);
       }
     });
   }
   
-  const allPassed = breakdown ? failedSkills.length === 0 : pct >= 60;
+  const allPassed = pendingCount === 0 && pct >= 70;
 
   const fire = useCallback(() => {
     confetti({ 
@@ -44,23 +45,24 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry 
   }, [allPassed, fire]);
   
   return (
+    <ModalPortal label="ผลการประเมิน" onClose={onClose}>
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div className="animate-fade-in" style={{ background: 'white', borderRadius: '24px', padding: '48px 40px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+      <div className="modal-surface" style={{ background: 'white', borderRadius: '24px', padding: '48px 40px', maxWidth: '520px', width: '100%', textAlign: 'center', boxShadow: '0 24px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ width: '90px', height: '90px', borderRadius: '50%', margin: '0 auto 24px', background: allPassed ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
           {allPassed ? <Trophy size={44} /> : <XCircle size={44} />}
         </div>
         
-        {allPassed ? (
+        {pendingCount > 0 ? <h2 style={{color:'#92400e'}}>บันทึกแล้ว — รอเจ้าหน้าที่ตรวจ {pendingCount} ข้อ</h2> : allPassed ? (
           <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#059669', marginBottom: '24px' }}>ยอดเยี่ยม! 🎉 คุณผ่านเกณฑ์การประเมิน</h2>
         ) : (
           <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '24px' }}>❌ ยังไม่ผ่านเกณฑ์การประเมิน</h2>
         )}
 
         <div style={{ fontSize: '1.25rem', color: '#475569', marginBottom: '24px', lineHeight: '1.8', textAlign: 'left', background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-          <div style={{ marginBottom: '12px' }}>คุณได้ <strong style={{ color: 'var(--color-primary)', fontSize: '1.6rem' }}>{score}</strong> คะแนน (ร้อยละ {pct})</div>
-          <div style={{ marginBottom: '12px' }}>ผลการประเมินของคุณอยู่ในระดับ <strong style={{ color: evaluationColor, fontSize: '1.5rem' }}>{evaluationLevel}</strong></div>
+          <div style={{ marginBottom: '12px' }}>คะแนนที่ตรวจแล้ว <strong style={{ color: 'var(--color-primary)', fontSize: '1.6rem' }}>{score}</strong> คะแนน (ร้อยละ {pct})</div>
+          <div style={{ marginBottom: '12px' }}>ผลการประเมินของคุณอยู่ในระดับ <strong style={{ color: evaluationColor, fontSize: '1.5rem' }}>{pendingCount ? 'รอตรวจ ยังไม่สรุปผล' : evaluationLevel}</strong></div>
           
-          {!allPassed && failedSkills.length > 0 && (
+          {pendingCount === 0 && !allPassed && failedSkills.length > 0 && (
             <div style={{ color: '#dc2626', marginTop: '20px', padding: '16px', background: '#fef2f2', borderRadius: '12px', borderLeft: '4px solid #ef4444' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>โดยมีทักษะที่ต้องพัฒนาได้แก่:</div>
               <ul style={{ margin: 0, paddingLeft: '24px' }}>
@@ -86,7 +88,7 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry 
                       <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {item.label}
                         <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: skillPassed ? '#d1fae5' : '#fee2e2', color: skillPassed ? '#059669' : '#dc2626' }}>
-                          {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                          {item.pending > 0 ? 'รอตรวจ' : skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
                         </span>
                       </span>
                       <span style={{ color: 'var(--color-primary)' }}>{item.score} / {item.max}</span>
@@ -100,7 +102,7 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry 
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <button onClick={onRetry} className="btn-secondary" style={{ padding: '14px 28px', borderRadius: '30px', fontSize: '1.1rem' }}>ทำใหม่อีกครั้ง</button>
           <button onClick={onClose} className="btn-primary" style={{ padding: '14px 28px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.1rem' }}>
             <ArrowRight size={18} /> ดูผลและออก
@@ -108,5 +110,6 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry 
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

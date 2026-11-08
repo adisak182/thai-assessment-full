@@ -1,3 +1,6 @@
+import { useUser } from '../context/UserContext';
+import { remainingSeconds } from '../utils/examClock';
+import { examStorageKey } from '../utils/examStorage';
 import { useState, useEffect, useRef } from 'react';
 import { Timer } from 'lucide-react';
 
@@ -8,38 +11,32 @@ import { Timer } from 'lucide-react';
  *   onTimeUp      – callback เมื่อหมดเวลา (trigger submit)
  */
 export default function ExamTimer({ totalSeconds, onTimeUp, compact, storageKey, isActive = true }) {
-  const [remaining, setRemaining] = useState(() => {
-    if (storageKey) {
-      const saved = window.sessionStorage.getItem(storageKey);
-      if (saved !== null && !isNaN(parseInt(saved, 10))) {
-        return parseInt(saved, 10);
-      }
-    }
-    return totalSeconds;
+  const { user } = useUser();
+  const deadlineKey = storageKey ? examStorageKey(user?.id || user?._id,storageKey)+'_deadline' : null;
+  const [deadline] = useState(() => {
+    const saved=deadlineKey ? Number(sessionStorage.getItem(deadlineKey)) : 0;
+    const value=Number.isFinite(saved)&&saved>0?saved:Date.now()+totalSeconds*1000;
+    if(deadlineKey)sessionStorage.setItem(deadlineKey,String(value));
+    return value;
   });
-  const [urgent, setUrgent] = useState(false);
-  const calledRef = useRef(false);
-
-  useEffect(() => {
-    if (!isActive) return;
-
-    if (storageKey) {
-      window.sessionStorage.setItem(storageKey, remaining);
-    }
-    if (remaining <= 0) {
-      if (!calledRef.current) {
-        calledRef.current = true;
-        onTimeUp?.();
-      }
-      return;
-    }
-
-    // Flash urgent when <= 60 seconds left
-    setUrgent(remaining <= 60);
-
-    const id = setTimeout(() => setRemaining(r => r - 1), 1000);
-    return () => clearTimeout(id);
-  }, [remaining, onTimeUp, isActive, storageKey]);
+  const [remaining,setRemaining]=useState(()=>remainingSeconds(deadline));
+  const calledRef=useRef(false);
+  const callbackRef=useRef(onTimeUp);
+  useEffect(()=>{callbackRef.current=onTimeUp;},[onTimeUp]);
+  useEffect(()=>{
+    if(!isActive)return;
+    const tick=()=>{
+      const next=remainingSeconds(deadline);
+      setRemaining(next);
+      if(next===0 && !calledRef.current){calledRef.current=true;callbackRef.current?.();}
+    };
+    tick();
+    const interval=setInterval(tick,250);
+    window.addEventListener('focus',tick);
+    document.addEventListener('visibilitychange',tick);
+    return ()=>{clearInterval(interval);window.removeEventListener('focus',tick);document.removeEventListener('visibilitychange',tick);};
+  },[deadline,isActive]);
+  const urgent=remaining<=60;
 
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;

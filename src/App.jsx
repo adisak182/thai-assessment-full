@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { BookOpen, Trophy, LayoutDashboard, User as UserIcon } from 'lucide-react';
 import logoImg from './assets/logo.jpg';
 import { useUser } from './context/UserContext';
@@ -59,23 +59,23 @@ function AppLayout() {
           </Link>
         </div>
         <nav className="nav-links">
-          <Link to="/" className="nav-item">
+          <NavLink to="/" className="nav-item">
             <BookOpen size={20} /> <span className="nav-text">หน้าแรก</span>
-          </Link>
-          <Link to="/ranking" className="nav-item">
+          </NavLink>
+          <NavLink to="/ranking" className="nav-item">
             <Trophy size={20} /> <span className="nav-text">จัดอันดับ</span>
-          </Link>
-          <Link to="/dashboard" className="nav-item">
+          </NavLink>
+          <NavLink to="/dashboard" className="nav-item">
             <LayoutDashboard size={20} /> <span className="nav-text">แดชบอร์ด</span>
-          </Link>
+          </NavLink>
           {user && (
-            <Link to="/profile" className="nav-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <NavLink to="/profile" className="nav-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {user.avatar
                 ? <img src={user.avatar} alt="avatar" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--color-primary-light)' }} />
                 : <UserIcon size={20} />
               }
-              <span className="nav-text">{user.name ? user.name.split(' ')[0] : 'โปรไฟล์'}</span>
-            </Link>
+              <span className="nav-text">โปรไฟล์</span>
+            </NavLink>
           )}
         </nav>
       </header>

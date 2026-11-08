@@ -1,3 +1,8 @@
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
+import SpeakingAudio from '../models/SpeakingAudio.js';
+import { isAudioId, validateAudioUpload, validateAudioReferences } from '../speakingAudio.js';
+import { gradeSubmission, summarizeResults } from '../grading.js';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
@@ -54,41 +59,79 @@ router.put('/me', authenticate, async (req, res) => {
   }
 });
 
+// Recordings remain private; unsubmitted recordings expire after one day.
+router.post('/speaking-audio/:id',authenticate,express.raw({type:()=>true,limit:'2mb'}),async(req,res)=>{
+ try{
+  const {submissionId,skill}=req.query,questionId=Number(req.query.questionId);
+  const mime=validateAudioUpload({id:req.params.id,submissionId,skill,questionId,mime:req.headers['content-type'],data:req.body});
+  if(!await User.exists({_id:req.userId}))return res.status(401).json({message:'ไม่พบบัญชีผู้ใช้'});
+  if(await ScoreHistory.exists({user_id:req.userId,submission_id:submissionId}))return res.status(409).json({message:'รอบสอบนี้ส่งคำตอบแล้ว'});
+  const existing=await SpeakingAudio.findById(req.params.id);
+  if(existing){
+   validateAudioReferences([{id:questionId,audioId:req.params.id}],[existing],{userId:req.userId,submissionId,skill});
+   return res.json({audioId:existing._id});
+  }
+  if(await SpeakingAudio.countDocuments({user_id:req.userId,submission_id:submissionId})>=60)return res.status(429).json({message:'บันทึกเสียงรอบนี้ครบจำนวนแล้ว กรุณาติดต่อผู้ดูแล'});
+  await SpeakingAudio.init();
+  const clip=await SpeakingAudio.create({_id:req.params.id,user_id:req.userId,submission_id:submissionId,skill,question_id:questionId,mime,data:req.body,expires_at:new Date(Date.now()+86400000)});
+  return res.status(201).json({audioId:clip._id});
+ }catch(error){
+  if(error.code===11000)return res.status(409).json({message:'กำลังบันทึกเสียงนี้ กรุณาลองส่งอีกครั้ง'});
+  if(error.name==='Error')return res.status(400).json({message:error.message});
+  return res.status(500).json({message:'บันทึกเสียงไม่สำเร็จ กรุณาลองใหม่'});
+ }
+},(error,req,res,next)=>{
+ if(error.type==='entity.too.large')return res.status(413).json({message:'ไฟล์เสียงใหญ่เกิน 2 MB กรุณาอัดให้สั้นลง'});
+ next(error);
+});
+router.get('/speaking-audio/:id',authenticate,async(req,res)=>{
+ if(!isAudioId(req.params.id))return res.status(404).json({message:'ไม่พบไฟล์เสียง'});
+ try{
+  const viewer=await User.findById(req.userId).select('role');
+  if(!viewer)return res.status(401).json({message:'ไม่พบบัญชีผู้ใช้'});
+  const clip=await SpeakingAudio.findOne({_id:req.params.id,...(viewer.role==='admin'?{}:{user_id:req.userId})}).select('+data');
+  if(!clip || (clip.expires_at && clip.expires_at<=new Date()))return res.status(404).json({message:'ไม่พบไฟล์เสียง'});
+  res.set({'Content-Type':clip.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Accept-Ranges':'bytes'});
+  const data=Buffer.from(clip.data),range=req.headers.range;
+  if(range){
+   const match=/^bytes=(\d*)-(\d*)$/.exec(range);
+   let start=match?.[1]?Number(match[1]):0,end=match?.[2]?Number(match[2]):data.length-1;
+   if(match && !match[1] && match[2]){start=Math.max(0,data.length-Number(match[2]));end=data.length-1;}
+   end=Math.min(end,data.length-1);
+   if(!match||start>end||start>=data.length)return res.status(416).set('Content-Range',`bytes */${data.length}`).end();
+   return res.status(206).set('Content-Range',`bytes ${start}-${end}/${data.length}`).send(data.subarray(start,end+1));
+  }
+  return res.send(data);
+ }catch{return res.status(500).json({message:'โหลดเสียงไม่สำเร็จ'});}
+});
+
 // ==================== SAVE SCORE ====================
 router.post('/score', authenticate, async (req, res) => {
-  const { level, skill, score, maxScore, breakdown, detailed_results } = req.body;
-
-  if (!skill || score == null || maxScore == null) {
-    return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
-  }
-
+  let result;
   try {
-    // บันทึกลง ScoreHistory โดยใช้ level=1 เป็น default (ระบบใหม่ไม่แบ่ง level)
-    await ScoreHistory.create({
-      user_id: req.userId,
-      level: level || 1,
-      skill,
-      score,
-      max_score: maxScore,
-      breakdown: breakdown || {},
-      detailed_results: detailed_results || []
-    });
-
-    // คำนวณคะแนนรวมทุกทักษะของผู้ใช้นี้ (เอาคะแนนสูงสุดของแต่ละทักษะ)
-    const latestScores = await ScoreHistory.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(req.userId) } },
-      { $sort: { taken_at: -1 } },
-      { $group: { _id: '$skill', score: { $max: '$score' } } }
-    ]);
-
-    const totalScore = latestScores.reduce((acc, curr) => acc + curr.score, 0);
-    // เกณฑ์ผ่าน: 70% ของ 100 คะแนนเต็ม = 70 คะแนน
-    const passed = totalScore >= 70;
-
-    return res.json({ message: 'บันทึกคะแนนสำเร็จ', totalScore, passed });
-  } catch (err) {
-    console.error('Save score error:', err);
-    return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+    if(typeof req.body.submissionId!=='string' || !/^[0-9a-f-]{36}$/i.test(req.body.submissionId))throw new Error('รหัสรอบสอบไม่ถูกต้อง');
+    result=gradeSubmission(req.body);
+  }
+  catch(error){return res.status(400).json({message:error.message});}
+  try {
+    const exists=await User.exists({_id:req.userId});
+    if(!exists)return res.status(401).json({message:'ไม่พบบัญชีผู้ใช้'});
+    const audioIds=req.body.responses.filter(r=>r.audioId).map(r=>r.audioId);
+    const clips=audioIds.length?await SpeakingAudio.find({_id:{$in:audioIds}}):[];
+    try{validateAudioReferences(req.body.responses,clips,{userId:req.userId,submissionId:req.body.submissionId,skill:req.body.skill});}
+    catch(error){return res.status(400).json({message:error.message});}
+    // Keep submitted clips for the same lifetime as their exam; account deletion removes both.
+    await ScoreHistory.init();
+    const saved=await ScoreHistory.findOneAndUpdate(
+      {user_id:req.userId,submission_id:req.body.submissionId},
+      {$setOnInsert:{user_id:req.userId,submission_id:req.body.submissionId,level:1,skill:req.body.skill,score:result.score,max_score:result.maxScore,breakdown:result.breakdown,detailed_results:result.detailed_results,pending_count:result.pending_count}},
+      {upsert:true,new:true,setDefaultsOnInsert:true}
+    );
+    const savedAudioIds=saved.detailed_results.filter(r=>r.audio_id).map(r=>r.audio_id);
+    if(savedAudioIds.length)await SpeakingAudio.updateMany({_id:{$in:savedAudioIds},user_id:req.userId},{$unset:{expires_at:1}});
+    return res.json({message:'บันทึกคะแนนสำเร็จ',...summarizeResults(saved.detailed_results,saved.max_score)});
+  } catch {
+    return res.status(500).json({message:'บันทึกคะแนนไม่สำเร็จ กรุณาลองใหม่'});
   }
 });
 
@@ -111,8 +154,8 @@ router.get('/scores', authenticate, async (req, res) => {
   try {
     // Latest score per (level, skill) combination
     const scores = await ScoreHistory.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(req.userId) } },
-      { $sort: { taken_at: -1 } },
+      { $match: { user_id: new mongoose.Types.ObjectId(req.userId), pending_count: { $not: { $gt: 0 } } } },
+      { $sort: { score: -1, taken_at: -1 } },
       { $group: {
           _id: { level: '$level', skill: '$skill' },
           score: { $first: '$score' },
@@ -150,7 +193,7 @@ router.get('/ranking', authenticate, async (req, res) => {
     const ranking = await ScoreHistory.aggregate([
       // กรองเอาเฉพาะคะแนนจากแบบทดสอบ 100 ข้อ
       {
-        $match: { skill: 'full_test' }
+        $match: { skill: 'full_test', pending_count: { $not: { $gt: 0 } } }
       },
       // 1. หาคะแนนสูงสุดของผู้ใช้แต่ละคน
       {

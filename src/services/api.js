@@ -48,7 +48,9 @@ export const getProfile = async (token) => {
   });
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result.message || 'ดึงข้อมูลโปรไฟล์ไม่สำเร็จ');
+    const error = new Error(result.message || 'ดึงข้อมูลโปรไฟล์ไม่สำเร็จ');
+    error.status = response.status;
+    throw error;
   }
   return result;
 };
@@ -202,3 +204,23 @@ export const updateUserByAdmin = async (token, userId, data) => {
   if (!response.ok) throw new Error(result.message || 'อัปเดตข้อมูลผู้ใช้ไม่สำเร็จ');
   return result;
 };
+
+export const reviewAttempt = async (token, attemptId, questionId, correct) => {
+  const response=await fetch(`${API_URL}/admin/attempts/${attemptId}/review`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({questionId,correct})});
+  const result=await response.json();
+  if(!response.ok)throw new Error(result.message || 'บันทึกผลตรวจไม่สำเร็จ');
+  return result;
+};
+
+export async function uploadSpeakingAudio(token,id,blob,{questionId,skill,submissionId}) {
+  const query=new URLSearchParams({questionId,skill,submissionId});
+  const response=await fetch(`${API_URL}/users/speaking-audio/${id}?${query}`,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':blob.type||'audio/mp4'},body:blob,signal:AbortSignal.timeout(45000)});
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||!result?.audioId)throw new Error(result?.message||(response.status===413?'ไฟล์เสียงใหญ่เกินไป กรุณาอัดให้สั้นลง':'ส่งเสียงไม่สำเร็จ เสียงยังอยู่ในหน้านี้ กรุณาลองอีกครั้ง'));
+  return result;
+}
+export async function getSpeakingAudio(token,id) {
+  const response=await fetch(`${API_URL}/users/speaking-audio/${id}`,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(30000)});
+  if(!response.ok)throw new Error('โหลดเสียงคำตอบไม่ได้ กรุณาลองอีกครั้ง');
+  return response.blob();
+}

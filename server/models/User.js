@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  is_literacy_learner: {
+    type: Boolean,
+    default: false,
+  },
   education_level: {
     type: String,
     default: null,

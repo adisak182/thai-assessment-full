@@ -22,6 +22,8 @@ const scoreHistorySchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+  submission_id: { type: String },
+  pending_count: { type: Number, default: 0 },
   taken_at: {
     type: Date,
     default: Date.now,
@@ -35,6 +37,8 @@ const scoreHistorySchema = new mongoose.Schema({
     default: []
   }
 });
+
+scoreHistorySchema.index({ user_id: 1, submission_id: 1 }, { unique: true, partialFilterExpression: { submission_id: { $type: 'string' } } });
 
 scoreHistorySchema.set('toJSON', {
   transform: (document, returnedObject) => {

@@ -40,8 +40,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
-      <div style={{ width: '100%', maxWidth: '440px' }}>
+    <div className="auth-shell">
+      <div className="auth-content">
 
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '72px', height: '72px', borderRadius: '20px', background: 'linear-gradient(135deg, #a855f7, #7e22ce)', color: 'white', marginBottom: '16px', boxShadow: '0 8px 24px rgba(168,85,247,0.35)' }}>
@@ -51,7 +51,7 @@ export default function LoginPage() {
           <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.9rem' }}>สำนักงานส่งเสริมการเรียนรู้ประจำจังหวัดนราธิวาส</p>
         </div>
 
-        <div className="glass-panel" style={{ padding: '40px' }}>
+        <div className="glass-panel auth-card">
           <h2 style={{ fontSize: '1.5rem', color: 'var(--color-primary-dark)', marginBottom: '28px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
             <LogIn size={22} /> เข้าสู่ระบบ
           </h2>
@@ -67,8 +67,8 @@ export default function LoginPage() {
               <label style={{ display: 'block', marginBottom: '8px', color: 'var(--color-primary-dark)', fontWeight: '600' }}>
                 ชื่อผู้ใช้ <span style={{ color: 'red' }}>*</span>
               </label>
-              <input type="text" name="username" value={form.username} onChange={handleChange}
-                required autoFocus placeholder="กรอกชื่อผู้ใช้" style={inputStyle} />
+              <input type="text" id="login-username" aria-label="ชื่อผู้ใช้" name="username" value={form.username} onChange={handleChange}
+                required autoComplete="username" placeholder="กรอกชื่อผู้ใช้" style={inputStyle} />
             </div>
 
             <div>
@@ -76,9 +76,9 @@ export default function LoginPage() {
                 รหัสผ่าน <span style={{ color: 'red' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
-                <input type={showPw ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange}
+                <input type={showPw ? 'text' : 'password'} id="login-password" aria-label="รหัสผ่าน" autoComplete="current-password" name="password" value={form.password} onChange={handleChange}
                   required placeholder="กรอกรหัสผ่าน" style={{ ...inputStyle, paddingRight: '48px' }} />
-                <button type="button" onClick={() => setShowPw(v => !v)}
+                <button type="button" className="password-toggle" aria-label={showPw ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'} aria-pressed={showPw} onClick={() => setShowPw(v => !v)}
                   style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
                   {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                 </button>
@@ -92,9 +92,9 @@ export default function LoginPage() {
           </form>
 
           <div style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-muted)' }}>
-            ยังไม่มีบัญชี?{' '}
-            <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: '600', textDecoration: 'none' }}>
-              สมัครสมาชิกที่นี่
+            ผู้ใช้งานทั่วไป{' '}
+            <Link to="/start" style={{ color: 'var(--color-primary)', fontWeight: '600', textDecoration: 'none' }}>
+              เริ่มทำแบบทดสอบที่นี่
             </Link>
           </div>
         </div>

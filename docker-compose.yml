@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: thai-assessment-app
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=thai_assessment
+      - DB_USER=root
+      - DB_PASS=secretpassword
+      - JWT_SECRET=your_super_secret_jwt_key_here_change_me
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mariadb:10.4
+    container_name: thai-assessment-mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=secretpassword
+      - MYSQL_DATABASE=thai_assessment
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  mysql-data:
