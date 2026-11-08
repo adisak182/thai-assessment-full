@@ -36,8 +36,6 @@ export default function AudioBtn({ src, label = 'ฟังเสียง', onCo
         if (!showSeek && ref.current) {
           try {
             ref.current.currentTime = 0;
-            ref.current.removeAttribute('src');
-            ref.current.load();
           } catch {
             // ignore
           }
@@ -57,12 +55,10 @@ export default function AudioBtn({ src, label = 'ฟังเสียง', onCo
       if (!showSeek) ref.current.currentTime = 0;
       setPlaying(false);
     } else {
-      if (!showSeek && (!ref.current.src || (!ref.current.src.endsWith(src) && ref.current.src !== src))) {
+      if (!showSeek && ref.current.src !== src && !ref.current.src.endsWith(src)) {
         ref.current.src = src;
-        try { ref.current.load(); } catch {}
-      } else if (showSeek && (!ref.current.src || !ref.current.src.includes(src))) {
+      } else if (showSeek && !ref.current.src.includes(src)) {
         ref.current.src = src;
-        try { ref.current.load(); } catch {}
       }
       setAudioError('');
       if (ref.current.error) ref.current.load();

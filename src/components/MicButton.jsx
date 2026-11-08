@@ -8,18 +8,23 @@ let globalActiveRecognition = null;
 
 export function abortGlobalActiveRecognition() {
   if (globalActiveRecognition) {
-    try {
-      globalActiveRecognition.onstart = null;
-      globalActiveRecognition.onaudiostart = null;
-      globalActiveRecognition.onspeechstart = null;
-      globalActiveRecognition.onresult = null;
-      globalActiveRecognition.onerror = null;
-      globalActiveRecognition.onend = null;
-      globalActiveRecognition.abort();
-    } catch {
-      // ignore abort errors
-    }
+    const rec = globalActiveRecognition;
     globalActiveRecognition = null;
+    try {
+      rec.onstart = null;
+      rec.onaudiostart = null;
+      rec.onspeechstart = null;
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+      rec.stop();
+    } catch {
+      try {
+        rec.abort();
+      } catch {
+        // ignore
+      }
+    }
   }
 }
 
@@ -56,35 +61,55 @@ export default function MicButton({
         onResultRef.current(lastText);
       }
       if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
+        const rec = recognitionRef.current;
         recognitionRef.current = null;
+        try {
+          rec.onstart = null;
+          rec.onaudiostart = null;
+          rec.onspeechstart = null;
+          rec.onresult = null;
+          rec.onerror = null;
+          rec.onend = null;
+          rec.stop();
+        } catch {
+          try {
+            rec.abort();
+          } catch {
+            // ignore
+          }
+        }
       }
-      abortGlobalActiveRecognition();
+      if (globalActiveRecognition === recognitionRef.current) {
+        globalActiveRecognition = null;
+      }
     };
   }, []);
 
   const stopRecognition = () => {
-    // If we heard speech before stopping, immediately save it so it's not lost
+    // If we heard speech before stopping, immediately save it
     const textToSave = latestTranscriptRef.current?.trim() || preview.trim();
     if (textToSave && onResultRef.current) {
       onResultRef.current(textToSave);
     }
 
     if (recognitionRef.current) {
+      const rec = recognitionRef.current;
+      recognitionRef.current = null;
       try {
-        recognitionRef.current.stop();
+        rec.onstart = null;
+        rec.onaudiostart = null;
+        rec.onspeechstart = null;
+        rec.onresult = null;
+        rec.onerror = null;
+        rec.onend = null;
+        rec.stop();
       } catch {
         try {
-          recognitionRef.current.abort();
+          rec.abort();
         } catch {
           // ignore
         }
       }
-      recognitionRef.current = null;
     }
     abortGlobalActiveRecognition();
 
@@ -96,17 +121,17 @@ export default function MicButton({
   };
 
   const startListening = () => {
-    if (disabled || recording || processing) return;
+    if (disabled || recording) return;
 
     // Reset error & states
     setErrorMsg('');
     setPreview('');
     latestTranscriptRef.current = '';
 
-    // 1. Release any prompt audio elements so iOS Safari AVAudioSession is unlocked
+    // 1. Release any prompt audio elements cleanly so iOS Safari AVAudioSession is unlocked
     pausePromptAudio();
 
-    // 2. Synchronously abort and detach any lingering speech recognition instance
+    // 2. Safely release any lingering speech recognition instance
     abortGlobalActiveRecognition();
 
     const SpeechRecognition =
@@ -127,11 +152,16 @@ export default function MicButton({
       recognition.lang = 'th-TH';
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
+      recognition.continuous = false; // MUST be false for iOS Safari stability
 
-      // continuous MUST be false on iOS Safari / WebKit to ensure proper onresult delivery
-      recognition.continuous = false;
+      let watchdogTimer = setTimeout(() => {
+        if (isMountedRef.current && !latestTranscriptRef.current && !recording) {
+          setProcessing(false);
+        }
+      }, 4000);
 
       recognition.onstart = () => {
+        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
         setRecording(true);
         setProcessing(false);
@@ -139,17 +169,20 @@ export default function MicButton({
       };
 
       recognition.onaudiostart = () => {
+        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
         setRecording(true);
         setProcessing(false);
       };
 
       recognition.onspeechstart = () => {
+        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
         setRecording(true);
       };
 
       recognition.onresult = (event) => {
+        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
 
         let interimText = '';
@@ -172,15 +205,16 @@ export default function MicButton({
           latestTranscriptRef.current = bestText;
           setPreview(bestText);
           setErrorMsg('');
-        }
 
-        // When a segment is finalized, update the parent state immediately
-        if (finalText.trim() && onResultRef.current) {
-          onResultRef.current(finalText.trim());
+          // CRITICAL: Update parent answer state immediately in real-time as speech is heard!
+          if (onResultRef.current) {
+            onResultRef.current(bestText);
+          }
         }
       };
 
       recognition.onerror = (event) => {
+        clearTimeout(watchdogTimer);
         if (globalActiveRecognition === recognition) {
           globalActiveRecognition = null;
         }
@@ -210,12 +244,18 @@ export default function MicButton({
           setErrorMsg('ไม่พบไมโครโฟนที่ใช้งานได้ กรุณาตรวจไมโครโฟนหรือปิดแอปอื่นที่กำลังใช้ไมค์');
         } else if (event.error === 'network') {
           setErrorMsg('บริการแปลงเสียงเชื่อมต่อไม่ได้ชั่วคราว กรุณาลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
-        } else if (event.error !== 'aborted') {
+        } else if (event.error === 'aborted') {
+          // Aborted can happen gracefully on session resets; allow immediate re-try
+          if (!currentText && !savedSoFar) {
+            setErrorMsg('การรับฟังเสียงหยุดชั่วคราว กรุณากดปุ่มพูดอีกครั้งได้เลยครับ');
+          }
+        } else {
           setErrorMsg(speechErrorMessage(event.error));
         }
       };
 
       recognition.onend = () => {
+        clearTimeout(watchdogTimer);
         if (globalActiveRecognition === recognition) {
           globalActiveRecognition = null;
         }
@@ -237,8 +277,7 @@ export default function MicButton({
       recognitionRef.current = recognition;
       globalActiveRecognition = recognition;
 
-      // Start recognition synchronously within user gesture
-      setProcessing(true);
+      // Start recognition synchronously within the direct user gesture
       recognition.start();
     } catch (err) {
       console.error('Failed to start speech recognition:', err);
@@ -255,7 +294,6 @@ export default function MicButton({
 
   const toggleListen = () => {
     if (recording) {
-      setProcessing(true);
       stopRecognition();
     } else {
       startListening();
@@ -285,7 +323,7 @@ export default function MicButton({
       <button
         type="button"
         onClick={toggleListen}
-        disabled={disabled || processing}
+        disabled={disabled}
         className="option-btn"
         style={{
           padding: '16px 24px',
