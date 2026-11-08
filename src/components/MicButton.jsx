@@ -19,11 +19,7 @@ export function abortGlobalActiveRecognition() {
       rec.onend = null;
       rec.stop();
     } catch {
-      try {
-        rec.abort();
-      } catch {
-        // ignore
-      }
+      // ignore
     }
   }
 }
@@ -63,6 +59,9 @@ export default function MicButton({
       if (recognitionRef.current) {
         const rec = recognitionRef.current;
         recognitionRef.current = null;
+        if (globalActiveRecognition === rec) {
+          globalActiveRecognition = null;
+        }
         try {
           rec.onstart = null;
           rec.onaudiostart = null;
@@ -72,15 +71,8 @@ export default function MicButton({
           rec.onend = null;
           rec.stop();
         } catch {
-          try {
-            rec.abort();
-          } catch {
-            // ignore
-          }
+          // ignore
         }
-      }
-      if (globalActiveRecognition === recognitionRef.current) {
-        globalActiveRecognition = null;
       }
     };
   }, []);
@@ -95,6 +87,9 @@ export default function MicButton({
     if (recognitionRef.current) {
       const rec = recognitionRef.current;
       recognitionRef.current = null;
+      if (globalActiveRecognition === rec) {
+        globalActiveRecognition = null;
+      }
       try {
         rec.onstart = null;
         rec.onaudiostart = null;
@@ -104,11 +99,7 @@ export default function MicButton({
         rec.onend = null;
         rec.stop();
       } catch {
-        try {
-          rec.abort();
-        } catch {
-          // ignore
-        }
+        // ignore
       }
     }
     abortGlobalActiveRecognition();
@@ -120,7 +111,22 @@ export default function MicButton({
     }
   };
 
-  const startListening = () => {
+  const primeMicrophoneSession = async () => {
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(track => {
+          try { track.stop(); } catch {}
+        });
+        // Brief pause to allow iOS hardware audio subsystem to settle in PlayAndRecord category
+        await new Promise(r => setTimeout(r, 120));
+      } catch (err) {
+        console.warn('Microphone priming notice:', err);
+      }
+    }
+  };
+
+  const startListening = async () => {
     if (disabled || recording) return;
 
     // Reset error & states
@@ -133,6 +139,11 @@ export default function MicButton({
 
     // 2. Safely release any lingering speech recognition instance
     abortGlobalActiveRecognition();
+
+    // 3. Force iOS Safari AVAudioSession back to PlayAndRecord by priming with getUserMedia
+    await primeMicrophoneSession();
+
+    if (!isMountedRef.current) return;
 
     const SpeechRecognition =
       typeof window !== 'undefined'
@@ -154,35 +165,45 @@ export default function MicButton({
       recognition.maxAlternatives = 1;
       recognition.continuous = false; // MUST be false for iOS Safari stability
 
-      let watchdogTimer = setTimeout(() => {
-        if (isMountedRef.current && !latestTranscriptRef.current && !recording) {
-          setProcessing(false);
-        }
-      }, 4000);
+      let silenceWatchdog = null;
+      const resetWatchdog = () => {
+        if (silenceWatchdog) clearTimeout(silenceWatchdog);
+        silenceWatchdog = setTimeout(() => {
+          if (!isMountedRef.current) return;
+          if (!latestTranscriptRef.current && recording) {
+            console.warn('Speech recognition silent timeout triggered');
+            try { recognition.stop(); } catch {}
+            setRecording(false);
+            setProcessing(false);
+            setErrorMsg('ยังไม่ได้ยินเสียงพูดชัดเจน กรุณากดปุ่มแล้วพูดอีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
+            setIsEditing(true);
+          }
+        }, 7000);
+      };
 
       recognition.onstart = () => {
-        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
         setRecording(true);
         setProcessing(false);
         setErrorMsg('');
+        resetWatchdog();
       };
 
       recognition.onaudiostart = () => {
-        clearTimeout(watchdogTimer);
         if (!isMountedRef.current) return;
         setRecording(true);
         setProcessing(false);
+        resetWatchdog();
       };
 
       recognition.onspeechstart = () => {
-        clearTimeout(watchdogTimer);
+        if (silenceWatchdog) clearTimeout(silenceWatchdog);
         if (!isMountedRef.current) return;
         setRecording(true);
       };
 
       recognition.onresult = (event) => {
-        clearTimeout(watchdogTimer);
+        if (silenceWatchdog) clearTimeout(silenceWatchdog);
         if (!isMountedRef.current) return;
 
         let interimText = '';
@@ -214,7 +235,7 @@ export default function MicButton({
       };
 
       recognition.onerror = (event) => {
-        clearTimeout(watchdogTimer);
+        if (silenceWatchdog) clearTimeout(silenceWatchdog);
         if (globalActiveRecognition === recognition) {
           globalActiveRecognition = null;
         }
@@ -234,18 +255,19 @@ export default function MicButton({
           setErrorMsg(
             'ยังไม่ได้รับอนุญาตให้ใช้ไมโครโฟนหรือการรู้จำเสียง (บน iPad/iPhone ให้เปิดสิทธิ์ใน Safari และเปิด Siri ในการตั้งค่าเครื่อง) หรือพิมพ์คำตอบแทนได้ครับ'
           );
+          setIsEditing(true);
         } else if (event.error === 'no-speech') {
           if (!currentText && !savedSoFar) {
             setErrorMsg(
               'ยังไม่ได้ยินเสียงพูดชัดเจน กรุณากดปุ่มแล้วพูดใกล้ไมโครโฟน หรือพิมพ์คำตอบแทนได้ครับ'
             );
+            setIsEditing(true);
           }
         } else if (event.error === 'audio-capture') {
           setErrorMsg('ไม่พบไมโครโฟนที่ใช้งานได้ กรุณาตรวจไมโครโฟนหรือปิดแอปอื่นที่กำลังใช้ไมค์');
         } else if (event.error === 'network') {
           setErrorMsg('บริการแปลงเสียงเชื่อมต่อไม่ได้ชั่วคราว กรุณาลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
         } else if (event.error === 'aborted') {
-          // Aborted can happen gracefully on session resets; allow immediate re-try
           if (!currentText && !savedSoFar) {
             setErrorMsg('การรับฟังเสียงหยุดชั่วคราว กรุณากดปุ่มพูดอีกครั้งได้เลยครับ');
           }
@@ -255,7 +277,7 @@ export default function MicButton({
       };
 
       recognition.onend = () => {
-        clearTimeout(watchdogTimer);
+        if (silenceWatchdog) clearTimeout(silenceWatchdog);
         if (globalActiveRecognition === recognition) {
           globalActiveRecognition = null;
         }
@@ -277,8 +299,23 @@ export default function MicButton({
       recognitionRef.current = recognition;
       globalActiveRecognition = recognition;
 
-      // Start recognition synchronously within the direct user gesture
-      recognition.start();
+      try {
+        recognition.start();
+      } catch (startErr) {
+        if (startErr.name === 'InvalidStateError') {
+          // If already in transition, retry once after brief settle
+          setTimeout(() => {
+            if (!isMountedRef.current) return;
+            try {
+              recognition.start();
+            } catch (retryErr) {
+              console.warn('Recognition retry failed:', retryErr);
+            }
+          }, 250);
+        } else {
+          throw startErr;
+        }
+      }
     } catch (err) {
       console.error('Failed to start speech recognition:', err);
       if (globalActiveRecognition === recognitionRef.current) {
@@ -288,15 +325,16 @@ export default function MicButton({
         setErrorMsg('ไม่สามารถเปิดใช้งานไมโครโฟนได้ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
         setRecording(false);
         setProcessing(false);
+        setIsEditing(true);
       }
     }
   };
 
-  const toggleListen = () => {
+  const toggleListen = async () => {
     if (recording) {
       stopRecognition();
     } else {
-      startListening();
+      await startListening();
     }
   };
 
