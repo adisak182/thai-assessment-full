@@ -12,6 +12,7 @@ import ExamTimer from '../components/ExamTimer';
 import ResultModal from '../components/ResultModal';
 import SurveyModal from '../components/SurveyModal';
 import { useSessionStorage } from '../hooks/useSessionStorage';
+import { safeUUID } from '../utils/uuid';
 
 import {
   vocabQ, announcementQ, storyQ, vocab4Q, proverbQ, listenTfQ, annColdQ, adQ, lastQ, STORY_AUDIO, STORY_IMG, ARTICLE_AUDIO, ANN_COLD_AUDIO, AD_AUDIO,
@@ -34,7 +35,7 @@ export default function FullTest() {
 
   const [currentIndex, setCurrentIndex] = useSessionStorage('fulltest_currentIndex', 0);
   const [savedResult,setSavedResult]=useSessionStorage('fulltest_savedResult',null);
-  const [submissionId]=useSessionStorage('fulltest_submissionId',crypto.randomUUID());
+  const [submissionId]=useSessionStorage('fulltest_submissionId', () => safeUUID());
   const [submitError,setSubmitError]=useState('');
   const [timeExpired,setTimeExpired]=useState(false);
   const [surveySubmitting,setSurveySubmitting]=useState(false);
@@ -442,7 +443,7 @@ export default function FullTest() {
           <div style={{ width: `${(answeredCount / totalQ) * 100}%`, height: '100%', background: 'linear-gradient(90deg, var(--color-primary-light), var(--color-primary))', transition: 'width 0.3s' }} />
         </div>
 
-      <QuestionNumbers index={currentIndex} answered={allQ.map(isQuestionAnswered)} onChange={setCurrentIndex} disabled={audioBusy || submitting || Boolean(savedResult) || timeExpired} />
+      <QuestionNumbers index={currentIndex} answered={allQ.map(isQuestionAnswered)} onChange={setCurrentIndex} disabled={submitting || Boolean(savedResult) || timeExpired} />
         <div className="exam-title-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h2 data-current-question tabIndex={-1} aria-live="polite" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>ข้อที่ {currentIndex + 1} / {totalQ}</h2>
           <ExamTimer totalSeconds={1800} onTimeUp={()=>{setTimeExpired(true);handleSubmit();}} compact storageKey="fulltest_timer" isActive={!submitting && !savedResult} />
@@ -456,7 +457,7 @@ export default function FullTest() {
 <fieldset data-question-id={curQ?.id} disabled={timeExpired || submitting || Boolean(savedResult)} style={{border:0,padding:0,margin:0,minWidth:0}}>{renderQuestion()}</fieldset>
       </div>
 
-      <QuestionNavigation index={currentIndex} total={totalQ} onChange={setCurrentIndex} onSubmit={()=>setShowConfirmModal(true)} disabled={audioBusy || timeExpired || submitting || Boolean(savedResult)} />
+      <QuestionNavigation index={currentIndex} total={totalQ} onChange={setCurrentIndex} onSubmit={()=>setShowConfirmModal(true)} disabled={timeExpired || submitting || Boolean(savedResult)} />
       {finalScore !== null && !showSurvey && (
         <ResultModal score={finalScore} total={totalQ} breakdown={breakdownScore} onClose={() => navigate('/dashboard')} pendingCount={savedResult?.pending_count || 0} onRetry={reset} />
       )}

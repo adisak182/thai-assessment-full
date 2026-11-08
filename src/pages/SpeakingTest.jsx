@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useSessionStorage } from '../hooks/useSessionStorage';
+import { safeUUID } from '../utils/uuid';
 import MicButton from '../components/MicButton';
 import QuestionNumbers from '../components/QuestionNumbers';
 import QuestionNavigation from '../components/QuestionNavigation';
@@ -37,7 +38,7 @@ export default function SpeakingTest() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [savedResult, setSavedResult] = useState(null);
-  const [submissionId, setSubmissionId] = useSessionStorage('speaking_submissionId', crypto.randomUUID());
+  const [submissionId, setSubmissionId] = useSessionStorage('speaking_submissionId', () => safeUUID());
   const [timerKey, setTimerKey] = useState(0);
 
   const totalQ = 15;
@@ -189,7 +190,7 @@ export default function SpeakingTest() {
             setSpeechTexts({});
             setShowResult(false);
             setCurrentIndex(0);
-            setSubmissionId(crypto.randomUUID());
+            setSubmissionId(safeUUID());
             setTimerKey(k => k + 1);
           }}
         />

@@ -4,10 +4,27 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#ffffff">
     <link rel="apple-touch-icon" href="/logo.jpg">
     <title>นรารู้ไทย</title>
     <style>
+      /* Base styles to prevent iPad Dark Mode black screen canvas */
+      html, body {
+        background-color: #f5f3ff !important;
+        color-scheme: light !important;
+        margin: 0;
+        padding: 0;
+        min-height: 100%;
+        -webkit-text-size-adjust: 100%;
+      }
+      #root {
+        background-color: #f5f3ff;
+        min-height: 100vh;
+      }
       /* Pre-loader Styles */
       #root:empty {
         display: block;
@@ -71,11 +88,24 @@
       
       /* Global App Fade-in after React mounts */
       .app-fade-in {
-        animation: app-fade-in 0.6s ease-out forwards;
+        opacity: 1;
+        animation: app-fade-in 0.4s ease-out forwards;
+        -webkit-animation: app-fade-in 0.4s ease-out forwards;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .app-fade-in {
+          animation: none !important;
+          -webkit-animation: none !important;
+          opacity: 1 !important;
+        }
       }
       @keyframes app-fade-in {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
+      }
+      @-webkit-keyframes app-fade-in {
+        from { opacity: 0; -webkit-transform: translateY(10px); }
+        to { opacity: 1; -webkit-transform: translateY(0); }
       }
     </style>
   </head>

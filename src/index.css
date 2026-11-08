@@ -1,6 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap');
 
 :root {
+  color-scheme: light;
+  supported-color-schemes: light;
+
   /* Brand Colors - Royal Purple & Gold (Thai Theme) */
   --color-primary: #5b21b6;       /* Deep Royal Purple */
   --color-primary-light: #7c3aed; 
@@ -35,13 +38,22 @@
   padding: 0;
 }
 
+html {
+  background-color: #f5f3ff;
+  color-scheme: light;
+  min-height: 100%;
+}
+
 body {
   font-family: 'Kanit', sans-serif;
-  background: var(--bg-gradient);
+  background-color: #f5f3ff;
+  background-image: var(--bg-gradient);
   background-size: 300% 300%;
+  color-scheme: light;
 
   color: var(--text-main);
   min-height: 100vh;
+  min-height: 100dvh;
   line-height: 1.6;
   overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;

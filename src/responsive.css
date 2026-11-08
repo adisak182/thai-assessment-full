@@ -1,7 +1,7 @@
 /* Shared sizing follows the viewport while keeping text and touch controls readable. */
 :root { --page-gutter: clamp(12px, 2.4vw, 32px); --section-space: clamp(16px, 2vw, 28px); --panel-space: clamp(16px, 2.5vw, 32px); }
-html { font-size: clamp(100%, calc(93.75% + .1vw), 106.25%); -webkit-text-size-adjust:100%; text-size-adjust:100%; scroll-padding-top:16px; }
-body { min-height:100svh; }
+html { background-color: #f5f3ff; color-scheme: light; font-size: clamp(100%, calc(93.75% + .1vw), 106.25%); -webkit-text-size-adjust:100%; text-size-adjust:100%; scroll-padding-top:16px; }
+body { background-color: #f5f3ff; color-scheme: light; min-height:100svh; }
 .main-content.container { max-width:1440px; padding:var(--section-space) var(--page-gutter); }
 .page-content { width:100%; padding:var(--section-space) 0 !important; }
 .page-content h1,.auth-content h1 { font-size:clamp(1.5rem, calc(1.15rem + 1.1vw), 2rem) !important; }

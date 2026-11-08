@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Volume2, CheckCircle, XCircle, ArrowRight, Trophy, RefreshCw, Headphones, Play } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import ExamTimer from '../components/ExamTimer';
+import { safeUUID } from '../utils/uuid';
 
 import { vocabQ, announcementQ, STORY_AUDIO, STORY_IMG, storyQ, vocab4Q, proverbQ, ARTICLE_AUDIO, tfQ, ANN_COLD_AUDIO, annColdQ, AD_AUDIO, adQ, lastQ } from '../data/listeningQuestions.js';
 
@@ -34,7 +35,7 @@ export default function ListeningTest() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError,setSubmitError]=useState('');
   const [savedResult,setSavedResult]=useState(null);
-  const [submissionId,setSubmissionId]=useState(()=>crypto.randomUUID());
+  const [submissionId,setSubmissionId]=useState(()=>safeUUID());
   const [tfAnswers, setTfAnswers] = useState({}); // { 15: true/false }
   const [completedAudios, setCompletedAudios] = useState({});
 
@@ -60,7 +61,7 @@ export default function ListeningTest() {
   const [timerKey, setTimerKey] = useState(0); // reset timer on retry
 
   const handleClose = () => navigate('/skills');
-  const handleRetry = () => { setAnswers({}); setTfAnswers({}); setShowResult(false); setCurrentIndex(0); setSubmissionId(crypto.randomUUID()); setTimerKey(k => k + 1); };
+  const handleRetry = () => { setAnswers({}); setTfAnswers({}); setShowResult(false); setCurrentIndex(0); setSubmissionId(safeUUID()); setTimerKey(k => k + 1); };
 
 
 

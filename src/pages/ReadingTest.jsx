@@ -7,6 +7,7 @@ import { BookOpen, Trophy, XCircle, ArrowRight, RefreshCw, CheckCircle } from 'l
 import { useUser } from '../context/UserContext';
 import ExamTimer from '../components/ExamTimer';
 import { useSessionStorage } from '../hooks/useSessionStorage';
+import { safeUUID } from '../utils/uuid';
 
 import { ARTICLE_A, sectionAQ, ARTICLE_B, sectionBQ, tfQ, ARTICLE_C, sectionCQ, sectionDQ, POEM, matchData, sectionEQ } from '../data/readingQuestions.js';
 
@@ -32,7 +33,7 @@ export default function ReadingTest() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError,setSubmitError]=useState('');
   const [savedResult,setSavedResult]=useState(null);
-  const [submissionId,setSubmissionId]=useState(()=>crypto.randomUUID());
+  const [submissionId,setSubmissionId]=useState(()=>safeUUID());
 
   const totalQ = 30;
   const answeredMCQ = Object.keys(answers).length;
@@ -79,7 +80,7 @@ export default function ReadingTest() {
   return (
     <div className="page-content practice-page exam-page animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto', padding: '24px 16px' }}>
       {submitError && <div role="alert" style={{padding:16,background:'#fef2f2',color:'#b91c1c'}}><p>{submitError}</p><button onClick={handleSubmit} disabled={submitting}>ลองส่งอีกครั้ง</button></div>}
-      {showResult && <ResultModal pendingCount={savedResult?.pending_count || 0} score={savedResult?.score ?? 0} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setShowResult(false); setCurrentIndex(0); setSubmissionId(crypto.randomUUID()); setTimerKey(k => k + 1); }} />}
+      {showResult && <ResultModal pendingCount={savedResult?.pending_count || 0} score={savedResult?.score ?? 0} total={totalQ} onClose={() => navigate('/skills')} onRetry={() => { setAnswers({}); setSelIdx({}); setTfAnswers({}); setMatchSel({}); setShowResult(false); setCurrentIndex(0); setSubmissionId(safeUUID()); setTimerKey(k => k + 1); }} />}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

@@ -10,7 +10,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --test server/fixes.test.js server/auth-role.test.js tests/question-navigation.test.mjs tests/speech-recognition.test.mjs tests/admin-summary.test.mjs tests/dashboard-view.test.mjs tests/recorded-speaking.test.mjs tests/audio-recording.test.mjs",
+    "test": "node --test server/fixes.test.js server/auth-role.test.js tests/question-navigation.test.mjs tests/speech-recognition.test.mjs tests/admin-summary.test.mjs tests/dashboard-view.test.mjs tests/recorded-speaking.test.mjs tests/audio-recording.test.mjs tests/uuid.test.mjs",
     "test:integration": "node --env-file=server/.env server/mongo-api.test.js"
   },
   "dependencies": {

@@ -4,6 +4,7 @@ import {useUser} from '../context/UserContext';
 import {uploadSpeakingAudio} from '../services/api';
 import {pausePromptAudio} from '../utils/promptAudio';
 import {createAudioRecording} from '../utils/audioRecording';
+import {safeUUID} from '../utils/uuid';
 import SpeakingAudioPlayer from './SpeakingAudioPlayer';
 
 export default function VoiceAnswer({ref,questionId,skill,submissionId,audioId,onSaved,onBusyChange,disabled=false}) {
@@ -29,7 +30,7 @@ export default function VoiceAnswer({ref,questionId,skill,submissionId,audioId,o
       if(!draft.current&&recording.current){
         const blob=await recording.current.stop();recording.current=null;
         if(!blob)return null;
-        draft.current={blob,id:crypto.randomUUID()};
+        draft.current={blob,id:safeUUID()};
         if(mounted.current)setPreview(URL.createObjectURL(blob));
       }
       if(!draft.current)return null;

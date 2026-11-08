@@ -4,24 +4,33 @@ import { useState, useEffect } from 'react';
 
 export function useSessionStorage(key, initialValue) {
   const { user } = useUser();
-  key = examStorageKey(user?.id || user?._id, key);
+  const storageKey = examStorageKey(user?.id || user?._id, key);
+
+  const getFallback = () => {
+    return typeof initialValue === 'function' ? initialValue() : initialValue;
+  };
+
   const [value, setValue] = useState(() => {
     try {
-      const item = window.sessionStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const item = window.sessionStorage.getItem(storageKey);
+        return item ? JSON.parse(item) : getFallback();
+      }
     } catch (error) {
-      console.warn(`Error reading sessionStorage key "${key}":`, error);
-      return initialValue;
+      console.warn(`Error reading sessionStorage key "${storageKey}":`, error);
     }
+    return getFallback();
   });
 
   useEffect(() => {
     try {
-      window.sessionStorage.setItem(key, JSON.stringify(value));
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem(storageKey, JSON.stringify(value));
+      }
     } catch (error) {
-      console.warn(`Error setting sessionStorage key "${key}":`, error);
+      console.warn(`Error setting sessionStorage key "${storageKey}":`, error);
     }
-  }, [key, value]);
+  }, [storageKey, value]);
 
   return [value, setValue];
 }

@@ -3,9 +3,28 @@ import * as api from '../services/api';
 
 const UserContext = createContext();
 
+const getSafeStoredToken = () => {
+  try {
+    return typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem('jwt_token') : null;
+  } catch {
+    return null;
+  }
+};
+
+const setSafeStoredToken = (val) => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      if (val) window.localStorage.setItem('jwt_token', val);
+      else window.localStorage.removeItem('jwt_token');
+    }
+  } catch {
+    // Ignore storage restrictions
+  }
+};
+
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('jwt_token') || null);
+  const [token, setToken] = useState(() => getSafeStoredToken());
   const [loading, setLoading] = useState(true);
 
   const [apiError,setApiError]=useState(null);
@@ -24,7 +43,7 @@ export const UserProvider = ({ children }) => {
       }catch(error){
         if(cancelled)return;
         if(error.status===401 || error.status===404){
-          localStorage.removeItem('jwt_token');setToken(null);setUser(null);
+          setSafeStoredToken(null);setToken(null);setUser(null);
         }else setApiError('offline');
       }finally{if(!cancelled)setLoading(false);}
     };
@@ -34,7 +53,7 @@ export const UserProvider = ({ children }) => {
 
   const login = async ({ username, password }) => {
     const result = await api.loginUser({ username, password });
-    localStorage.setItem('jwt_token', result.token);
+    setSafeStoredToken(result.token);
     setToken(result.token);
     setUser(result.user);
     return result.user;
@@ -42,7 +61,7 @@ export const UserProvider = ({ children }) => {
 
   const register = async (data) => {
     const result = await api.registerUser(data);
-    localStorage.setItem('jwt_token', result.token);
+    setSafeStoredToken(result.token);
     setToken(result.token);
     setUser(result.user);
     return result.user;
@@ -50,14 +69,14 @@ export const UserProvider = ({ children }) => {
 
   const startSession = async (data) => {
     const result = await api.startSession(data);
-    localStorage.setItem('jwt_token', result.token);
+    setSafeStoredToken(result.token);
     setToken(result.token);
     setUser(result.user);
     return result.user;
   };
 
   const logout = () => {
-    localStorage.removeItem('jwt_token');
+    setSafeStoredToken(null);
     setToken(null);
     setUser(null);
   };
