@@ -1,11 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { Mic, Square, RefreshCw, Edit3, Check, AlertCircle } from 'lucide-react';
 import { pausePromptAudio } from '../utils/promptAudio';
-import {
-  abortAndWaitForEnd,
-  waitForMicrophoneRelease,
-  speechErrorMessage
-} from '../utils/speechRecognition';
+import { speechErrorMessage } from '../utils/speechRecognition';
+
+// Module-level pointer to track active speech recognition and prevent zombie instances
+let globalActiveRecognition = null;
+
+export function abortGlobalActiveRecognition() {
+  if (globalActiveRecognition) {
+    try {
+      globalActiveRecognition.onstart = null;
+      globalActiveRecognition.onaudiostart = null;
+      globalActiveRecognition.onspeechstart = null;
+      globalActiveRecognition.onresult = null;
+      globalActiveRecognition.onerror = null;
+      globalActiveRecognition.onend = null;
+      globalActiveRecognition.abort();
+    } catch {
+      // ignore abort errors
+    }
+    globalActiveRecognition = null;
+  }
+}
 
 export default function MicButton({
   onResult,
@@ -40,9 +56,14 @@ export default function MicButton({
         onResultRef.current(lastText);
       }
       if (recognitionRef.current) {
-        abortAndWaitForEnd(recognitionRef.current);
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
         recognitionRef.current = null;
       }
+      abortGlobalActiveRecognition();
     };
   }, []);
 
@@ -65,6 +86,7 @@ export default function MicButton({
       }
       recognitionRef.current = null;
     }
+    abortGlobalActiveRecognition();
 
     if (isMountedRef.current) {
       setRecording(false);
@@ -73,14 +95,19 @@ export default function MicButton({
     }
   };
 
-  const startListening = async () => {
+  const startListening = () => {
     if (disabled || recording || processing) return;
 
     // Reset error & states
     setErrorMsg('');
     setPreview('');
     latestTranscriptRef.current = '';
+
+    // 1. Release any prompt audio elements so iOS Safari AVAudioSession is unlocked
     pausePromptAudio();
+
+    // 2. Synchronously abort and detach any lingering speech recognition instance
+    abortGlobalActiveRecognition();
 
     const SpeechRecognition =
       typeof window !== 'undefined'
@@ -95,31 +122,14 @@ export default function MicButton({
       return;
     }
 
-    if (isMountedRef.current) {
-      setProcessing(true);
-    }
-
-    // Safely wait for any previous question's speech engine to release the microphone
-    try {
-      await waitForMicrophoneRelease(1200);
-    } catch {
-      // Proceed even if wait timed out
-    }
-
-    if (!isMountedRef.current) return;
-
     try {
       const recognition = new SpeechRecognition();
       recognition.lang = 'th-TH';
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
 
-      // Continuous listening gives the user time to speak without immediate silence cutoff
-      try {
-        recognition.continuous = true;
-      } catch {
-        recognition.continuous = false;
-      }
+      // continuous MUST be false on iOS Safari / WebKit to ensure proper onresult delivery
+      recognition.continuous = false;
 
       recognition.onstart = () => {
         if (!isMountedRef.current) return;
@@ -165,12 +175,15 @@ export default function MicButton({
         }
 
         // When a segment is finalized, update the parent state immediately
-        if (finalText.trim()) {
+        if (finalText.trim() && onResultRef.current) {
           onResultRef.current(finalText.trim());
         }
       };
 
       recognition.onerror = (event) => {
+        if (globalActiveRecognition === recognition) {
+          globalActiveRecognition = null;
+        }
         if (!isMountedRef.current) return;
         console.warn('SpeechRecognition error:', event.error);
 
@@ -203,10 +216,13 @@ export default function MicButton({
       };
 
       recognition.onend = () => {
+        if (globalActiveRecognition === recognition) {
+          globalActiveRecognition = null;
+        }
         if (!isMountedRef.current) return;
 
-        // CRITICAL FIX: If speech was captured in interim or latestTranscriptRef,
-        // ALWAYS save it on speech end! Never drop the user's spoken answer!
+        // CRITICAL FIX: On mobile WebKit (iPad/iPhone), Siri dictation often ends
+        // without marking results as isFinal. We MUST commit the latest captured transcript!
         const finalCandidate = latestTranscriptRef.current?.trim() || preview.trim();
         if (finalCandidate && onResultRef.current) {
           onResultRef.current(finalCandidate);
@@ -219,9 +235,16 @@ export default function MicButton({
       };
 
       recognitionRef.current = recognition;
+      globalActiveRecognition = recognition;
+
+      // Start recognition synchronously within user gesture
+      setProcessing(true);
       recognition.start();
     } catch (err) {
       console.error('Failed to start speech recognition:', err);
+      if (globalActiveRecognition === recognitionRef.current) {
+        globalActiveRecognition = null;
+      }
       if (isMountedRef.current) {
         setErrorMsg('ไม่สามารถเปิดใช้งานไมโครโฟนได้ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
         setRecording(false);
