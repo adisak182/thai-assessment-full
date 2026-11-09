@@ -1,10 +1,10 @@
-import MicButton from '../components/MicButton';
+import MicButton, { abortGlobalActiveRecognition } from '../components/MicButton';
 import QuestionNumbers from '../components/QuestionNumbers';
 import QuestionNavigation from '../components/QuestionNavigation';
 import ModalPortal from '../components/ModalPortal';
 import AudioBtn from '../components/AudioButton';
 import { clearExamStorage } from '../utils/examStorage';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { CheckCircle } from 'lucide-react';
@@ -13,6 +13,7 @@ import ResultModal from '../components/ResultModal';
 import SurveyModal from '../components/SurveyModal';
 import { useSessionStorage } from '../hooks/useSessionStorage';
 import { safeUUID } from '../utils/uuid';
+import { pausePromptAudio } from '../utils/promptAudio';
 
 import {
   vocabQ, announcementQ, storyQ, vocab4Q, proverbQ, listenTfQ, annColdQ, adQ, lastQ, STORY_AUDIO, STORY_IMG, ARTICLE_AUDIO, ANN_COLD_AUDIO, AD_AUDIO,
@@ -44,6 +45,11 @@ export default function FullTest() {
   const [breakdownScore, setBreakdownScore] = useState(savedResult?.breakdown || null);
   const [submitting, setSubmitting] = useState(false);
   const [finalScore, setFinalScore] = useState(savedResult?.score ?? null);
+
+  useEffect(() => {
+    pausePromptAudio();
+    abortGlobalActiveRecognition();
+  }, [currentIndex]);
 
 
 

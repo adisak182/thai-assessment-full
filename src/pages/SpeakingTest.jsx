@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
 import { useSessionStorage } from '../hooks/useSessionStorage';
 import { safeUUID } from '../utils/uuid';
-import MicButton from '../components/MicButton';
+import MicButton, { abortGlobalActiveRecognition } from '../components/MicButton';
 import QuestionNumbers from '../components/QuestionNumbers';
 import QuestionNavigation from '../components/QuestionNavigation';
 import AudioBtn from '../components/AudioButton';
 import ResultModal from '../components/ResultModal';
 import ExamTimer from '../components/ExamTimer';
+import { pausePromptAudio } from '../utils/promptAudio';
 
 import { introQ, situQ, tongueQ } from '../data/conversationQuestions.js';
 
@@ -40,6 +41,11 @@ export default function SpeakingTest() {
   const [savedResult, setSavedResult] = useState(null);
   const [submissionId, setSubmissionId] = useSessionStorage('speaking_submissionId', () => safeUUID());
   const [timerKey, setTimerKey] = useState(0);
+
+  useEffect(() => {
+    pausePromptAudio();
+    abortGlobalActiveRecognition();
+  }, [currentIndex]);
 
   const totalQ = 15;
   const answeredCount = questionOrder.filter(q => speechTexts[q.id]?.trim()).length;

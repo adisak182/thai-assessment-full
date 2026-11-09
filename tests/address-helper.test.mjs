@@ -63,3 +63,4 @@ test('handles missing or empty address gracefully', () => {
   assert.equal(r.district, '-');
   assert.equal(r.province, '-');
 });
+

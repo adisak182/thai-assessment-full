@@ -17,7 +17,7 @@ export function abortGlobalActiveRecognition() {
       rec.onresult = null;
       rec.onerror = null;
       rec.onend = null;
-      rec.stop();
+      rec.abort();
     } catch {
       // ignore
     }
@@ -69,7 +69,7 @@ export default function MicButton({
           rec.onresult = null;
           rec.onerror = null;
           rec.onend = null;
-          rec.stop();
+          rec.abort();
         } catch {
           // ignore
         }
@@ -97,7 +97,7 @@ export default function MicButton({
         rec.onresult = null;
         rec.onerror = null;
         rec.onend = null;
-        rec.stop();
+        rec.abort();
       } catch {
         // ignore
       }
@@ -111,23 +111,8 @@ export default function MicButton({
     }
   };
 
-  const primeMicrophoneSession = async () => {
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(track => {
-          try { track.stop(); } catch {}
-        });
-        // Brief pause to allow iOS hardware audio subsystem to settle in PlayAndRecord category
-        await new Promise(r => setTimeout(r, 120));
-      } catch (err) {
-        console.warn('Microphone priming notice:', err);
-      }
-    }
-  };
-
-  const startListening = async () => {
-    if (disabled || recording) return;
+  const startListening = () => {
+    if (disabled || recording || processing) return;
 
     // Reset error & states
     setErrorMsg('');
@@ -137,11 +122,8 @@ export default function MicButton({
     // 1. Release any prompt audio elements cleanly so iOS Safari AVAudioSession is unlocked
     pausePromptAudio();
 
-    // 2. Safely release any lingering speech recognition instance
+    // 2. Safely release any lingering speech recognition instance immediately
     abortGlobalActiveRecognition();
-
-    // 3. Force iOS Safari AVAudioSession back to PlayAndRecord by priming with getUserMedia
-    await primeMicrophoneSession();
 
     if (!isMountedRef.current) return;
 
@@ -296,6 +278,7 @@ export default function MicButton({
         recognitionRef.current = null;
       };
 
+      setProcessing(true);
       recognitionRef.current = recognition;
       globalActiveRecognition = recognition;
 
@@ -303,15 +286,15 @@ export default function MicButton({
         recognition.start();
       } catch (startErr) {
         if (startErr.name === 'InvalidStateError') {
-          // If already in transition, retry once after brief settle
-          setTimeout(() => {
-            if (!isMountedRef.current) return;
-            try {
-              recognition.start();
-            } catch (retryErr) {
-              console.warn('Recognition retry failed:', retryErr);
-            }
-          }, 250);
+          abortGlobalActiveRecognition();
+          try {
+            recognition.start();
+          } catch (retryErr) {
+            console.warn('Recognition retry failed:', retryErr);
+            setErrorMsg('ไมโครโฟนกำลังพร้อมทำงาน กรุณากดปุ่มพูดอีกครั้งครับ');
+            setRecording(false);
+            setProcessing(false);
+          }
         } else {
           throw startErr;
         }
@@ -330,11 +313,11 @@ export default function MicButton({
     }
   };
 
-  const toggleListen = async () => {
-    if (recording) {
+  const toggleListen = () => {
+    if (recording || processing) {
       stopRecognition();
     } else {
-      await startListening();
+      startListening();
     }
   };
 

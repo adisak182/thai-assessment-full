@@ -161,3 +161,4 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
     province: province || '-'
   };
 }
+
