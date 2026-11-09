@@ -1,29 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, Square, RefreshCw, Edit3, Check, AlertCircle } from 'lucide-react';
 import { pausePromptAudio } from '../utils/promptAudio';
-import { speechErrorMessage } from '../utils/speechRecognition';
+import { createSpeechSession, isMicrophoneReleasing } from '../utils/speechRecognition';
 
-// Module-level pointer to track active speech recognition and prevent zombie instances
-let globalActiveRecognition = null;
+// ---------------------------------------------------------------------------
+// abortGlobalActiveRecognition – kept for backward-compatibility with callers
+// in SpeakingTest.jsx and FullTest.jsx.  The real session lifecycle is now
+// managed exclusively via createSpeechSession / session.cancel().
+// ---------------------------------------------------------------------------
+let _activeCancelFn = null;
 
 export function abortGlobalActiveRecognition() {
-  if (globalActiveRecognition) {
-    const rec = globalActiveRecognition;
-    globalActiveRecognition = null;
-    try {
-      rec.onstart = null;
-      rec.onaudiostart = null;
-      rec.onspeechstart = null;
-      rec.onresult = null;
-      rec.onerror = null;
-      rec.onend = null;
-      rec.abort();
-    } catch {
-      // ignore
-    }
+  if (_activeCancelFn) {
+    const fn = _activeCancelFn;
+    _activeCancelFn = null;
+    fn();
   }
 }
 
+// ---------------------------------------------------------------------------
+// MicButton
+// ---------------------------------------------------------------------------
 export default function MicButton({
   onResult,
   currentText = '',
@@ -31,306 +28,143 @@ export default function MicButton({
   disabled = false,
   placeholder = 'พิมพ์คำตอบของคุณที่นี่...'
 }) {
-  const [recording, setRecording] = useState(false);
-  const [processing, setProcessing] = useState(false);
+  // 'idle' | 'starting' | 'listening' | 'processing'
+  const [phase, setPhase] = useState('idle');
   const [preview, setPreview] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
 
-  const recognitionRef = useRef(null);
-  const isMountedRef = useRef(true);
-  const latestTranscriptRef = useRef('');
+  // Keep a stable ref to onResult so the session callbacks never stale-close
   const onResultRef = useRef(onResult);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
 
-  useEffect(() => {
-    onResultRef.current = onResult;
-  }, [onResult]);
+  // Current createSpeechSession instance – replaced on each start, cancelled on unmount
+  const sessionRef = useRef(null);
 
-  // Clean up any active speech recognition on unmount
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-      const lastText = latestTranscriptRef.current?.trim();
-      if (lastText && onResultRef.current) {
-        onResultRef.current(lastText);
-      }
-      if (recognitionRef.current) {
-        const rec = recognitionRef.current;
-        recognitionRef.current = null;
-        if (globalActiveRecognition === rec) {
-          globalActiveRecognition = null;
-        }
-        try {
-          rec.onstart = null;
-          rec.onaudiostart = null;
-          rec.onspeechstart = null;
-          rec.onresult = null;
-          rec.onerror = null;
-          rec.onend = null;
-          rec.abort();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, []);
+  // Track whether we have already committed a result for this recording cycle
+  // so that the onResult from the preview path doesn't double-fire on unmount.
+  const committedRef = useRef(false);
 
-  const stopRecognition = () => {
-    // If we heard speech before stopping, immediately save it
-    const textToSave = latestTranscriptRef.current?.trim() || preview.trim();
-    if (textToSave && onResultRef.current) {
-      onResultRef.current(textToSave);
+  // -------------------------------------------------------------------------
+  // Create a fresh session bound to the current question mount.
+  // Called synchronously inside the user-gesture handler so Safari keeps the
+  // gesture context alive for recognition.start().
+  // -------------------------------------------------------------------------
+  const makeSession = useCallback(() => {
+    // Cancel the previous session first (registers abortAndWaitForEnd internally)
+    if (sessionRef.current) {
+      sessionRef.current.cancel();
+      sessionRef.current = null;
     }
 
-    if (recognitionRef.current) {
-      const rec = recognitionRef.current;
-      recognitionRef.current = null;
-      if (globalActiveRecognition === rec) {
-        globalActiveRecognition = null;
-      }
-      try {
-        rec.onstart = null;
-        rec.onaudiostart = null;
-        rec.onspeechstart = null;
-        rec.onresult = null;
-        rec.onerror = null;
-        rec.onend = null;
-        rec.abort();
-      } catch {
-        // ignore
-      }
-    }
-    abortGlobalActiveRecognition();
-
-    if (isMountedRef.current) {
-      setRecording(false);
-      setProcessing(false);
-      setPreview('');
-    }
-  };
-
-  const startListening = () => {
-    if (disabled || recording || processing) return;
-
-    // Reset error & states
-    setErrorMsg('');
-    setPreview('');
-    latestTranscriptRef.current = '';
-
-    // 1. Release any prompt audio elements cleanly so iOS Safari AVAudioSession is unlocked
-    pausePromptAudio();
-
-    // 2. Safely release any lingering speech recognition instance immediately
-    abortGlobalActiveRecognition();
-
-    if (!isMountedRef.current) return;
-
-    const SpeechRecognition =
+    const Recognition =
       typeof window !== 'undefined'
         ? window.SpeechRecognition || window.webkitSpeechRecognition
         : null;
 
-    if (!SpeechRecognition) {
-      setErrorMsg(
-        'เบราว์เซอร์นี้ไม่รองรับระบบแปลงเสียงเป็นข้อความอัตโนมัติ (บน iPad/iPhone แนะนำให้ใช้ Safari และเปิด Siri ในการตั้งค่า ส่วนคอมพิวเตอร์/Android ให้ใช้ Chrome) หรือพิมพ์คำตอบในช่องด้านล่างได้ครับ'
-      );
-      setIsEditing(true);
+    const session = createSpeechSession(Recognition, {
+      onState(state) {
+        setPhase(state);
+        if (state === 'idle') {
+          setPreview('');
+        }
+      },
+      onPreview(text) {
+        setPreview(text);
+      },
+      onResult(text) {
+        committedRef.current = true;
+        if (onResultRef.current) onResultRef.current(text);
+      },
+      onError(msg) {
+        setErrorMsg(msg);
+        // If the browser has no speech support, open the manual text field
+        if (msg.includes('เบราว์เซอร์')) {
+          setIsEditing(true);
+        }
+      },
+    });
+
+    sessionRef.current = session;
+    // Register as the global active session so external callers can cancel it
+    _activeCancelFn = () => {
+      session.cancel();
+      if (sessionRef.current === session) sessionRef.current = null;
+    };
+
+    return session;
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // Cleanup on unmount (question change triggers a new MicButton via key=)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    committedRef.current = false;
+    return () => {
+      // Cancel releases the hardware via abortAndWaitForEnd so the next
+      // question's MicButton will see isMicrophoneReleasing() = true and
+      // show a friendly "กรุณารอสักครู่" message instead of throwing.
+      if (sessionRef.current) {
+        sessionRef.current.cancel();
+        sessionRef.current = null;
+      }
+      if (_activeCancelFn) {
+        _activeCancelFn = null; // already cancelled above
+      }
+    };
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // User interactions
+  // -------------------------------------------------------------------------
+  const handleToggle = () => {
+    if (disabled) return;
+
+    if (phase === 'listening') {
+      // Stop listening → move to processing
+      sessionRef.current?.stop();
       return;
     }
 
-    try {
-      const recognition = new SpeechRecognition();
-      recognition.lang = 'th-TH';
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-      recognition.continuous = false; // MUST be false for iOS Safari stability
-
-      let silenceWatchdog = null;
-      const resetWatchdog = () => {
-        if (silenceWatchdog) clearTimeout(silenceWatchdog);
-        silenceWatchdog = setTimeout(() => {
-          if (!isMountedRef.current) return;
-          if (!latestTranscriptRef.current && recording) {
-            console.warn('Speech recognition silent timeout triggered');
-            try { recognition.stop(); } catch {}
-            setRecording(false);
-            setProcessing(false);
-            setErrorMsg('ยังไม่ได้ยินเสียงพูดชัดเจน กรุณากดปุ่มแล้วพูดอีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
-            setIsEditing(true);
-          }
-        }, 7000);
-      };
-
-      recognition.onstart = () => {
-        if (!isMountedRef.current) return;
-        setRecording(true);
-        setProcessing(false);
-        setErrorMsg('');
-        resetWatchdog();
-      };
-
-      recognition.onaudiostart = () => {
-        if (!isMountedRef.current) return;
-        setRecording(true);
-        setProcessing(false);
-        resetWatchdog();
-      };
-
-      recognition.onspeechstart = () => {
-        if (silenceWatchdog) clearTimeout(silenceWatchdog);
-        if (!isMountedRef.current) return;
-        setRecording(true);
-      };
-
-      recognition.onresult = (event) => {
-        if (silenceWatchdog) clearTimeout(silenceWatchdog);
-        if (!isMountedRef.current) return;
-
-        let interimText = '';
-        let finalText = '';
-
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          const transcript = item[0]?.transcript || '';
-          if (item.isFinal) {
-            finalText += transcript;
-          } else {
-            interimText += transcript;
-          }
-        }
-
-        const combined = (finalText + ' ' + interimText).trim();
-        const bestText = combined || finalText.trim() || interimText.trim();
-
-        if (bestText) {
-          latestTranscriptRef.current = bestText;
-          setPreview(bestText);
-          setErrorMsg('');
-
-          // CRITICAL: Update parent answer state immediately in real-time as speech is heard!
-          if (onResultRef.current) {
-            onResultRef.current(bestText);
-          }
-        }
-      };
-
-      recognition.onerror = (event) => {
-        if (silenceWatchdog) clearTimeout(silenceWatchdog);
-        if (globalActiveRecognition === recognition) {
-          globalActiveRecognition = null;
-        }
-        if (!isMountedRef.current) return;
-        console.warn('SpeechRecognition error:', event.error);
-
-        // If we already collected speech before error, commit it
-        const savedSoFar = latestTranscriptRef.current?.trim() || preview.trim();
-        if (savedSoFar && onResultRef.current) {
-          onResultRef.current(savedSoFar);
-        }
-
-        setRecording(false);
-        setProcessing(false);
-
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          setErrorMsg(
-            'ยังไม่ได้รับอนุญาตให้ใช้ไมโครโฟนหรือการรู้จำเสียง (บน iPad/iPhone ให้เปิดสิทธิ์ใน Safari และเปิด Siri ในการตั้งค่าเครื่อง) หรือพิมพ์คำตอบแทนได้ครับ'
-          );
-          setIsEditing(true);
-        } else if (event.error === 'no-speech') {
-          if (!currentText && !savedSoFar) {
-            setErrorMsg(
-              'ยังไม่ได้ยินเสียงพูดชัดเจน กรุณากดปุ่มแล้วพูดใกล้ไมโครโฟน หรือพิมพ์คำตอบแทนได้ครับ'
-            );
-            setIsEditing(true);
-          }
-        } else if (event.error === 'audio-capture') {
-          setErrorMsg('ไม่พบไมโครโฟนที่ใช้งานได้ กรุณาตรวจไมโครโฟนหรือปิดแอปอื่นที่กำลังใช้ไมค์');
-        } else if (event.error === 'network') {
-          setErrorMsg('บริการแปลงเสียงเชื่อมต่อไม่ได้ชั่วคราว กรุณาลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
-        } else if (event.error === 'aborted') {
-          if (!currentText && !savedSoFar) {
-            setErrorMsg('การรับฟังเสียงหยุดชั่วคราว กรุณากดปุ่มพูดอีกครั้งได้เลยครับ');
-          }
-        } else {
-          setErrorMsg(speechErrorMessage(event.error));
-        }
-      };
-
-      recognition.onend = () => {
-        if (silenceWatchdog) clearTimeout(silenceWatchdog);
-        if (globalActiveRecognition === recognition) {
-          globalActiveRecognition = null;
-        }
-        if (!isMountedRef.current) return;
-
-        // CRITICAL FIX: On mobile WebKit (iPad/iPhone), Siri dictation often ends
-        // without marking results as isFinal. We MUST commit the latest captured transcript!
-        const finalCandidate = latestTranscriptRef.current?.trim() || preview.trim();
-        if (finalCandidate && onResultRef.current) {
-          onResultRef.current(finalCandidate);
-        }
-
-        setRecording(false);
-        setProcessing(false);
-        setPreview('');
-        recognitionRef.current = null;
-      };
-
-      setProcessing(true);
-      recognitionRef.current = recognition;
-      globalActiveRecognition = recognition;
-
-      try {
-        recognition.start();
-      } catch (startErr) {
-        if (startErr.name === 'InvalidStateError') {
-          abortGlobalActiveRecognition();
-          try {
-            recognition.start();
-          } catch (retryErr) {
-            console.warn('Recognition retry failed:', retryErr);
-            setErrorMsg('ไมโครโฟนกำลังพร้อมทำงาน กรุณากดปุ่มพูดอีกครั้งครับ');
-            setRecording(false);
-            setProcessing(false);
-          }
-        } else {
-          throw startErr;
-        }
-      }
-    } catch (err) {
-      console.error('Failed to start speech recognition:', err);
-      if (globalActiveRecognition === recognitionRef.current) {
-        globalActiveRecognition = null;
-      }
-      if (isMountedRef.current) {
-        setErrorMsg('ไม่สามารถเปิดใช้งานไมโครโฟนได้ กรุณารอสักครู่แล้วลองใหม่อีกครั้ง หรือพิมพ์คำตอบแทนได้ครับ');
-        setRecording(false);
-        setProcessing(false);
-        setIsEditing(true);
-      }
+    if (phase === 'starting' || phase === 'processing') {
+      // Cancel mid-flight
+      sessionRef.current?.cancel();
+      sessionRef.current = null;
+      setPhase('idle');
+      return;
     }
-  };
 
-  const toggleListen = () => {
-    if (recording || processing) {
-      stopRecognition();
-    } else {
-      startListening();
-    }
+    // phase === 'idle' → start
+    setErrorMsg('');
+    setPreview('');
+    committedRef.current = false;
+    pausePromptAudio();
+
+    // If the previous question's microphone is still releasing, createSpeechSession
+    // will immediately call onError with 'mic-releasing' and return to idle –
+    // the user sees an actionable Thai message and can tap again after a moment.
+    // We still call makeSession() synchronously here (inside the gesture) so
+    // Safari retains the user-gesture activation for recognition.start().
+    const session = makeSession();
+    session.start();
   };
 
   const handleSaveEdit = (e) => {
     e?.preventDefault();
     if (editText.trim()) {
-      onResultRef.current(editText.trim());
+      if (onResultRef.current) onResultRef.current(editText.trim());
       setIsEditing(false);
       setErrorMsg('');
     }
   };
 
-  // Check tongue twister matching if expectedText is provided
+  // -------------------------------------------------------------------------
+  // Derived UI state
+  // -------------------------------------------------------------------------
+  const recording = phase === 'listening';
+  const processing = phase === 'starting' || phase === 'processing';
+
   let isMatch = null;
   if (currentText && expectedText) {
     const cleanSource = expectedText.replace(/[\s.\-?!,]/g, '').trim();
@@ -338,12 +172,15 @@ export default function MicButton({
     isMatch = cleanSource === cleanAnswer;
   }
 
+  // -------------------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------------------
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
       {/* Mic Trigger Button */}
       <button
         type="button"
-        onClick={toggleListen}
+        onClick={handleToggle}
         disabled={disabled}
         className="option-btn"
         style={{
