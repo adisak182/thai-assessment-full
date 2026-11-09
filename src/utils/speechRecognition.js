@@ -11,7 +11,7 @@ export function abortAndWaitForEnd(recognition) {
   closingRecognition = recognition;
   const done = () => {
     clearTimeout(timer);
-    recognition.onend = null;
+    if (recognition) recognition.onend = null;
     if (closingRecognition === recognition) { closingRecognition = null; notifyRelease(); }
   };
   // Some engines omit end after abort; allow an explicit retry instead of locking the UI.
@@ -99,9 +99,22 @@ export function createSpeechSession(Recognition, { onState, onResult, onError, o
       phase = 'starting'; onState(phase);
       try {
         recognition = new Recognition();
-        recognition.lang = 'th-TH'; recognition.continuous = false; recognition.interimResults = true;
-        // Service startup does not guarantee that microphone capture actually opened.
-        recognition.onstart = () => {};
+        const isBrowser = typeof window !== 'undefined';
+        const isIOS = isBrowser && (
+          /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+          (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+        );
+        recognition.lang = 'th-TH';
+        recognition.continuous = false;
+        recognition.interimResults = !isIOS;
+        // Service startup does not guarantee that microphone capture actually opened on Chrome/Node,
+        // but Safari/iOS WebKit NEVER fires onaudiostart; transition immediately on onstart.
+        recognition.onstart = () => {
+          if (isBrowser && isIOS) {
+            listen();
+          }
+        };
         recognition.onaudiostart = listen;
         recognition.onaudioend = () => waitForEnd();
         recognition.onresult = event => {

@@ -1,4 +1,4 @@
-import { registerPromptAudio, unregisterPromptAudio, setActiveWebAudioController } from '../utils/promptAudio';
+import { registerPromptAudio, unregisterPromptAudio, setActiveWebAudioController, registerSharedAudioContext } from '../utils/promptAudio';
 import { useRef, useState, useEffect } from 'react';
 import { Volume2, Play } from 'lucide-react';
 
@@ -12,6 +12,7 @@ async function getAudioContext() {
   try {
     if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
       sharedAudioCtx = new AudioCtx();
+      registerSharedAudioContext(sharedAudioCtx);
     }
     if (sharedAudioCtx.state === 'suspended') {
       await sharedAudioCtx.resume();
@@ -108,6 +109,9 @@ export default function AudioBtn({ src, label = 'ฟังเสียง', onCo
         setPlaying(false);
         webAudioSourceRef.current = null;
         setActiveWebAudioController(null);
+        if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
+          try { sharedAudioCtx.suspend().catch(() => {}); } catch {}
+        }
         if (onCompleteRef.current) onCompleteRef.current();
       };
 
@@ -128,6 +132,9 @@ export default function AudioBtn({ src, label = 'ฟังเสียง', onCo
         try { webAudioSourceRef.current.stop(); } catch {}
         webAudioSourceRef.current = null;
         setActiveWebAudioController(null);
+      }
+      if (sharedAudioCtx && sharedAudioCtx.state === 'running') {
+        try { sharedAudioCtx.suspend().catch(() => {}); } catch {}
       }
       if (ref.current) {
         ref.current.pause();

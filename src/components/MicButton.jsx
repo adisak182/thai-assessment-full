@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, Square, RefreshCw, Edit3, Check, AlertCircle } from 'lucide-react';
 import { pausePromptAudio } from '../utils/promptAudio';
-import { createSpeechSession, isMicrophoneReleasing } from '../utils/speechRecognition';
+import { createSpeechSession, isMicrophoneReleasing, subscribeMicrophoneRelease } from '../utils/speechRecognition';
 
 // ---------------------------------------------------------------------------
 // abortGlobalActiveRecognition – kept for backward-compatibility with callers
@@ -101,7 +101,13 @@ export default function MicButton({
   // -------------------------------------------------------------------------
   useEffect(() => {
     committedRef.current = false;
+    const unsub = subscribeMicrophoneRelease(() => {
+      if (!isMicrophoneReleasing()) {
+        setErrorMsg((prev) => prev.includes('ข้อก่อนหน้า') ? '' : prev);
+      }
+    });
     return () => {
+      unsub();
       // Cancel releases the hardware via abortAndWaitForEnd so the next
       // question's MicButton will see isMicrophoneReleasing() = true and
       // show a friendly "กรุณารอสักครู่" message instead of throwing.
