@@ -5,6 +5,7 @@ import { summarizeResults } from '../grading.js';
 import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
+import SurveyResponse from '../models/SurveyResponse.js';
 
 const router = express.Router();
 
@@ -50,12 +51,20 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 router.get('/history', authenticateAdmin, async (req, res) => {
   try {
     const history = await ScoreHistory.find()
-      .populate('user_id', 'username name avatar age address role')
+      .populate('user_id', 'username name avatar age address district province role')
       .sort({ taken_at: -1 })
       .limit(300);
 
+    const userIds = history.map(h => h.user_id?._id).filter(Boolean);
+    const surveys = userIds.length ? await SurveyResponse.find({ user_id: { $in: userIds } }).select('user_id district province submitted_at').sort({ submitted_at: 1 }) : [];
+    const surveyMap = new Map();
+    for (const s of surveys) {
+      if (s.user_id) surveyMap.set(s.user_id.toString(), { district: s.district, province: s.province });
+    }
+
     const formatted = history.map(h => {
       const u = h.user_id;
+      const s = u ? surveyMap.get(u._id.toString()) : null;
       return {
         id: h._id.toString(),
         user_id: u ? u._id.toString() : null,
@@ -66,6 +75,8 @@ router.get('/history', authenticateAdmin, async (req, res) => {
           avatar: u.avatar,
           age: u.age,
           address: u.address,
+          district: u.district || s?.district || null,
+          province: u.province || s?.province || null,
           role: u.role
         } : { name: 'ผู้ใช้งานทั่วไป', username: '-' },
         level: h.level,

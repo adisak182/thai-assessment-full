@@ -10,6 +10,7 @@ import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Sear
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
+import { extractDistrictAndProvince } from '../utils/addressHelper';
 
 const SKILL_LABELS = {full_test:'แบบทดสอบรวม 100 ข้อ',listening:'การฟัง',conversation:'การพูด',speaking:'การพูด',reading:'การอ่าน',writing:'การเขียน'};
 
@@ -95,6 +96,15 @@ export default function AdminDashboard() {
     });
   }, [surveys]);
 
+  const surveyMap = useMemo(() => {
+    const map = new Map();
+    for (const s of surveys || []) {
+      const uid = s.user_id?._id || s.user_id?.id || s.user_id;
+      if (uid) map.set(String(uid), s);
+    }
+    return map;
+  }, [surveys]);
+
   useEffect(() => {
     if (!user) return;
     if (user.role !== 'admin') {
@@ -103,13 +113,14 @@ export default function AdminDashboard() {
     }
     fetchUsers();
     fetchAllHistory();
+    if (token) getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {});
     const refresh=event=>{
       fetchUsers();fetchAllHistory();
       setUserScores(previous=>previous.map(attempt=>attempt.id===event.detail.id?{...attempt,...event.detail}:attempt));
     };
     window.addEventListener('score-reviewed',refresh);
     return ()=>window.removeEventListener('score-reviewed',refresh);
-  }, [user]);
+  }, [user, token]);
 
   const filteredUsers = filterUsers(users,{search:searchTerm,status:filterStatus,enrollment:enrollmentFilter,sort:userSort});
   const stats = summarizeLearners(users);
@@ -179,7 +190,7 @@ export default function AdminDashboard() {
 
   const downloadAllHistoryCSV = () => {
     const headers = [
-      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'ที่อยู่', 'แบบทดสอบ',
+      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'ที่อยู่', 'อำเภอ', 'จังหวัด', 'แบบทดสอบ',
       'คะแนนที่ได้', 'คะแนนเต็ม', 'ร้อยละ (%)', 'ผลการประเมิน', 'ระดับ',
       'การฟัง (25)', 'การพูด (15)', 'การอ่าน (30)', 'การเขียน (30)'
     ];
@@ -201,11 +212,18 @@ export default function AdminDashboard() {
       const uName = h.user?.name || '-';
       const uUsername = h.user?.username || '-';
       const uAge = h.user?.age || '-';
-      const uAddress = `"${(h.user?.address || '-').replace(/"/g, '""')}"`;
+      const rawAddress = h.user?.address || '';
+      const uAddress = `"${(rawAddress || '-').replace(/"/g, '""')}"`;
+
+      const userSurvey = surveyMap.get(String(h.user_id || h.user?.id || ''));
+      const { district, province } = extractDistrictAndProvince(rawAddress, h.user?.district, h.user?.province, userSurvey);
+      const uDistrict = `"${(district || '-').replace(/"/g, '""')}"`;
+      const uProvince = `"${(province || '-').replace(/"/g, '""')}"`;
+
       const skillName = h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : h.skill;
 
       return [
-        formatDate(h.taken_at), uName, uUsername, uAge, uAddress, skillName,
+        formatDate(h.taken_at), uName, uUsername, uAge, uAddress, uDistrict, uProvince, skillName,
         h.score, h.max_score, `${pct}%`, passed, grade,
         lScore, sScore, rScore, wScore
       ];
