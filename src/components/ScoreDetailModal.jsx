@@ -366,7 +366,7 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                   }}
                 >
                   {isPassed ? <CheckCircle size={16} /> : <XCircle size={16} />}
-                  {pendingCount ? `รอตรวจ ${pendingCount} ข้อ` : isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
+                  {isPassed ? 'ผ่านเกณฑ์' : 'ไม่ผ่านเกณฑ์'}
                 </div>
                 <div style={{ marginTop: '6px' }}>
                   <span
@@ -379,7 +379,7 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                       color: gradeColor
                     }}
                   >
-                    ระดับ: {pendingCount ? 'รอตรวจ' : grade}
+                    ระดับ: {grade}
                   </span>
                 </div>
               </div>
@@ -446,7 +446,7 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                             color: skillPassed ? '#059669' : '#dc2626'
                           }}
                         >
-                          {b.pending > 0 ? 'รอตรวจ' : skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                          {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
                         </span>
                       </div>
 
@@ -654,7 +654,7 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                               marginTop: '2px'
                             }}
                           >
-                            {isPending ? <HelpCircle size={18} /> : isCorrect ? <Check size={18} /> : <X size={18} />}
+                            {isCorrect ? <Check size={18} /> : <X size={18} />}
                           </div>
 
                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -663,7 +663,7 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                                 ข้อที่ {r.id || idx + 1} • {r.section || 'แบบทดสอบ'}
                               </span>
                               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: isCorrect ? '#059669' : '#dc2626' }}>
-                                {isPending ? 'รอเจ้าหน้าที่ตรวจ' : isCorrect ? '✓ ได้ 1 คะแนน' : '✕ ได้ 0 คะแนน'}
+                                {isCorrect ? '✓ ได้ 1 คะแนน' : '✕ ได้ 0 คะแนน'}
                               </span>
                             </div>
 
@@ -693,16 +693,6 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
                                 <span style={{ fontWeight: '700' }}>คำตอบของคุณ: </span>
                                 <span>{r.audio_id ? 'บันทึกคำตอบเป็นเสียง' : r.user_answer || '(ไม่ได้ตอบ)'}</span>
                                 {r.audio_id && <SpeakingAudioPlayer audioId={r.audio_id}/>}
-
-                                {r.is_correct===null && <div style={{marginTop:12,color:'#92400e'}}>
-                                  <p>รอเจ้าหน้าที่ตรวจ</p>
-                                  {viewer?.role==='admin' && <div>
-                                    <button disabled={reviewing} onClick={()=>handleReview(r.id,true)}>ให้ 1 คะแนน</button>{' '}
-                                    <button disabled={reviewing} onClick={()=>handleReview(r.id,false)}>ให้ 0 คะแนน</button>
-                                  </div>}
-                                  {reviewError && <p role="alert">{reviewError}</p>}
-                                </div>}
-
                               </div>
 
                               {!isCorrect && (

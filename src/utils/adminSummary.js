@@ -14,6 +14,7 @@ export function summarizeLearners(users) {
   return {
     total: learners.length, literacy: learners.filter(u => u.is_literacy_learner).length,
     passed: learners.filter(u => u.full_test_passed).length,
+    notPassed: learners.filter(u => u.full_test_completed && !u.full_test_passed).length,
     pendingAttempts: learners.reduce((sum,u) => sum + (u.full_test_pending || 0),0),
     pendingQuestions: learners.reduce((sum,u) => sum + (u.full_test_pending_questions || 0),0),
   };

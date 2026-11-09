@@ -151,9 +151,8 @@ export default function AdminDashboard() {
       if (!matchesSearch) return false;
 
       const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-      if (historyStatusFilter === 'pending' && !(h.pending_count > 0)) return false;
-      if (historyStatusFilter === 'passed' && (h.pending_count > 0 || pct < 70)) return false;
-      if (historyStatusFilter === 'notPassed' && (h.pending_count > 0 || pct >= 70)) return false;
+      if (historyStatusFilter === 'passed' && pct < 70) return false;
+      if (historyStatusFilter === 'notPassed' && pct >= 70) return false;
 
       if (historyDateFilter !== 'all' && h.taken_at) {
         const itemDate = new Date(h.taken_at);
@@ -187,7 +186,7 @@ export default function AdminDashboard() {
 
     const rows = filteredAllHistory.map(h => {
       const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-      const passed = h.pending_count > 0 ? 'รอตรวจ' : pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
+      const passed = pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
       let grade = 'ปรับปรุง';
       if (pct >= 80) grade = 'ดีมาก';
       else if (pct >= 60) grade = 'ดี';
@@ -390,7 +389,7 @@ export default function AdminDashboard() {
 
 
       <header className="admin-header">
-        <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และคำตอบที่รอตรวจ</p></div>
+        <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และสถิติการสอบ</p></div>
         <div className="admin-header-actions">
           <button onClick={() => {fetchUsers();fetchAllHistory();}} className="btn-secondary" disabled={loading || allHistoryLoading}><RefreshCw size={16}/> รีเฟรช</button>
           <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary"><List size={16}/> เฉลยข้อสอบ</button>
@@ -408,8 +407,8 @@ export default function AdminDashboard() {
             {[
               {label:'ผู้เรียนทั้งหมด',value:stats.total,unit:'คน',note:'ไม่รวมบัญชีเจ้าหน้าที่',status:'all',tone:'purple'},
               {label:'กิจกรรมรู้หนังสือ',value:stats.literacy,unit:'คน',note:'ผู้เรียนที่ระบุเข้าร่วมกิจกรรม',status:'all',enrollment:'literacy',tone:'blue'},
-              {label:'ผ่านการประเมิน',value:stats.passed,unit:'คน',note:'คะแนนรวมที่ตรวจครบ ≥ 70%',status:'passed',tone:'green'},
-              {label:'งานรอตรวจ',value:stats.pendingAttempts,unit:'ครั้ง',note:`รวม ${stats.pendingQuestions} ข้อที่ต้องตรวจ`,status:'pending',tone:'amber'},
+              {label:'ผ่านการประเมิน',value:stats.passed,unit:'คน',note:'คะแนนรวมที่ได้ ≥ 70%',status:'passed',tone:'green'},
+              {label:'ยังไม่ผ่านเกณฑ์',value:stats.notPassed,unit:'คน',note:'คะแนนรวมที่ได้ < 70%',status:'notPassed',tone:'rose'},
             ].map(item=><button key={item.label} className={`admin-metric ${item.tone}`} onClick={()=>{setFilterStatus(item.status);setEnrollmentFilter(item.enrollment || 'all');setUserPage(1);}}>
               <span>{item.label}</span><strong>{loading ? '—' : item.value} <small>{item.unit}</small></strong><p>{item.note}</p>
             </button>)}
@@ -418,7 +417,7 @@ export default function AdminDashboard() {
             <div className="admin-section-heading"><div><h2>รายชื่อผู้ใช้งาน</h2><p className="admin-muted">ดูข้อมูลส่วนตัว ประวัติสอบ และผลรายทักษะได้จากรายละเอียด</p></div><span className="admin-count" role="status">{filteredUsers.length} รายการ</span></div>
             <div className="admin-filters">
               <label className="admin-search"><span>ค้นหาผู้ใช้งาน</span><input placeholder="ชื่อ บัญชี ที่อยู่ หรือระดับการศึกษา" value={searchTerm} onChange={e=>{setSearchTerm(e.target.value);setUserPage(1);}}/></label>
-              <label><span>ผลการประเมิน</span><select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value);setUserPage(1);}}><option value="all">ทุกสถานะ</option><option value="passed">ผ่านเกณฑ์ ≥ 70%</option><option value="notPassed">ตรวจครบ · ยังไม่ผ่าน</option><option value="pending">มีผลรอตรวจ</option><option value="notTested">ยังไม่ได้สอบแบบรวม</option></select></label>
+              <label><span>ผลการประเมิน</span><select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value);setUserPage(1);}}><option value="all">ทุกสถานะ</option><option value="passed">ผ่านเกณฑ์ ≥ 70%</option><option value="notPassed">ยังไม่ผ่านเกณฑ์</option><option value="notTested">ยังไม่ได้สอบแบบรวม</option></select></label>
               <label><span>กิจกรรมรู้หนังสือ</span><select value={enrollmentFilter} onChange={e=>{setEnrollmentFilter(e.target.value);setUserPage(1);}}><option value="all">ผู้ใช้งานทั้งหมด</option><option value="literacy">เป็นผู้เรียนกิจกรรม</option><option value="other">ไม่ใช่ผู้เรียนกิจกรรม</option></select></label>
               <label><span>เรียงตาม</span><select value={userSort} onChange={e=>{setUserSort(e.target.value);setUserPage(1);}}><option value="newest">สมัครล่าสุด</option><option value="latest">ทำข้อสอบล่าสุด</option><option value="score">คะแนนสูงสุด</option></select></label>
             </div>
@@ -427,7 +426,7 @@ export default function AdminDashboard() {
                 {pageUsers.map(u=><tr key={u.id}>
                   <td><div className="admin-identity"><span className="admin-avatar">{(u.name || '?').charAt(0)}</span><div><strong>{u.name || 'ไม่ได้ระบุชื่อ'}</strong><small>@{u.username} {u.role === 'admin' && '· เจ้าหน้าที่'}</small><span className={`admin-tag ${u.is_literacy_learner ? 'blue' : ''}`}>{u.is_literacy_learner ? 'ผู้เรียนกิจกรรมรู้หนังสือ' : 'ไม่ได้เข้าร่วมกิจกรรมรู้หนังสือ'}</span></div></div></td>
                   <td data-label="สถานะการเรียน"><strong>{u.status || 'ไม่ได้ระบุ'}</strong><small>{u.education_level || u.employment_status || 'ไม่มีข้อมูลเพิ่มเติม'}</small><small>{u.age ? `${u.age} ปี` : 'ไม่ระบุอายุ'} · {u.address || 'ไม่ระบุที่อยู่'}</small></td>
-                  <td data-label="ผลประเมิน"><span className={`admin-tag ${u.full_test_completed ? u.full_test_passed ? 'green' : 'red' : ''}`}>{u.full_test_completed ? u.full_test_passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน' : u.full_test_pending ? 'อยู่ระหว่างตรวจ' : 'ยังไม่ได้สอบ'}</span><strong className="admin-score">{u.full_test_completed ? `${u.full_test_score} / 100` : '—'}</strong>{u.full_test_pending > 0 && <small className="admin-pending">รอตรวจ {u.full_test_pending_questions} ข้อ · {u.full_test_pending} ครั้ง</small>}</td>
+                  <td data-label="ผลประเมิน"><span className={`admin-tag ${u.full_test_completed ? u.full_test_passed ? 'green' : 'red' : ''}`}>{u.full_test_completed ? u.full_test_passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน' : 'ยังไม่ได้สอบ'}</span><strong className="admin-score">{u.full_test_completed ? `${u.full_test_score} / 100` : '—'}</strong></td>
                   <td data-label="สอบแบบรวม"><strong>{u.full_test_attempts || 0} ครั้ง</strong><small>{u.full_test_last_at ? `ล่าสุด ${formatDate(u.full_test_last_at)}` : 'ยังไม่มีประวัติแบบรวม'}</small><small>สมัคร {formatDate(u.created_at)}</small></td>
                   <td><div className="admin-row-actions"><button className="admin-detail-button" onClick={()=>openScoreModal(u)} aria-label={`ดูรายละเอียด ${u.name}`}><Eye size={16}/> รายละเอียด</button><button onClick={()=>openEditModal(u)} aria-label={`แก้ไข ${u.name}`} title="แก้ไขข้อมูล"><Edit2 size={16}/></button>{u.role !== 'admin' && <button className="admin-delete-button" onClick={()=>handleDelete(u.id,u.name)} aria-label={`ลบ ${u.name}`} title="ลบผู้ใช้"><Trash2 size={16}/></button>}</div></td>
                 </tr>)}
@@ -487,7 +486,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="stat-card"><div><div style={{fontSize:'.9rem',color:'#64748b'}}>รอเจ้าหน้าที่ตรวจ</div><strong style={{fontSize:'1.8rem',color:'#b45309'}}>{historyStats.pending} <small style={{fontSize:'.85rem'}}>ครั้ง</small></strong></div></div>
+            <div className="stat-card"><div><div style={{fontSize:'.9rem',color:'#64748b'}}>ไม่ผ่านเกณฑ์</div><strong style={{fontSize:'1.8rem',color:'#dc2626'}}>{historyStats.notPassed} <small style={{fontSize:'.85rem'}}>ครั้ง</small></strong></div></div>
           </div>
 
           {/* Search, Filters and CSV Export Toolbar */}
@@ -510,7 +509,6 @@ export default function AdminDashboard() {
                 onChange={(e) => setHistoryStatusFilter(e.target.value)}
               >
                 <option value="all">ผลสอบทั้งหมด</option>
-                <option value="pending">รอเจ้าหน้าที่ตรวจ</option>
                 <option value="passed">เฉพาะที่ผ่านเกณฑ์ (≥70%)</option>
                 <option value="notPassed">เฉพาะที่ไม่ผ่าน (&lt;70%)</option>
               </select>
@@ -622,14 +620,14 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <div style={{ fontSize: '1.2rem', fontWeight: '800', color: h.pending_count > 0 ? '#b45309' : passed ? '#10b981' : '#f43f5e' }}>
+                          <div style={{ fontSize: '1.2rem', fontWeight: '800', color: passed ? '#10b981' : '#f43f5e' }}>
                             {h.score} <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>/ {h.max_score}</span>
                           </div>
                           <div style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: '600' }}>({pct}%)</div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: '700', padding: '4px 10px', borderRadius: '12px', background: h.pending_count > 0 ? '#fffbeb' : gradeBg, color: h.pending_count > 0 ? '#b45309' : gradeColor }}>
-                            {h.pending_count > 0 ? `รอตรวจ ${h.pending_count} ข้อ` : `${passed ? '✓ ผ่าน' : '✕ ไม่ผ่าน'} (${grade})`}
+                          <span style={{ fontSize: '0.78rem', fontWeight: '700', padding: '4px 10px', borderRadius: '12px', background: gradeBg, color: gradeColor }}>
+                            {`${passed ? '✓ ผ่าน' : '✕ ไม่ผ่าน'} (${grade})`}
                           </span>
                         </td>
                         <td style={{ textAlign: 'center', paddingRight: '24px' }}>
@@ -699,12 +697,11 @@ export default function AdminDashboard() {
               ) : (
                 <div className="admin-attempt-list">
                   {userScores.map(h => {
-                    const pending = h.pending_count > 0;
                     const passed = h.score / (h.max_score || 100) >= .7;
                     return <article key={h.id} className="admin-attempt-row">
                       <div><strong>{SKILL_LABELS[h.skill] || h.skill}</strong><time dateTime={h.taken_at}>{formatDate(h.taken_at)}</time></div>
-                      <div><strong>{h.score} <small>/ {h.max_score} คะแนน</small></strong><span className={`admin-tag ${pending ? 'amber' : passed ? 'green' : 'red'}`}>{pending ? `รอตรวจ ${h.pending_count} ข้อ` : passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน'}</span></div>
-                      <button className="admin-detail-button" onClick={()=>{closeScoreModal();setActiveDetailAttempt(h);setActiveDetailUser(selectedUser);}}><Eye size={16}/> ดูคำตอบ / ตรวจคะแนน</button>
+                      <div><strong>{h.score} <small>/ {h.max_score} คะแนน</small></strong><span className={`admin-tag ${passed ? 'green' : 'red'}`}>{passed ? 'ผ่านเกณฑ์' : 'ยังไม่ผ่าน'}</span></div>
+                      <button className="admin-detail-button" onClick={()=>{closeScoreModal();setActiveDetailAttempt(h);setActiveDetailUser(selectedUser);}}><Eye size={16}/> ดูคำตอบละเอียด</button>
                     </article>;
                   })}
                 </div>

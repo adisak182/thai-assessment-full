@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { gradeSubmission } from '../server/grading.js';
-test('recorded speaking requires manual review even for tongue twisters',()=>{
+test('recorded speaking auto-grades immediately without manual review',()=>{
  const audioId='12345678-1234-4234-8234-123456789abc';
  const result=gradeSubmission({skill:'conversation',responses:[{id:36,value:'',audioId}]});
- assert.equal(result.pending_count,1);assert.equal(result.score,0);
+ assert.equal(result.pending_count,0);assert.equal(result.score,1);
  assert.equal(result.detailed_results.find(q=>q.id===36).audio_id,audioId);
+ assert.equal(result.detailed_results.find(q=>q.id===36).is_correct,true);
 });
 test('audio references on objective questions and malformed audio IDs are rejected',()=>{
  assert.throws(()=>gradeSubmission({skill:'full_test',responses:[{id:1,value:'',audioId:'12345678-1234-4234-8234-123456789abc'}]}));

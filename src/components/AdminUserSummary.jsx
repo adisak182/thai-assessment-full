@@ -9,12 +9,12 @@ export default function AdminUserSummary({ user, history }) {
     {summary && <>
       <div className="admin-person-metrics">
         <div><span>สอบทั้งหมด</span><strong>{summary.total} <small>ครั้ง</small></strong></div>
-        <div><span>รอตรวจ</span><strong>{summary.pending} <small>ครั้ง</small></strong></div>
-        <div><span>เฉลี่ยที่ตรวจครบ</span><strong>{summary.average === null ? '—' : `${summary.average}%`}</strong></div>
-        <div><span>สูงสุดที่ตรวจครบ</span><strong>{summary.best === null ? '—' : `${summary.best}%`}</strong></div>
+        <div><span>สอบผ่าน</span><strong>{summary.passed} <small>ครั้ง</small></strong></div>
+        <div><span>คะแนนเฉลี่ย</span><strong>{summary.average === null ? '—' : `${summary.average}%`}</strong></div>
+        <div><span>คะแนนสูงสุด</span><strong>{summary.best === null ? '—' : `${summary.best}%`}</strong></div>
       </div>
       <h4>ผลแยกทักษะ</h4>
-      <p className="admin-muted">ข้อสอบรวมครั้งล่าสุดที่ตรวจครบ{summary.latestFullTest ? ` · ${new Date(summary.latestFullTest.taken_at).toLocaleDateString('th-TH')}` : ' · ยังไม่มีผลที่ตรวจครบ'}</p>
+      <p className="admin-muted">ข้อสอบรวมครั้งล่าสุด{summary.latestFullTest ? ` · ${new Date(summary.latestFullTest.taken_at).toLocaleDateString('th-TH')}` : ' · ยังไม่มีผลการสอบ'}</p>
       <div className="admin-skill-grid">{skills.map(([key,label,max]) => {
         const result = summary.latestFullTest?.breakdown?.[key];
         return <div key={key}><div><span>{label}</span><strong>{result ? `${result.score} / ${result.max || max}` : '—'}</strong></div><progress aria-label={label} max={result?.max || max} value={result?.score || 0} /></div>;

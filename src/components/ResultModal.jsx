@@ -24,7 +24,7 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry,
     });
   }
   
-  const allPassed = pendingCount === 0 && pct >= 70;
+  const allPassed = pct >= 70;
 
   const fire = useCallback(() => {
     confetti({ 
@@ -52,17 +52,17 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry,
           {allPassed ? <Trophy size={44} /> : <XCircle size={44} />}
         </div>
         
-        {pendingCount > 0 ? <h2 style={{color:'#92400e'}}>บันทึกแล้ว — รอเจ้าหน้าที่ตรวจ {pendingCount} ข้อ</h2> : allPassed ? (
+        {allPassed ? (
           <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#059669', marginBottom: '24px' }}>ยอดเยี่ยม! 🎉 คุณผ่านเกณฑ์การประเมิน</h2>
         ) : (
           <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: '#dc2626', marginBottom: '24px' }}>❌ ยังไม่ผ่านเกณฑ์การประเมิน</h2>
         )}
 
         <div style={{ fontSize: '1.25rem', color: '#475569', marginBottom: '24px', lineHeight: '1.8', textAlign: 'left', background: '#f8fafc', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-          <div style={{ marginBottom: '12px' }}>คะแนนที่ตรวจแล้ว <strong style={{ color: 'var(--color-primary)', fontSize: '1.6rem' }}>{score}</strong> คะแนน (ร้อยละ {pct})</div>
-          <div style={{ marginBottom: '12px' }}>ผลการประเมินของคุณอยู่ในระดับ <strong style={{ color: evaluationColor, fontSize: '1.5rem' }}>{pendingCount ? 'รอตรวจ ยังไม่สรุปผล' : evaluationLevel}</strong></div>
+          <div style={{ marginBottom: '12px' }}>คะแนนที่ได้ <strong style={{ color: 'var(--color-primary)', fontSize: '1.6rem' }}>{score}</strong> คะแนน (ร้อยละ {pct})</div>
+          <div style={{ marginBottom: '12px' }}>ผลการประเมินของคุณอยู่ในระดับ <strong style={{ color: evaluationColor, fontSize: '1.5rem' }}>{evaluationLevel}</strong></div>
           
-          {pendingCount === 0 && !allPassed && failedSkills.length > 0 && (
+          {!allPassed && failedSkills.length > 0 && (
             <div style={{ color: '#dc2626', marginTop: '20px', padding: '16px', background: '#fef2f2', borderRadius: '12px', borderLeft: '4px solid #ef4444' }}>
               <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>โดยมีทักษะที่ต้องพัฒนาได้แก่:</div>
               <ul style={{ margin: 0, paddingLeft: '24px' }}>
@@ -88,7 +88,7 @@ export default function ResultModal({ score, total, breakdown, onClose, onRetry,
                       <span style={{ color: '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {item.label}
                         <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: skillPassed ? '#d1fae5' : '#fee2e2', color: skillPassed ? '#059669' : '#dc2626' }}>
-                          {item.pending > 0 ? 'รอตรวจ' : skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
+                          {skillPassed ? 'ผ่าน' : 'ไม่ผ่าน'}
                         </span>
                       </span>
                       <span style={{ color: 'var(--color-primary)' }}>{item.score} / {item.max}</span>

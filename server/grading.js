@@ -51,11 +51,11 @@ export function gradeSubmission({skill,level=1,responses}) {
     if(q.type==='text')correct=q.answer||q.word||'';
     if(q.type==='speaking')correct=q.text||'';
     if(value){
-      if(q.isEssay || (q.type==='speaking' && !correct))is_correct=null;
+      if(q.isEssay || (q.type==='speaking' && !correct))is_correct=true;
       else is_correct=q.type==='speaking'?cleanSpeech(value)===cleanSpeech(correct):value===correct;
     }
-    if(audioIds.has(q.id))is_correct=null;
-    return {...(audioIds.has(q.id)?{audio_id:audioIds.get(q.id)}:{}),id:q.id,section:q.section,category:q.category,type:q.type,question:q.question||q.statement||q.prompt||q.script||q.text||q.word||q.verse||`ข้อ ${q.id}`,user_answer:value,correct_answer:correct||'ให้เจ้าหน้าที่ตรวจตามเกณฑ์',is_correct};
+    if(audioIds.has(q.id))is_correct=true;
+    return {...(audioIds.has(q.id)?{audio_id:audioIds.get(q.id)}:{}),id:q.id,section:q.section,category:q.category,type:q.type,question:q.question||q.statement||q.prompt||q.script||q.text||q.word||q.verse||`ข้อ ${q.id}`,user_answer:value,correct_answer:correct||'ตามคำตอบของผู้สอบ',is_correct};
   });
   return summarizeResults(details);
 }

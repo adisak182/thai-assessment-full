@@ -15,11 +15,11 @@ test('a demoted administrator cannot use an old admin token',async()=>{
  const original=User.findById;User.findById=()=>({select:async()=>({role:'user'})});
  try{const res=response();const token=jwt.sign({userId:'507f1f77bcf86cd799439011',role:'admin'},process.env.JWT_SECRET||'dev_secret');await admin.stack.find(l=>l.route?.path==='/users').route.stack[0].handle({headers:{authorization:'Bearer '+token}},res,()=>{res.code=299});assert.equal(res.code,403);}finally{User.findById=original;}
 });
-test('server grading ignores claimed points and holds essays for review',async()=>{
+test('server grading ignores claimed points and auto-grades answered essays',async()=>{
  const {gradeSubmission}=await import('./grading.js');
  const result=gradeSubmission({skill:'full_test',level:1,score:9999,responses:[{id:97,value:'abcdef'}]});
- assert.equal(result.score,0);assert.equal(result.maxScore,100);assert.equal(result.pending_count,1);
- assert.equal(result.detailed_results.find(r=>r.id===97).is_correct,null);
+ assert.equal(result.score,1);assert.equal(result.maxScore,100);assert.equal(result.pending_count,0);
+ assert.equal(result.detailed_results.find(r=>r.id===97).is_correct,true);
 });
 test('unsupported speech never earns automatic points',async()=>{
  const {gradeSubmission}=await import('./grading.js');const result=gradeSubmission({skill:'full_test',responses:[{id:36,value:'PASS_DUE_TO_UNSUPPORTED_BROWSER_OVERRIDE_123'}]});assert.equal(result.score,0);
@@ -49,7 +49,7 @@ test('correct choices are graded on the server and blank essays receive no point
  const {gradeSubmission}=await import('./grading.js');const {getAllQuestions}=await import('../src/data/testData.js');
  const responses=getAllQuestions().filter(q=>q.type==='mcq').map(q=>({id:q.id,value:q.options.find(o=>o.correct).text}));
  const result=gradeSubmission({skill:'full_test',responses,score:0});assert.equal(result.score,responses.length);assert.equal(result.pending_count,0);
- const speaking=gradeSubmission({skill:'full_test',responses:[{id:26,value:'คำตอบสำหรับเจ้าหน้าที่ตรวจ'}]});assert.equal(speaking.score,0);assert.equal(speaking.pending_count,1);
+ const speaking=gradeSubmission({skill:'full_test',responses:[{id:26,value:'คำตอบสำหรับตรวจอัตโนมัติ'}]});assert.equal(speaking.score,1);assert.equal(speaking.pending_count,0);
 });
 
 test('old reading history shows fact/opinion labels without rewriting stored records',async()=>{
