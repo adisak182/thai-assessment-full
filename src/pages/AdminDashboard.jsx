@@ -190,7 +190,7 @@ export default function AdminDashboard() {
 
   const downloadAllHistoryCSV = () => {
     const headers = [
-      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'ที่อยู่', 'อำเภอ', 'จังหวัด', 'แบบทดสอบ',
+      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'อำเภอ', 'จังหวัด', 'แบบทดสอบ',
       'คะแนนที่ได้', 'คะแนนเต็ม', 'ร้อยละ (%)', 'ผลการประเมิน', 'ระดับ',
       'การฟัง (25)', 'การพูด (15)', 'การอ่าน (30)', 'การเขียน (30)'
     ];
@@ -213,7 +213,6 @@ export default function AdminDashboard() {
       const uUsername = h.user?.username || '-';
       const uAge = h.user?.age || '-';
       const rawAddress = h.user?.address || '';
-      const uAddress = `"${(rawAddress || '-').replace(/"/g, '""')}"`;
 
       const userSurvey = surveyMap.get(String(h.user_id || h.user?.id || ''));
       const { district, province } = extractDistrictAndProvince(rawAddress, h.user?.district, h.user?.province, userSurvey);
@@ -223,7 +222,7 @@ export default function AdminDashboard() {
       const skillName = h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : h.skill;
 
       return [
-        formatDate(h.taken_at), uName, uUsername, uAge, uAddress, uDistrict, uProvince, skillName,
+        formatDate(h.taken_at), uName, uUsername, uAge, uDistrict, uProvince, skillName,
         h.score, h.max_score, `${pct}%`, passed, grade,
         lScore, sScore, rScore, wScore
       ];
