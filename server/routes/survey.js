@@ -1,5 +1,6 @@
 import authenticateAdmin from '../authenticateAdmin.js';
 import express from 'express';
+import mongoose from 'mongoose';
 import SurveyResponse from '../models/SurveyResponse.js';
 import jwt from 'jsonwebtoken';
 
@@ -45,6 +46,41 @@ router.get('/', authenticateAdmin, async (req, res) => {
   } catch (err) {
     console.error('Get surveys error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+// ==================== UPDATE SURVEY (ADMIN) ====================
+router.put('/:id', authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: 'ไม่พบข้อมูลแบบประเมิน' });
+  }
+
+  const allowedFields = [
+    'gender', 'age', 'status', 'education_level', 'employment_status',
+    'target_group', 'subdistrict', 'district', 'province', 'suggestions'
+  ];
+  const updates = {};
+  for (const field of allowedFields) {
+    if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+      const value = req.body[field];
+      updates[field] = typeof value === 'string' ? value.trim() : value;
+    }
+  }
+
+  try {
+    const updated = await SurveyResponse.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true }
+    ).populate('user_id', 'name');
+    if (!updated) {
+      return res.status(404).json({ message: 'ไม่พบข้อมูลแบบประเมิน' });
+    }
+    return res.json({ message: 'อัปเดตแบบประเมินสำเร็จ', survey: updated });
+  } catch (err) {
+    console.error('Update survey error:', err);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตแบบประเมิน' });
   }
 });
 

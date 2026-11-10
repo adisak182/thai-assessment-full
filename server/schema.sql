@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS `survey_responses` (
   `education_level` VARCHAR(100) NULL,
   `employment_status` VARCHAR(100) NULL,
   `target_group` VARCHAR(100) NULL,
+  `subdistrict` VARCHAR(100) NULL,
   `district` VARCHAR(100) NULL,
   `province` VARCHAR(100) NULL,
   `design_1` INT NULL,

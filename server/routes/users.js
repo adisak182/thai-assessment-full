@@ -9,6 +9,7 @@ import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 import mongoose from 'mongoose';
+import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 
 
 const router = express.Router();
@@ -51,7 +52,15 @@ router.get('/me', authenticate, async (req, res) => {
 router.put('/me', authenticate, async (req, res) => {
   const { name, age, gender, address, avatar } = req.body;
   try {
-    await User.findByIdAndUpdate(req.userId, { name, age, gender, address, avatar });
+    const updateFields = {
+      name,
+      age,
+      gender,
+      address,
+      avatar,
+      ...resolveLocationUpdates(req.body)
+    };
+    await User.findByIdAndUpdate(req.userId, updateFields);
     return res.json({ message: 'บันทึกข้อมูลสำเร็จ' });
   } catch (err) {
     console.error('Update profile error:', err);

@@ -63,23 +63,36 @@ function cleanPrefix(str, type) {
     s = s.replace(/^(?:จังหวัด|จ\.)\s*/, '').trim();
   } else if (type === 'district') {
     s = s.replace(/^(?:อำเภอ|อ\.)\s*/, '').trim();
+  } else if (type === 'subdistrict') {
+    s = s.replace(/^(?:ตำบล|ต\.|แขวง)\s*/, '').trim();
   }
   return s;
 }
 
-export function extractDistrictAndProvince(address = '', userDistrict = '', userProvince = '', survey = null) {
+export function extractDistrictAndProvince(address = '', userDistrict = '', userProvince = '', survey = null, userSubdistrict = '') {
+  let subdistrict = cleanPrefix(userSubdistrict || survey?.subdistrict || '', 'subdistrict');
   let district = cleanPrefix(userDistrict || survey?.district || '', 'district');
   let province = cleanPrefix(userProvince || survey?.province || '', 'province');
 
   const raw = String(address || '').trim();
 
-  // If both already provided explicitly, normalize and return
-  if (district && province) {
+  // If all three already provided explicitly, normalize and return
+  if (subdistrict && district && province) {
     if (district === 'เมือง' && province === 'นราธิวาส') district = 'เมืองนราธิวาส';
-    return { district, province };
+    return { subdistrict, district, province };
   }
 
   if (raw && raw !== '-') {
+    // 0. Try to extract subdistrict if missing
+    if (!subdistrict) {
+      const subMatch = raw.match(/(?:ตำบล|ต\.|แขวง)\s*([ก-๙-]+)/);
+      if (subMatch) {
+        let candidate = subMatch[1].trim();
+        candidate = candidate.replace(/\s*(?:อำเภอ|อ\.|จังหวัด|จ\.|เขต).*$/, '').trim();
+        subdistrict = candidate;
+      }
+    }
+
     // 1. Try to extract province if missing
     if (!province) {
       const provMatch = raw.match(/(?:จังหวัด|จ\.)\s*([ก-๙]+)/);
@@ -140,6 +153,7 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
   }
 
   // Fallbacks from survey
+  if (!subdistrict && survey?.subdistrict) subdistrict = cleanPrefix(survey.subdistrict, 'subdistrict');
   if (!district && survey?.district) district = cleanPrefix(survey.district, 'district');
   if (!province && survey?.province) province = cleanPrefix(survey.province, 'province');
 
@@ -157,8 +171,32 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
   }
 
   return {
+    subdistrict: subdistrict || '-',
     district: district || '-',
     province: province || '-'
   };
+}
+
+/**
+ * Resolve normalized location fields for database updates, keeping explicit
+ * fields if provided or falling back to extraction from raw address text.
+ */
+export function resolveLocationUpdates(body = {}) {
+  const { address, subdistrict, district, province } = body;
+  const updates = {};
+  const hasExplicitLoc = ['subdistrict', 'district', 'province'].some(
+    k => Object.prototype.hasOwnProperty.call(body, k)
+  );
+  if (hasExplicitLoc) {
+    if (subdistrict !== undefined) updates.subdistrict = String(subdistrict || '').trim() || null;
+    if (district !== undefined) updates.district = String(district || '').trim() || null;
+    if (province !== undefined) updates.province = String(province || '').trim() || null;
+  } else if (address !== undefined) {
+    const extracted = extractDistrictAndProvince(address || '');
+    updates.subdistrict = extracted.subdistrict !== '-' ? extracted.subdistrict : null;
+    updates.district = extracted.district !== '-' ? extracted.district : null;
+    updates.province = extracted.province !== '-' ? extracted.province : null;
+  }
+  return updates;
 }
 

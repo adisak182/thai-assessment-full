@@ -9,6 +9,7 @@ const surveySchema = new mongoose.Schema({
   education_level: { type: String },
   employment_status: { type: String },
   target_group: { type: String },
+  subdistrict: { type: String },
   district: { type: String },
   province: { type: String },
   // ส่วนที่ 2 ด้านการออกแบบและการใช้งาน (1-4)

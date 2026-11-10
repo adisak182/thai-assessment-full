@@ -6,6 +6,7 @@ import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 import SurveyResponse from '../models/SurveyResponse.js';
+import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 
 const router = express.Router();
 
@@ -51,15 +52,15 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 router.get('/history', authenticateAdmin, async (req, res) => {
   try {
     const history = await ScoreHistory.find()
-      .populate('user_id', 'username name avatar age address district province role')
+      .populate('user_id', 'username name avatar age address subdistrict district province role')
       .sort({ taken_at: -1 })
       .limit(300);
 
     const userIds = history.map(h => h.user_id?._id).filter(Boolean);
-    const surveys = userIds.length ? await SurveyResponse.find({ user_id: { $in: userIds } }).select('user_id district province submitted_at').sort({ submitted_at: 1 }) : [];
+    const surveys = userIds.length ? await SurveyResponse.find({ user_id: { $in: userIds } }).select('user_id subdistrict district province submitted_at').sort({ submitted_at: 1 }) : [];
     const surveyMap = new Map();
     for (const s of surveys) {
-      if (s.user_id) surveyMap.set(s.user_id.toString(), { district: s.district, province: s.province });
+      if (s.user_id) surveyMap.set(s.user_id.toString(), { subdistrict: s.subdistrict, district: s.district, province: s.province });
     }
 
     const formatted = history.map(h => {
@@ -75,6 +76,7 @@ router.get('/history', authenticateAdmin, async (req, res) => {
           avatar: u.avatar,
           age: u.age,
           address: u.address,
+          subdistrict: u.subdistrict || s?.subdistrict || null,
           district: u.district || s?.district || null,
           province: u.province || s?.province || null,
           role: u.role
@@ -158,14 +160,23 @@ router.put('/users/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
   const { name, age, address, role } = req.body;
   try {
+    const updateFields = {
+      name,
+      age: age || null,
+      address: address || null,
+      role: role || 'user',
+      ...resolveLocationUpdates(req.body)
+    };
+
     const updated = await User.findByIdAndUpdate(
       id,
-      { name, age: age || null, address: address || null, role: role || 'user' }
-    );
+      updateFields,
+      { new: true }
+    ).select('-password');
     if (!updated) {
       return res.status(404).json({ message: 'ไม่พบผู้ใช้' });
     }
-    return res.json({ message: 'อัปเดตข้อมูลผู้ใช้สำเร็จ' });
+    return res.json({ message: 'อัปเดตข้อมูลผู้ใช้สำเร็จ', user: updated.toJSON() });
   } catch (err) {
     console.error('Update user error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });

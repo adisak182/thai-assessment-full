@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  subdistrict: {
+    type: String,
+    default: null,
+  },
   district: {
     type: String,
     default: null,

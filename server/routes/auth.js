@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import LevelProgress from '../models/LevelProgress.js';
+import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -33,6 +34,7 @@ router.post('/register', async (req, res) => {
       age: age || null,
       gender: gender || null,
       address: address || null,
+      ...resolveLocationUpdates(req.body),
       avatar: avatar || null,
       is_literacy_learner,
       role
@@ -91,6 +93,7 @@ router.post('/start', async (req, res) => {
         name: trimmedName,
         age: age ? Number(age) : null,
         address: address ? address.trim() : null,
+        ...resolveLocationUpdates(address ? { address: address.trim() } : req.body),
         status: status || null,
         education_level: education_level || null,
         employment_status: employment_status || null,
@@ -110,7 +113,11 @@ router.post('/start', async (req, res) => {
       let changed = false;
       if (user.is_literacy_learner !== is_literacy_learner) { user.is_literacy_learner = is_literacy_learner; changed = true; }
       if (age && user.age !== Number(age)) { user.age = Number(age); changed = true; }
-      if (address && user.address !== address.trim()) { user.address = address.trim(); changed = true; }
+      if (address && user.address !== address.trim()) {
+        user.address = address.trim();
+        Object.assign(user, resolveLocationUpdates({ address: address.trim() }));
+        changed = true;
+      }
       if (status && user.status !== status) { user.status = status; changed = true; }
       if (education_level && user.education_level !== education_level) { user.education_level = education_level; changed = true; }
       if (employment_status && user.employment_status !== employment_status) { user.employment_status = employment_status; changed = true; }

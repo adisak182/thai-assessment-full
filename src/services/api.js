@@ -181,6 +181,20 @@ export const getAdminSurveys = async (token) => {
   return result;
 };
 
+export const updateAdminSurvey = async (token, surveyId, data) => {
+  const response = await fetch(`${API_URL}/survey/${surveyId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'อัปเดตแบบประเมินไม่สำเร็จ');
+  return result;
+};
+
 export const deleteUser = async (token, userId) => {
   const response = await fetch(`${API_URL}/admin/users/${userId}`, {
     method: 'DELETE',

@@ -5,12 +5,13 @@ import { filterUsers, summarizeLearners, summarizeAttempts } from '../utils/admi
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory } from '../services/api';
+import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory, updateAdminSurvey } from '../services/api';
 import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
 import { extractDistrictAndProvince } from '../utils/addressHelper';
+import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
 
 const SKILL_LABELS = {full_test:'แบบทดสอบรวม 100 ข้อ',listening:'การฟัง',conversation:'การพูด',speaking:'การพูด',reading:'การอ่าน',writing:'การเขียน'};
 
@@ -49,7 +50,7 @@ export default function AdminDashboard() {
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', age: '', address: '', role: 'user' });
+  const [editForm, setEditForm] = useState({ name: '', age: '', address: '', subdistrict: '', district: '', province: '', role: 'user' });
 
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,6 +68,12 @@ export default function AdminDashboard() {
   const [surveysLoading, setSurveysLoading] = useState(false);
   const [surveyTab, setSurveyTab] = useState('overview'); // 'overview' | 'list'
   const [expandedSurveyId, setExpandedSurveyId] = useState(null);
+  const [editingSurveyId, setEditingSurveyId] = useState(null);
+  const [surveyEditForm, setSurveyEditForm] = useState({
+    gender: '', age: '', status: '', education_level: '', employment_status: '',
+    subdistrict: '', district: '', province: '', suggestions: ''
+  });
+  const [savingSurvey, setSavingSurvey] = useState(false);
 
   const answerKeyData = useMemo(() => getAllQuestions(), []);
 
@@ -96,14 +103,7 @@ export default function AdminDashboard() {
     });
   }, [surveys]);
 
-  const surveyMap = useMemo(() => {
-    const map = new Map();
-    for (const s of surveys || []) {
-      const uid = s.user_id?._id || s.user_id?.id || s.user_id;
-      if (uid) map.set(String(uid), s);
-    }
-    return map;
-  }, [surveys]);
+  const surveyMap = useMemo(() => buildLatestSurveyMap(surveys), [surveys]);
 
   useEffect(() => {
     if (!user) return;
@@ -188,84 +188,34 @@ export default function AdminDashboard() {
     return {total:summary.total,passed:summary.passed,notPassed:summary.reviewed-summary.passed,avg:summary.average,pending:summary.pending};
   }, [allHistory]);
 
-  const downloadAllHistoryCSV = () => {
-    const headers = [
-      'วันที่สอบ', 'ชื่อ-นามสกุล', 'ชื่อผู้ใช้ (Username)', 'อายุ', 'อำเภอ', 'จังหวัด', 'แบบทดสอบ',
-      'คะแนนที่ได้', 'คะแนนเต็ม', 'ร้อยละ (%)', 'ผลการประเมิน', 'ระดับ',
-      'การฟัง (25)', 'การพูด (15)', 'การอ่าน (30)', 'การเขียน (30)'
-    ];
-
-    const rows = filteredAllHistory.map(h => {
-      const pct = Math.round((h.score / (h.max_score || 100)) * 100);
-      const passed = pct >= 70 ? 'ผ่าน' : 'ไม่ผ่าน';
-      let grade = 'ปรับปรุง';
-      if (pct >= 80) grade = 'ดีมาก';
-      else if (pct >= 60) grade = 'ดี';
-      else if (pct >= 50) grade = 'พอใช้';
-
-      const bd = h.breakdown || {};
-      const lScore = bd.listening?.score ?? '-';
-      const sScore = bd.speaking?.score ?? '-';
-      const rScore = bd.reading?.score ?? '-';
-      const wScore = bd.writing?.score ?? '-';
-
-      const uName = h.user?.name || '-';
-      const uUsername = h.user?.username || '-';
-      const uAge = h.user?.age || '-';
-      const rawAddress = h.user?.address || '';
-
-      const userSurvey = surveyMap.get(String(h.user_id || h.user?.id || ''));
-      const { district, province } = extractDistrictAndProvince(rawAddress, h.user?.district, h.user?.province, userSurvey);
-      const uDistrict = `"${(district || '-').replace(/"/g, '""')}"`;
-      const uProvince = `"${(province || '-').replace(/"/g, '""')}"`;
-
-      const skillName = h.skill === 'full_test' ? 'แบบทดสอบรวม 100 ข้อ' : h.skill;
-
-      return [
-        formatDate(h.taken_at), uName, uUsername, uAge, uDistrict, uProvince, skillName,
-        h.score, h.max_score, `${pct}%`, passed, grade,
-        lScore, sScore, rScore, wScore
-      ];
-    });
-
-    const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
+  const triggerCsvDownload = (csvContent, filename) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `ประวัติการทำแบบทดสอบทั้งหมด_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', filename);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
+  const downloadAllHistoryCSV = () => {
+    const csvContent = buildHistoryCsv({
+      history: filteredAllHistory,
+      users,
+      surveys,
+      formatDate
+    });
+    triggerCsvDownload(csvContent, `ประวัติการทำแบบทดสอบทั้งหมด_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
 
   const downloadSurveyCSV = () => {
-    const headers = [
-      'วันที่', 'เพศ', 'อายุ', 'สถานะ', 'ข้อมูลเพิ่มเติม', 'อำเภอ', 'จังหวัด',
-      '1.1 แอปพลิเคชันมีเมนูการใช้งานที่ไม่ซับซ้อน เข้าถึงง่าย', '1.2 แอปพลิเคชันมีความน่าสนใจและทันสมัย', '1.3 ขนาดตัวอักษรมีความเหมาะสมชัดเจน', '1.4 ภาพประกอบมีความชัดเจนและสอดคล้องกับเนื้อหา',
-      '2.1 เนื้อหามีความถูกต้องตามหลักภาษาไทย', '2.2 เนื้อหามีความเหมาะสมตามระดับการประเมิน', '2.3 การเรียงลำดับเนื้อหามีความเหมาะสมจากง่ายไปยาก', '2.4 เนื้อหามีความน่าสนใจและทันสมัย',
-      '3.1 แอปพลิเคชันช่วยส่งเสริมความรู้ด้านภาษาไทย', '3.2 แอปพลิเคชันสามารถพัฒนาทักษะการใช้ภาษาไทยได้ดีขึ้น', '3.3 ผู้ใช้งานสามารถนำความรู้ไปประยุกต์ใช้ในชีวิตประจำวันได้', '3.4 ผู้ใช้งานเห็นคุณค่าและตระหนักถึงความสำคัญของภาษาไทย',
-      'ข้อเสนอแนะ'
-    ];
-    
-    const rows = surveys.map(data => [
-      formatDate(data.submitted_at), data.gender, data.age, data.status, data.education_level || data.employment_status, data.district, data.province,
-      data.design_1, data.design_2, data.design_3, data.design_4,
-      data.content_1, data.content_2, data.content_3, data.content_4,
-      data.benefit_1, data.benefit_2, data.benefit_3, data.benefit_4,
-      `"${(data.suggestions || '').replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent = '\uFEFF' + headers.join(',') + '\n' + rows.map(r => r.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'ผลแบบประเมินทั้งหมด.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = buildSurveyCsv({
+      surveys,
+      formatDate
+    });
+    triggerCsvDownload(csvContent, 'ผลแบบประเมินทั้งหมด.csv');
   };
 
   const printSurveyBlank = () => {
@@ -298,7 +248,7 @@ export default function AdminDashboard() {
           <h3>ส่วนที่ 1 ข้อมูลทั่วไป</h3>
           <div class="row">1. เพศ: ${val()} &nbsp;&nbsp;&nbsp; 2. อายุ: ${val()} ปี</div>
           <div class="row">3. สถานะ: ${val()} &nbsp;&nbsp;&nbsp; ข้อมูลเพิ่มเติม: ${val()}</div>
-          <div class="row">4. ภูมิลำเนา (อำเภอ): ${val()} &nbsp;&nbsp;&nbsp; จังหวัด: ${val()}</div>
+          <div class="row">4. ภูมิลำเนา (ตำบล): ${val()} &nbsp;&nbsp;&nbsp; อำเภอ: ${val()} &nbsp;&nbsp;&nbsp; จังหวัด: ${val()}</div>
           
           <h3>ส่วนที่ 2 การประเมินความพึงพอใจ</h3>
           <table>
@@ -382,19 +332,96 @@ export default function AdminDashboard() {
   };
 
   const openEditModal = (u) => {
+    const userSurvey = surveyMap.get(String(u.id || u._id || ''));
+    const loc = extractDistrictAndProvince(u.address, u.district, u.province, userSurvey, u.subdistrict);
     setEditingUser(u);
-    setEditForm({ name: u.name, age: u.age || '', address: u.address || '', role: u.role || 'user' });
+    setEditForm({
+      name: u.name,
+      age: u.age || '',
+      address: u.address || '',
+      subdistrict: loc.subdistrict === '-' ? '' : loc.subdistrict,
+      district: loc.district === '-' ? '' : loc.district,
+      province: loc.province === '-' ? '' : loc.province,
+      role: u.role || 'user'
+    });
   };
 
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      await updateUserByAdmin(token, editingUser.id, editForm);
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...editForm } : u));
+      const result = await updateUserByAdmin(token, editingUser.id, editForm);
+      const updatedUser = result?.user ? { ...editForm, ...result.user } : editForm;
+      setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updatedUser } : u));
+      setAllHistory(prev => prev.map(h => {
+        const hid = h.user_id || h.user?.id || h.user?._id;
+        if (String(hid) !== String(editingUser.id)) return h;
+        return {
+          ...h,
+          user: {
+            ...h.user,
+            name: updatedUser.name,
+            age: updatedUser.age || null,
+            address: updatedUser.address || null,
+            subdistrict: updatedUser.subdistrict || null,
+            district: updatedUser.district || null,
+            province: updatedUser.province || null,
+            role: updatedUser.role || h.user?.role
+          }
+        };
+      }));
       setEditingUser(null);
       alert('บันทึกข้อมูลสำเร็จ');
     } catch (err) {
       alert('บันทึกไม่สำเร็จ: ' + err.message);
+    }
+  };
+
+  const openSurveyEdit = (s, rowId) => {
+    setEditingSurveyId(rowId);
+    setSurveyEditForm({
+      gender: s.gender || '',
+      age: s.age || '',
+      status: s.status || '',
+      education_level: s.education_level || '',
+      employment_status: s.employment_status || '',
+      subdistrict: s.subdistrict || '',
+      district: s.district || '',
+      province: s.province || '',
+      suggestions: s.suggestions || ''
+    });
+  };
+
+  const handleSaveSurveyEdit = async (e, s) => {
+    e.preventDefault();
+    const targetId = s._id || s.id;
+    if (!targetId) return;
+    setSavingSurvey(true);
+    try {
+      const res = await updateAdminSurvey(token, targetId, surveyEditForm);
+      const updated = res?.survey || { ...s, ...surveyEditForm };
+      setSurveys(prev => prev.map(item => ((item._id || item.id) === targetId ? updated : item)));
+      const uid = updated.user_id?._id || updated.user_id?.id || updated.user_id;
+      if (uid) {
+        setAllHistory(prev => prev.map(h => {
+          const hid = h.user_id || h.user?.id || h.user?._id;
+          if (String(hid) !== String(uid)) return h;
+          return {
+            ...h,
+            user: {
+              ...h.user,
+              subdistrict: updated.subdistrict || h.user?.subdistrict || null,
+              district: updated.district || h.user?.district || null,
+              province: updated.province || h.user?.province || null
+            }
+          };
+        }));
+      }
+      setEditingSurveyId(null);
+      alert('บันทึกการแก้ไขแบบประเมินสำเร็จ');
+    } catch (err) {
+      alert('บันทึกไม่สำเร็จ: ' + err.message);
+    } finally {
+      setSavingSurvey(false);
     }
   };
 
@@ -768,7 +795,49 @@ export default function AdminDashboard() {
                   <input 
                     type="text"
                     value={editForm.address} 
-                    onChange={e => setEditForm({...editForm, address: e.target.value})} 
+                    onChange={e => {
+                      const nextAddress = e.target.value;
+                      const parsed = extractDistrictAndProvince(nextAddress);
+                      setEditForm(prev => ({
+                        ...prev,
+                        address: nextAddress,
+                        subdistrict: parsed.subdistrict !== '-' ? parsed.subdistrict : prev.subdistrict,
+                        district: parsed.district !== '-' ? parsed.district : prev.district,
+                        province: parsed.province !== '-' ? parsed.province : prev.province
+                      }));
+                    }} 
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
+                  />
+                </div>
+              </div>
+              <div className="form-pair" style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ตำบล</label>
+                  <input
+                    type="text"
+                    placeholder="ระบุตำบล"
+                    value={editForm.subdistrict}
+                    onChange={e => setEditForm({ ...editForm, subdistrict: e.target.value })}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>อำเภอ</label>
+                  <input
+                    type="text"
+                    placeholder="ระบุอำเภอ"
+                    value={editForm.district}
+                    onChange={e => setEditForm({ ...editForm, district: e.target.value })}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>จังหวัด</label>
+                  <input
+                    type="text"
+                    placeholder="ระบุจังหวัด"
+                    value={editForm.province}
+                    onChange={e => setEditForm({ ...editForm, province: e.target.value })}
                     style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
                   />
                 </div>
@@ -885,8 +954,9 @@ export default function AdminDashboard() {
                         </thead>
                         <tbody>
                           {surveys.map((s, i) => {
-                            const isExpanded = expandedSurveyId === (s.id || i);
-                            const currentId = s.id || i;
+                            const currentId = s._id || s.id || i;
+                            const isExpanded = expandedSurveyId === currentId;
+                            const isEditingThis = editingSurveyId === currentId;
                             
                             const totalScore = (
                               Number(s.design_1||0) + Number(s.design_2||0) + Number(s.design_3||0) + Number(s.design_4||0) +
@@ -894,6 +964,7 @@ export default function AdminDashboard() {
                               Number(s.benefit_1||0) + Number(s.benefit_2||0) + Number(s.benefit_3||0) + Number(s.benefit_4||0)
                             );
                             const avgScore = (totalScore / 12).toFixed(2);
+                            const areaParts = [s.subdistrict ? `ต.${s.subdistrict}` : '', s.district ? `อ.${s.district}` : ''].filter(Boolean).join(' ');
 
                             return (
                               <Fragment key={currentId}>
@@ -906,10 +977,10 @@ export default function AdminDashboard() {
                                     <div style={{ fontWeight: '600' }}>{s.gender || '-'}</div>
                                     <div style={{ fontSize: '0.85rem', color: '#64748b' }}>{s.age ? `${s.age} ปี` : '-'}</div>
                                   </td>
-                                  <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{s.target_group || '-'}</td>
+                                  <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>{s.target_group || s.status || '-'}</td>
                                   <td style={{ padding: '16px', color: '#334155', fontSize: '0.9rem' }}>
                                     {s.province || '-'}
-                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{s.district ? `อ.${s.district}` : '-'}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{areaParts || '-'}</div>
                                   </td>
                                   <td style={{ padding: '16px', textAlign: 'center' }}>
                                     <div style={{ display: 'inline-block', padding: '6px 12px', background: avgScore >= 3.5 ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)', color: avgScore >= 3.5 ? '#059669' : '#2563eb', borderRadius: '20px', fontWeight: 'bold' }}>
@@ -920,6 +991,88 @@ export default function AdminDashboard() {
                                 {isExpanded && (
                                   <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
                                     <td colSpan={6} style={{ padding: '24px 32px' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px', padding: '12px 16px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: '0.9rem', color: '#334155', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                                          <span><strong>สถานะ:</strong> {s.status || '-'} ({s.education_level || s.employment_status || '-'})</span>
+                                          <span><strong>ตำบล:</strong> {s.subdistrict || '-'}</span>
+                                          <span><strong>อำเภอ:</strong> {s.district || '-'}</span>
+                                          <span><strong>จังหวัด:</strong> {s.province || '-'}</span>
+                                        </div>
+                                        {!isEditingThis && (s._id || s.id) && (
+                                          <button
+                                            type="button"
+                                            onClick={() => openSurveyEdit(s, currentId)}
+                                            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#334155', fontWeight: '600', cursor: 'pointer', fontSize: '0.85rem' }}
+                                          >
+                                            <Edit2 size={14} /> แก้ไขข้อมูลแบบประเมิน
+                                          </button>
+                                        )}
+                                      </div>
+
+                                      {isEditingThis && (
+                                        <form onSubmit={(e) => handleSaveSurveyEdit(e, s)} style={{ background: 'white', padding: '20px', borderRadius: '12px', border: '1.5px solid #cbd5e1', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                          <div style={{ fontWeight: '700', color: '#1e293b' }}>แก้ไขข้อมูลแบบประเมิน (อัปเดตลง CSV อัตโนมัติ)</div>
+                                          <div className="form-pair" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>เพศ</label>
+                                              <select value={surveyEditForm.gender} onChange={e => setSurveyEditForm({ ...surveyEditForm, gender: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white' }}>
+                                                <option value="">-- เลือก --</option>
+                                                <option value="ชาย">ชาย</option>
+                                                <option value="หญิง">หญิง</option>
+                                                <option value="อื่นๆ">อื่นๆ</option>
+                                              </select>
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>อายุ</label>
+                                              <input type="text" value={surveyEditForm.age} onChange={e => setSurveyEditForm({ ...surveyEditForm, age: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>สถานะ</label>
+                                              <input type="text" value={surveyEditForm.status} onChange={e => setSurveyEditForm({ ...surveyEditForm, status: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '160px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>ข้อมูลเพิ่มเติม</label>
+                                              <input
+                                                type="text"
+                                                placeholder="ระดับการศึกษา / อาชีพ"
+                                                value={surveyEditForm.education_level || surveyEditForm.employment_status || ''}
+                                                onChange={e => {
+                                                  const v = e.target.value;
+                                                  const isStudying = (surveyEditForm.status || '').includes('กำลังศึกษา');
+                                                  setSurveyEditForm(prev => ({
+                                                    ...prev,
+                                                    education_level: isStudying ? v : '',
+                                                    employment_status: isStudying ? '' : v
+                                                  }));
+                                                }}
+                                                style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <div className="form-pair" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>ตำบล</label>
+                                              <input type="text" placeholder="ระบุตำบล" value={surveyEditForm.subdistrict} onChange={e => setSurveyEditForm({ ...surveyEditForm, subdistrict: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>อำเภอ</label>
+                                              <input type="text" placeholder="ระบุอำเภอ" value={surveyEditForm.district} onChange={e => setSurveyEditForm({ ...surveyEditForm, district: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
+                                            </div>
+                                            <div style={{ flex: 1, minWidth: '140px' }}>
+                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>จังหวัด</label>
+                                              <input type="text" placeholder="ระบุจังหวัด" value={surveyEditForm.province} onChange={e => setSurveyEditForm({ ...surveyEditForm, province: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
+                                            </div>
+                                          </div>
+                                          <div>
+                                            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>ข้อเสนอแนะ</label>
+                                            <textarea value={surveyEditForm.suggestions} onChange={e => setSurveyEditForm({ ...surveyEditForm, suggestions: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', minHeight: '70px', fontFamily: 'inherit' }} />
+                                          </div>
+                                          <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                            <button type="button" className="btn-secondary" onClick={() => setEditingSurveyId(null)} style={{ padding: '8px 18px', borderRadius: '10px' }}>ยกเลิก</button>
+                                            <button type="submit" disabled={savingSurvey} className="btn-primary" style={{ padding: '8px 20px', borderRadius: '10px' }}>{savingSurvey ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข'}</button>
+                                          </div>
+                                        </form>
+                                      )}
                                       <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px', marginBottom: '20px' }}>
                                         {/* Design */}
                                         <div style={{ background: 'white', padding: '16px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #e2e8f0' }}>
