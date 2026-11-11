@@ -12,6 +12,7 @@ import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
 import { extractDistrictAndProvince } from '../utils/addressHelper';
 import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
+import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
 
 const SKILL_LABELS = {full_test:'แบบทดสอบรวม 100 ข้อ',listening:'การฟัง',conversation:'การพูด',speaking:'การพูด',reading:'การอ่าน',writing:'การเขียน'};
 
@@ -50,7 +51,7 @@ export default function AdminDashboard() {
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '', age: '', address: '', subdistrict: '', district: '', province: '', role: 'user' });
+  const [editForm, setEditForm] = useState({ prefix: '', name: '', age: '', address: '', subdistrict: '', district: '', province: '', role: 'user' });
 
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -334,9 +335,11 @@ export default function AdminDashboard() {
   const openEditModal = (u) => {
     const userSurvey = surveyMap.get(String(u.id || u._id || ''));
     const loc = extractDistrictAndProvince(u.address, u.district, u.province, userSurvey, u.subdistrict);
+    const { prefix, nameWithoutPrefix } = splitNamePrefix(u.name || '');
     setEditingUser(u);
     setEditForm({
-      name: u.name,
+      prefix,
+      name: nameWithoutPrefix,
       age: u.age || '',
       address: u.address || '',
       subdistrict: loc.subdistrict === '-' ? '' : loc.subdistrict,
@@ -349,8 +352,10 @@ export default function AdminDashboard() {
   const handleSaveEdit = async (e) => {
     e.preventDefault();
     try {
-      const result = await updateUserByAdmin(token, editingUser.id, editForm);
-      const updatedUser = result?.user ? { ...editForm, ...result.user } : editForm;
+      const { prefix, name, ...restForm } = editForm;
+      const payload = { ...restForm, name: combineNameWithPrefix(prefix, name) };
+      const result = await updateUserByAdmin(token, editingUser.id, payload);
+      const updatedUser = result?.user ? { ...payload, ...result.user } : payload;
       setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updatedUser } : u));
       setAllHistory(prev => prev.map(h => {
         const hid = h.user_id || h.user?.id || h.user?._id;
@@ -769,16 +774,31 @@ export default function AdminDashboard() {
               <button aria-label="ปิดแก้ไขข้อมูลสมาชิก" onClick={() => setEditingUser(null)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', padding: '8px', borderRadius: '12px' }}><X size={24} /></button>
             </div>
             <form className="admin-responsive-dialog-body" onSubmit={handleSaveEdit} style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div className="input-group">
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ชื่อ-นามสกุล</label>
-                <input 
-                  type="text" 
-                  required 
-                  value={editForm.name} 
-                  onChange={e => setEditForm({...editForm, name: e.target.value})} 
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '1rem' }} 
-                  autoFocus
-                />
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ flex: '0 1 150px', minWidth: '120px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>คำนำหน้า</label>
+                  <select
+                    value={editForm.prefix}
+                    onChange={e => setEditForm({ ...editForm, prefix: e.target.value })}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
+                  >
+                    <option value="">-- ไม่ระบุ --</option>
+                    {NAME_PREFIXES.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group" style={{ flex: '1 1 200px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ชื่อ-นามสกุล</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editForm.name} 
+                    onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', fontSize: '1rem' }} 
+                    autoFocus
+                  />
+                </div>
               </div>
               <div className="form-pair" style={{ display: 'flex', gap: '20px' }}>
                 <div style={{ flex: 1 }}>

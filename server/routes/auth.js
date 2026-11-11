@@ -4,16 +4,18 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import LevelProgress from '../models/LevelProgress.js';
 import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
+import { combineNameWithPrefix } from '../../src/utils/namePrefix.js';
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
 
 // ==================== REGISTER ====================
 router.post('/register', async (req, res) => {
-  const { username, password, name, age, gender, address, avatar, is_literacy_learner = false } = req.body;
+  const { username, password, prefix = '', name, age, gender, address, avatar, is_literacy_learner = false } = req.body;
   if (typeof is_literacy_learner !== 'boolean') return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
 
-  if (!username || !password || !name) {
+  const fullName = combineNameWithPrefix(prefix, name);
+  if (!username || !password || !fullName) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อผู้ใช้, รหัสผ่าน และชื่อ-นามสกุล' });
   }
 
@@ -30,7 +32,7 @@ router.post('/register', async (req, res) => {
     const newUser = new User({
       username,
       password: hashedPassword,
-      name,
+      name: fullName,
       age: age || null,
       gender: gender || null,
       address: address || null,
@@ -68,15 +70,15 @@ router.post('/register', async (req, res) => {
 
 // ==================== START SESSION (GUEST / NO PASSWORD) ====================
 router.post('/start', async (req, res) => {
-  const { name, age, address, status, education_level, employment_status, is_literacy_learner = false } = req.body;
+  const { prefix = '', name, age, address, status, education_level, employment_status, is_literacy_learner = false } = req.body;
   if (typeof is_literacy_learner !== 'boolean') return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
-  if (!name || !name.trim()) {
+  const trimmedName = combineNameWithPrefix(prefix, name);
+  if (!trimmedName) {
     return res.status(400).json({ message: 'กรุณากรอกชื่อ-สกุล' });
   }
 
   try {
     // ค้นหาผู้ใช้ที่มีชื่อตรงกัน (exact match)
-    const trimmedName = name.trim();
     let user = await User.findOne({ 
       name: trimmedName,
       role: 'user'

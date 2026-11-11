@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { Camera, LogOut, BookOpen, Volume2, MessageCircle, PenTool, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
 
 const SKILL_LABELS = {
   listening: { label: 'ทักษะการฟัง', icon: <Volume2 size={16} />, color: '#8b5cf6' },
@@ -20,8 +21,11 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
+  const initialName = splitNamePrefix(user?.name || '');
+
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    prefix: initialName.prefix,
+    name: initialName.nameWithoutPrefix,
     age: user?.age || '',
     gender: user?.gender || '',
     address: user?.address || '',
@@ -59,7 +63,11 @@ export default function EditProfile() {
     e.preventDefault();
     setError('');
     try {
-      await updateUser(formData);
+      const { prefix, name, ...rest } = formData;
+      await updateUser({
+        ...rest,
+        name: combineNameWithPrefix(prefix, name),
+      });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
@@ -110,8 +118,21 @@ export default function EditProfile() {
             {user?.username && <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>@{user.username}</p>}
           </div>
 
-          <div><label style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
-            <input required autoFocus type="text" name="name" value={formData.name} onChange={handleChange} placeholder="ชื่อ-นามสกุล" style={inputStyle} /></div>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '0 1 155px', minWidth: '130px' }}>
+              <label htmlFor="profile-prefix" style={labelStyle}>คำนำหน้า</label>
+              <select id="profile-prefix" name="prefix" value={formData.prefix} onChange={handleChange} style={inputStyle}>
+                <option value="">-- ไม่ระบุ --</option>
+                {NAME_PREFIXES.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label htmlFor="profile-name" style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
+              <input id="profile-name" required autoFocus type="text" name="name" value={formData.name} onChange={handleChange} placeholder="ชื่อ-นามสกุล" style={inputStyle} />
+            </div>
+          </div>
 
           <div className="profile-fields" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div><label style={labelStyle}>อายุ (ปี)</label>

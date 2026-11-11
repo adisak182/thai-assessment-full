@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { PlayCircle } from 'lucide-react';
 import logoImg from '../assets/logo.jpg';
+import { NAME_PREFIXES, combineNameWithPrefix } from '../utils/namePrefix';
 
 export default function StartPage() {
   const { startSession } = useUser();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: '', age: '', status: '', education_level: '', employment_status: '', is_literacy_learner: false
+    prefix: '', name: '', age: '', status: '', education_level: '', employment_status: '', is_literacy_learner: false
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,15 +21,22 @@ export default function StartPage() {
     e.preventDefault();
     setError('');
     
+    if (!form.prefix) {
+      setError('กรุณาเลือกคำนำหน้า');
+      return;
+    }
+
     if (!form.name.trim()) {
       setError('กรุณากรอกชื่อ-สกุล');
       return;
     }
 
+    const fullName = combineNameWithPrefix(form.prefix, form.name);
+
     setLoading(true);
     try {
       await startSession({
-        name: form.name, 
+        name: fullName, 
         age: form.age, 
         status: form.status,
         education_level: form.education_level,
@@ -71,11 +79,22 @@ export default function StartPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
-            {/* Name */}
-            <div>
-              <label htmlFor="start-name" style={labelStyle}>ชื่อ-สกุล <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" id="start-name" name="name" value={form.name} onChange={handleChange}
-                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
+            {/* Prefix & Name */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '0 1 155px', minWidth: '130px' }}>
+                <label htmlFor="start-prefix" style={labelStyle}>คำนำหน้า <span style={{ color: 'red' }}>*</span></label>
+                <select id="start-prefix" name="prefix" value={form.prefix} onChange={handleChange} required style={inputStyle}>
+                  <option value="">-- คำนำหน้า --</option>
+                  {NAME_PREFIXES.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <label htmlFor="start-name" style={labelStyle}>ชื่อ-สกุล <span style={{ color: 'red' }}>*</span></label>
+                <input type="text" id="start-name" name="name" value={form.name} onChange={handleChange}
+                  required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
+              </div>
             </div>
 
             {/* Age */}

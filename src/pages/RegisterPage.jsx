@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { Camera, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { NAME_PREFIXES, combineNameWithPrefix } from '../utils/namePrefix';
 
 export default function RegisterPage() {
   const { register } = useUser();
@@ -10,7 +11,7 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({
     username: '', password: '', confirmPassword: '',
-    name: '', age: '', gender: '', address: '', avatar: ''
+    prefix: '', name: '', age: '', gender: '', address: '', avatar: ''
   });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +39,7 @@ export default function RegisterPage() {
     try {
       await register({
         username: form.username, password: form.password,
-        name: form.name, age: form.age, gender: form.gender,
+        name: combineNameWithPrefix(form.prefix, form.name), age: form.age, gender: form.gender,
         address: form.address, avatar: form.avatar
       });
       navigate('/levels');
@@ -115,11 +116,22 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Name */}
-            <div>
-              <label style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" name="name" value={form.name} onChange={handleChange}
-                required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
+            {/* Prefix & Name */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '0 1 150px', minWidth: '125px' }}>
+                <label style={labelStyle}>คำนำหน้า <span style={{ color: 'red' }}>*</span></label>
+                <select name="prefix" value={form.prefix} onChange={handleChange} required style={inputStyle}>
+                  <option value="">-- คำนำหน้า --</option>
+                  {NAME_PREFIXES.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                <label style={labelStyle}>ชื่อ-นามสกุล <span style={{ color: 'red' }}>*</span></label>
+                <input type="text" name="name" value={form.name} onChange={handleChange}
+                  required placeholder="เช่น สมชาย ใจดี" style={inputStyle} />
+              </div>
             </div>
 
             {/* Age + Gender */}
