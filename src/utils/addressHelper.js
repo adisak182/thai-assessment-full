@@ -193,6 +193,14 @@ function findFuzzyMatch(rawInput, candidates = []) {
   return null;
 }
 
+export function normalizeThaiProvince(name = '') {
+  const cleaned = cleanPrefix(name, 'province');
+  if (!cleaned || cleaned === '-') return '';
+  if (THAI_PROVINCES.includes(cleaned)) return cleaned;
+  const fuzzyHit = findFuzzyMatch(cleaned, THAI_PROVINCES);
+  return fuzzyHit ? fuzzyHit.match : cleaned;
+}
+
 export function isStandardNarathiwatDistrict(name = '') {
   const clean = cleanPrefix(name, 'district');
   return NARATHIWAT_DISTRICT_NAMES.includes(clean);
@@ -211,9 +219,9 @@ export function normalizeNarathiwatDistrict(name = '', province = '', { fuzzy = 
   const cleaned = cleanPrefix(name, 'district');
   if (!cleaned) return '';
 
-  // Skip Narathiwat normalization if province is explicitly non-Narathiwat
-  const cleanProv = cleanPrefix(province, 'province');
-  if (cleanProv && cleanProv !== 'นราธิวาส' && cleanProv !== '-') {
+  // Skip Narathiwat normalization only when province resolves to a valid non-Narathiwat Thai province
+  const cleanProv = fuzzy ? normalizeThaiProvince(province) : cleanPrefix(province, 'province');
+  if (cleanProv && THAI_PROVINCES.includes(cleanProv) && cleanProv !== 'นราธิวาส') {
     return cleaned === 'เมือง' ? `เมือง${cleanProv}` : cleaned;
   }
 
@@ -241,8 +249,8 @@ export function normalizeNarathiwatSubdistrict(name = '', district = '', provinc
   const cleaned = cleanPrefix(name, 'subdistrict');
   if (!cleaned) return { subdistrict: '', inferredDistrict: '' };
 
-  const cleanProv = cleanPrefix(province, 'province');
-  if (cleanProv && cleanProv !== 'นราธิวาส' && cleanProv !== '-') {
+  const cleanProv = fuzzy ? normalizeThaiProvince(province) : cleanPrefix(province, 'province');
+  if (cleanProv && THAI_PROVINCES.includes(cleanProv) && cleanProv !== 'นราธิวาส') {
     return { subdistrict: cleaned, inferredDistrict: '' };
   }
 
@@ -373,6 +381,9 @@ export function extractDistrictAndProvince(
   if (!province && survey?.province) province = cleanPrefix(survey.province, 'province');
 
   if (fuzzy) {
+    if (province) {
+      province = normalizeThaiProvince(province);
+    }
     if (district) {
       district = normalizeNarathiwatDistrict(district, province, { fuzzy: true });
     }
@@ -387,8 +398,8 @@ export function extractDistrictAndProvince(
     district = 'เมืองนราธิวาส';
   }
 
-  // If district is known Narathiwat district and province is missing, set to นราธิวาส
-  if (district && !province) {
+  // If district is known Narathiwat district and province is missing or non-province junk/typo, normalize to นราธิวาส
+  if (district && (!province || !THAI_PROVINCES.includes(province))) {
     const isNara = NARATHIWAT_DISTRICTS.some(d => d.name === district || d.aliases.includes(district));
     if (isNara) province = 'นราธิวาส';
   }

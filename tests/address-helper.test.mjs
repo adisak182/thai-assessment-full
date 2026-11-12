@@ -7,6 +7,7 @@ import {
   resolveLocationUpdates,
   normalizeNarathiwatDistrict,
   normalizeNarathiwatSubdistrict,
+  normalizeThaiProvince,
   detectLocationAnomalies,
   buildNormalizedLocationPatch,
 } from '../src/utils/addressHelper.js';
@@ -163,5 +164,27 @@ test('detects misspelled location anomalies and builds accurate bulk normalizati
     buildNormalizedLocationPatch(users[2], { field: 'subdistrict', fromValue: 'โคกเคียณ', toValue: 'โคกเคียน', isUser: true }),
     null
   );
+});
+
+test('normalizes misspelled Narathiwat provinces and invalid province values paired with Narathiwat districts', () => {
+  assert.equal(normalizeThaiProvince('นราธวาส'), 'นราธิวาส');
+  assert.equal(normalizeThaiProvince('นราะิวาส'), 'นราธิวาส');
+  assert.equal(normalizeThaiProvince('นราธวิาส'), 'นราธิวาส');
+
+  const typoProv = extractDistrictAndProvince('', 'ตากใบ', 'นรธิวาส');
+  assert.equal(typoProv.district, 'ตากใบ');
+  assert.equal(typoProv.province, 'นราธิวาส');
+
+  const junkProv = extractDistrictAndProvince('', 'ยี่งอ', '1');
+  assert.equal(junkProv.district, 'ยี่งอ');
+  assert.equal(junkProv.province, 'นราธิวาส');
+
+  const distInProv = extractDistrictAndProvince('', 'สุไหงปาดี', 'สุไหงปาดี');
+  assert.equal(distInProv.district, 'สุไหงปาดี');
+  assert.equal(distInProv.province, 'นราธิวาส');
+
+  const realOtherProv = extractDistrictAndProvince('', 'เบตง', 'ยะลา');
+  assert.equal(realOtherProv.district, 'เบตง');
+  assert.equal(realOtherProv.province, 'ยะลา');
 });
 
