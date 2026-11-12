@@ -10,6 +10,7 @@ import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Sear
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
+import AdminAnalyticsDashboard from '../components/AdminAnalyticsDashboard';
 import { extractDistrictAndProvince } from '../utils/addressHelper';
 import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
 import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
@@ -447,7 +448,7 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และสถิติการสอบ</p></div>
         <div className="admin-header-actions">
-          <button onClick={() => {fetchUsers();fetchAllHistory();}} className="btn-secondary" disabled={loading || allHistoryLoading}><RefreshCw size={16}/> รีเฟรช</button>
+          <button onClick={() => {fetchUsers();fetchAllHistory();if (token) getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {});}} className="btn-secondary" disabled={loading || allHistoryLoading}><RefreshCw size={16}/> รีเฟรช</button>
           <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary"><List size={16}/> เฉลยข้อสอบ</button>
           <button onClick={openSurveys} className="btn-primary"><ClipboardList size={16}/> แบบสอบถาม</button>
         </div>
@@ -455,9 +456,24 @@ export default function AdminDashboard() {
       <nav className="admin-tabs" aria-label="ส่วนข้อมูลผู้ดูแล">
         <button aria-pressed={adminTab === 'users'} onClick={()=>setAdminTab('users')}><Users size={18}/> ผู้เรียนและผู้ใช้งาน <span>{users.length}</span></button>
         <button aria-pressed={adminTab === 'all_history'} onClick={()=>setAdminTab('all_history')}><History size={18}/> ประวัติสอบล่าสุด <span>{allHistory.length}</span></button>
+        <button aria-pressed={adminTab === 'analytics'} onClick={()=>setAdminTab('analytics')}><BarChart2 size={18}/> แดชบอร์ดภาพรวม &amp; สถิติพื้นที่</button>
       </nav>
       {error && <div className="admin-error" role="alert">{error}</div>}
-      {adminTab === 'users' ? (
+      {adminTab === 'analytics' ? (
+        <AdminAnalyticsDashboard
+          users={users}
+          history={allHistory}
+          surveys={surveys}
+          loading={loading || allHistoryLoading}
+          formatDate={formatDate}
+          onDownloadCsv={triggerCsvDownload}
+          onInspectUser={openScoreModal}
+          onInspectAttempt={(attempt) => {
+            setActiveDetailAttempt(attempt);
+            setActiveDetailUser(attempt.user || { name: 'ผู้ใช้งาน', username: '-' });
+          }}
+        />
+      ) : adminTab === 'users' ? (
         <>
           <div className="admin-metrics">
             {[
