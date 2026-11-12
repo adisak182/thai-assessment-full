@@ -14,8 +14,8 @@ import AdminAnalyticsDashboard from '../components/AdminAnalyticsDashboard';
 import NarathiwatLocationFields from '../components/NarathiwatLocationFields';
 import LocationCleanupModal from '../components/LocationCleanupModal';
 import ExamScheduleModal from '../components/ExamScheduleModal';
-import { extractDistrictAndProvince, detectLocationAnomalies } from '../utils/addressHelper';
-import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
+import { extractDistrictAndProvince, detectLocationAnomalies, NARATHIWAT_DISTRICT_NAMES } from '../utils/addressHelper';
+import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap, buildUserMap } from '../utils/csvExport';
 import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
 
 const SKILL_LABELS = {full_test:'แบบทดสอบรวม 100 ข้อ',listening:'การฟัง',conversation:'การพูด',speaking:'การพูด',reading:'การอ่าน',writing:'การเขียน'};
@@ -43,6 +43,8 @@ export default function AdminDashboard() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all'); // 'all' | 'passed' | 'notPassed'
   const [historyDateFilter, setHistoryDateFilter] = useState('all'); // 'all' | 'today' | 'week' | 'month'
+  const [historyDistrictFilter, setHistoryDistrictFilter] = useState('all');
+  const [historySubdistrictFilter, setHistorySubdistrictFilter] = useState('all');
   const [historyPage, setHistoryPage] = useState(1);
 
   // ScoreDetailModal state
@@ -184,12 +186,81 @@ export default function AdminDashboard() {
     }
   };
 
+  const enrichedAllHistory = useMemo(() => {
+    const userMap = buildUserMap(users);
+    const surveyMap = buildLatestSurveyMap(surveys);
+    return allHistory.map(h => {
+      const uid = String(h.user_id || h.user?.id || h.user?._id || '');
+      const linkedUser = (uid && userMap.get(uid)) || h.user;
+      const linkedSurvey = uid ? surveyMap.get(uid) : null;
+      const loc = extractDistrictAndProvince(
+        linkedUser?.address || h.user?.address,
+        linkedUser?.district || h.user?.district,
+        linkedUser?.province || h.user?.province,
+        linkedSurvey,
+        linkedUser?.subdistrict || h.user?.subdistrict
+      );
+      return {
+        ...h,
+        _subdistrict: loc.subdistrict === '-' ? 'ไม่ระบุ' : loc.subdistrict,
+        _district: loc.district === '-' ? 'ไม่ระบุ' : loc.district,
+      };
+    });
+  }, [allHistory, users, surveys]);
+
+  const historyAreaOptions = useMemo(() => {
+    const districtSet = new Set(NARATHIWAT_DISTRICT_NAMES);
+    const subdistrictSet = new Set();
+    let hasUnknownDistrict = false;
+    let hasUnknownSubdistrict = false;
+
+    for (const h of enrichedAllHistory) {
+      if (h._district === 'ไม่ระบุ') {
+        hasUnknownDistrict = true;
+      } else {
+        districtSet.add(h._district);
+      }
+
+      if (historyDistrictFilter === 'all' || h._district === historyDistrictFilter) {
+        if (h._subdistrict === 'ไม่ระบุ') {
+          hasUnknownSubdistrict = true;
+        } else {
+          subdistrictSet.add(h._subdistrict);
+        }
+      }
+    }
+
+    const extraDistricts = Array.from(districtSet)
+      .filter(d => !NARATHIWAT_DISTRICT_NAMES.includes(d))
+      .sort((a, b) => a.localeCompare(b, 'th'));
+
+    return {
+      districts: [
+        ...NARATHIWAT_DISTRICT_NAMES,
+        ...extraDistricts,
+        ...(hasUnknownDistrict ? ['ไม่ระบุ'] : []),
+      ],
+      subdistricts: [
+        ...Array.from(subdistrictSet).sort((a, b) => a.localeCompare(b, 'th')),
+        ...(hasUnknownSubdistrict ? ['ไม่ระบุ'] : []),
+      ],
+    };
+  }, [enrichedAllHistory, historyDistrictFilter]);
+
   const filteredAllHistory = useMemo(() => {
-    return allHistory.filter(h => {
+    return enrichedAllHistory.filter(h => {
+      if (historyDistrictFilter !== 'all' && h._district !== historyDistrictFilter) return false;
+      if (historySubdistrictFilter !== 'all' && h._subdistrict !== historySubdistrictFilter) return false;
+
       const uName = (h.user?.name || '').toLowerCase();
       const uUser = (h.user?.username || '').toLowerCase();
       const sQuery = historySearch.toLowerCase().trim();
-      const matchesSearch = !sQuery || uName.includes(sQuery) || uUser.includes(sQuery);
+      const matchesSearch =
+        !sQuery ||
+        uName.includes(sQuery) ||
+        uUser.includes(sQuery) ||
+        h._district.toLowerCase().includes(sQuery) ||
+        h._subdistrict.toLowerCase().includes(sQuery);
       if (!matchesSearch) return false;
 
       const pct = Math.round((h.score / (h.max_score || 100)) * 100);
@@ -212,12 +283,12 @@ export default function AdminDashboard() {
 
       return true;
     });
-  }, [allHistory, historySearch, historyStatusFilter, historyDateFilter]);
+  }, [enrichedAllHistory, historySearch, historyStatusFilter, historyDateFilter, historyDistrictFilter, historySubdistrictFilter]);
 
   const historyStats = useMemo(() => {
-    const summary = summarizeAttempts(allHistory);
+    const summary = summarizeAttempts(filteredAllHistory);
     return {total:summary.total,passed:summary.passed,notPassed:summary.reviewed-summary.passed,avg:summary.average,pending:summary.pending};
-  }, [allHistory]);
+  }, [filteredAllHistory]);
 
   const HISTORY_PAGE_SIZE = 50;
   const historyPageCount = Math.max(1, Math.ceil(filteredAllHistory.length / HISTORY_PAGE_SIZE));
@@ -625,7 +696,7 @@ export default function AdminDashboard() {
               <Search size={20} color="#94a3b8" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)' }} />
               <input 
                 type="text" 
-                placeholder="ค้นหาชื่อผู้เข้าสอบ หรือ Username..." 
+                placeholder="ค้นหาชื่อ, Username, ตำบล หรือ อำเภอ..." 
                 value={historySearch}
                 onChange={(e) => { setHistorySearch(e.target.value); setHistoryPage(1); }}
               />
@@ -633,6 +704,37 @@ export default function AdminDashboard() {
 
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <Filter size={20} color="#64748b" />
+              <select
+                className="filter-select"
+                aria-label="กรองตามอำเภอ"
+                value={historyDistrictFilter}
+                onChange={(e) => {
+                  setHistoryDistrictFilter(e.target.value);
+                  setHistorySubdistrictFilter('all');
+                  setHistoryPage(1);
+                }}
+              >
+                <option value="all">ทุกอำเภอ</option>
+                {historyAreaOptions.districts.map(d => (
+                  <option key={d} value={d}>{d === 'ไม่ระบุ' ? 'อำเภอ: ไม่ระบุ' : `อ.${d}`}</option>
+                ))}
+              </select>
+
+              <select
+                className="filter-select"
+                aria-label="กรองตามตำบล"
+                value={historySubdistrictFilter}
+                onChange={(e) => {
+                  setHistorySubdistrictFilter(e.target.value);
+                  setHistoryPage(1);
+                }}
+              >
+                <option value="all">ทุกตำบล</option>
+                {historyAreaOptions.subdistricts.map(s => (
+                  <option key={s} value={s}>{s === 'ไม่ระบุ' ? 'ตำบล: ไม่ระบุ' : `ต.${s}`}</option>
+                ))}
+              </select>
+
               <select 
                 className="filter-select"
                 value={historyStatusFilter}
@@ -653,6 +755,29 @@ export default function AdminDashboard() {
                 <option value="week">7 วันล่าสุด</option>
                 <option value="month">30 วันล่าสุด</option>
               </select>
+
+              {(historyDistrictFilter !== 'all' || historySubdistrictFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHistoryDistrictFilter('all');
+                    setHistorySubdistrictFilter('all');
+                    setHistoryPage(1);
+                  }}
+                  style={{
+                    background: '#fef2f2',
+                    color: '#dc2626',
+                    border: '1px solid #fecaca',
+                    padding: '10px 14px',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  ล้างพื้นที่
+                </button>
+              )}
 
               <button 
                 onClick={downloadAllHistoryCSV}
@@ -704,6 +829,8 @@ export default function AdminDashboard() {
                 <thead>
                   <tr>
                     <th style={{ paddingLeft: '24px' }}>ผู้เข้าสอบ</th>
+                    <th>ตำบล</th>
+                    <th>อำเภอ</th>
                     <th>แบบทดสอบ</th>
                     <th style={{ textAlign: 'center' }}>วันที่สอบ</th>
                     <th style={{ textAlign: 'center' }}>คะแนน</th>
@@ -734,10 +861,16 @@ export default function AdminDashboard() {
                             <div>
                               <div style={{ fontWeight: '700', color: '#1e293b' }}>{student.name}</div>
                               <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
-                                @{student.username} {student.address ? `• ${student.address}` : ''}
+                                @{student.username}
                               </div>
                             </div>
                           </div>
+                        </td>
+                        <td style={{ color: '#334155', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                          {h._subdistrict}
+                        </td>
+                        <td style={{ color: '#334155', fontWeight: '600', whiteSpace: 'nowrap' }}>
+                          {h._district}
                         </td>
                         <td>
                           <div style={{ fontWeight: '600', color: '#334155' }}>
