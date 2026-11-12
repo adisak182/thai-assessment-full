@@ -54,7 +54,7 @@ router.get('/history', authenticateAdmin, async (req, res) => {
   try {
     const history = await ScoreHistory.find()
       .select('-detailed_results')
-      .populate('user_id', 'username name age address subdistrict district province role')
+      .populate('user_id', 'username name age gender address subdistrict district province is_literacy_learner role')
       .sort({ taken_at: -1 })
       .lean();
 
@@ -76,10 +76,12 @@ router.get('/history', authenticateAdmin, async (req, res) => {
           name: u.name,
           username: u.username,
           age: u.age,
+          gender: u.gender || null,
           address: u.address,
           subdistrict: u.subdistrict || s?.subdistrict || null,
           district: u.district || s?.district || null,
           province: u.province || s?.province || null,
+          is_literacy_learner: Boolean(u.is_literacy_learner),
           role: u.role
         } : { name: 'ผู้ใช้งานทั่วไป', username: '-' },
         level: h.level,

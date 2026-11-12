@@ -11,7 +11,7 @@ const THAI_PROVINCES = [
   'หนองบัวลำภู', 'อ่างทอง', 'อำนาจเจริญ', 'อุดรธานี', 'อุตรดิตถ์', 'อุทัยธานี', 'อุบลราชธานี'
 ];
 
-const NARATHIWAT_DISTRICTS = [
+export const NARATHIWAT_DISTRICTS = [
   { name: 'เมืองนราธิวาส', aliases: ['เมืองนราธิวาส', 'เมืองนรา', 'เมือง'] },
   { name: 'ตากใบ', aliases: ['ตากใบ'] },
   { name: 'บาเจาะ', aliases: ['บาเจาะ'] },
@@ -26,6 +26,21 @@ const NARATHIWAT_DISTRICTS = [
   { name: 'จะแนะ', aliases: ['จะแนะ'] },
   { name: 'เจาะไอร้อง', aliases: ['เจาะไอร้อง'] }
 ];
+
+export const NARATHIWAT_DISTRICT_NAMES = NARATHIWAT_DISTRICTS.map(d => d.name);
+
+export function normalizeNarathiwatDistrict(name = '', province = '') {
+  const cleaned = String(name || '').trim();
+  if (!cleaned) return '';
+  if (cleaned === 'เมือง' && (!province || province === 'นราธิวาส')) return 'เมืองนราธิวาส';
+  for (const d of NARATHIWAT_DISTRICTS) {
+    if (d.name === cleaned || d.aliases.includes(cleaned)) {
+      if (cleaned === 'เมือง' && province && province !== 'นราธิวาส') return cleaned;
+      return d.name;
+    }
+  }
+  return cleaned;
+}
 
 const OTHER_SOUTHERN_DISTRICTS = [
   // ปัตตานี
@@ -78,7 +93,7 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
 
   // If all three already provided explicitly, normalize and return
   if (subdistrict && district && province) {
-    if (district === 'เมือง' && province === 'นราธิวาส') district = 'เมืองนราธิวาส';
+    district = normalizeNarathiwatDistrict(district, province);
     return { subdistrict, district, province };
   }
 
@@ -113,7 +128,7 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
 
     // 2. Try to extract district if missing
     if (!district) {
-      const distMatch = raw.match(/(?:อำเภอ|อ\.)\s*([ก-๙\-]+)/);
+      const distMatch = raw.match(/(?:อำเภอ|อ\.)\s*([ก-๙-]+)/);
       if (distMatch) {
         let candidate = distMatch[1].trim();
         // Remove trailing "จ." or "จังหวัด" if attached
@@ -157,11 +172,11 @@ export function extractDistrictAndProvince(address = '', userDistrict = '', user
   if (!district && survey?.district) district = cleanPrefix(survey.district, 'district');
   if (!province && survey?.province) province = cleanPrefix(survey.province, 'province');
 
-  // Normalize "เมือง"
-  if (district === 'เมือง' && (!province || province === 'นราธิวาส')) {
-    district = 'เมืองนราธิวาส';
-  } else if (district === 'เมือง' && province) {
+  // Normalize district aliases (e.g., "เมือง" -> "เมืองนราธิวาส", "สุไหงโกลก" -> "สุไหงโก-ลก")
+  if (district === 'เมือง' && province && province !== 'นราธิวาส') {
     district = `เมือง${province}`;
+  } else if (district) {
+    district = normalizeNarathiwatDistrict(district, province);
   }
 
   // If district is known Narathiwat district and province is missing, set to นราธิวาส

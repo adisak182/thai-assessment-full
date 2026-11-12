@@ -31,8 +31,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Tab State: 'users' | 'all_history'
-  const [adminTab, setAdminTab] = useState('users');
+  // Tab State: 'analytics' | 'users' | 'all_history'
+  const [adminTab, setAdminTab] = useState('analytics');
 
   // All History State
   const [allHistory, setAllHistory] = useState([]);
@@ -198,6 +198,20 @@ export default function AdminDashboard() {
 
   const triggerCsvDownload = (csvContent, filename) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const triggerExcelDownload = (xlsxBytes, filename) => {
+    const blob = new Blob([xlsxBytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -454,9 +468,9 @@ export default function AdminDashboard() {
         </div>
       </header>
       <nav className="admin-tabs" aria-label="ส่วนข้อมูลผู้ดูแล">
+        <button aria-pressed={adminTab === 'analytics'} onClick={()=>setAdminTab('analytics')}><BarChart2 size={18}/> แดชบอร์ดภาพรวมผลการประเมิน</button>
         <button aria-pressed={adminTab === 'users'} onClick={()=>setAdminTab('users')}><Users size={18}/> ผู้เรียนและผู้ใช้งาน <span>{users.length}</span></button>
         <button aria-pressed={adminTab === 'all_history'} onClick={()=>setAdminTab('all_history')}><History size={18}/> ประวัติสอบล่าสุด <span>{allHistory.length}</span></button>
-        <button aria-pressed={adminTab === 'analytics'} onClick={()=>setAdminTab('analytics')}><BarChart2 size={18}/> แดชบอร์ดภาพรวม &amp; สถิติพื้นที่</button>
       </nav>
       {error && <div className="admin-error" role="alert">{error}</div>}
       {adminTab === 'analytics' ? (
@@ -467,6 +481,7 @@ export default function AdminDashboard() {
           loading={loading || allHistoryLoading}
           formatDate={formatDate}
           onDownloadCsv={triggerCsvDownload}
+          onDownloadExcel={triggerExcelDownload}
           onInspectUser={openScoreModal}
           onInspectAttempt={(attempt) => {
             setActiveDetailAttempt(attempt);
