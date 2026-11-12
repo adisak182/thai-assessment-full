@@ -188,3 +188,23 @@ test('normalizes misspelled Narathiwat provinces and invalid province values pai
   assert.equal(realOtherProv.province, 'ยะลา');
 });
 
+test('ignores numeric or slash values such as 1 or 3/4 in subdistrict, district, or province fields', () => {
+  const withNumericUserAndValidSurvey = extractDistrictAndProvince('', 'ยี่งอ', '1', {
+    subdistrict: 'ตะปอเยาะ',
+    district: 'ยี่งอ',
+    province: 'นราธิวาส',
+  }, '1');
+  assert.equal(withNumericUserAndValidSurvey.subdistrict, 'ตะปอเยาะ');
+  assert.equal(withNumericUserAndValidSurvey.district, 'ยี่งอ');
+  assert.equal(withNumericUserAndValidSurvey.province, 'นราธิวาส');
+
+  const withSlashSurvey = extractDistrictAndProvince('', '', '', {
+    subdistrict: '3/4',
+    district: 'ศรีสาคร',
+    province: 'ศรีสาคร',
+  });
+  assert.equal(withSlashSurvey.subdistrict, '-');
+  assert.equal(withSlashSurvey.district, 'ศรีสาคร');
+  assert.equal(withSlashSurvey.province, 'นราธิวาส');
+});
+

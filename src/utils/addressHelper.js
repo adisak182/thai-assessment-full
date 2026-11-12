@@ -117,6 +117,14 @@ function cleanPrefix(str, type) {
   return s;
 }
 
+function sanitizeAreaToken(str, type) {
+  const s = cleanPrefix(str, type);
+  if (!s || s === '-') return '';
+  // Reject numeric, house-number, or slash tokens (e.g. "1", "3/4") from acting as Thai area names
+  if (/[0-9๐-๙/]/.test(s) || !/[ก-ฮ]/.test(s)) return '';
+  return s.replace(/[.\-\s]/g, '').length >= 2 ? s : '';
+}
+
 function thaiSkeleton(str = '') {
   // Remove spaces, hyphens, and combining vowel/tone marks above/below characters
   return String(str)
@@ -301,9 +309,9 @@ export function extractDistrictAndProvince(
   userSubdistrict = '',
   { fuzzy = true } = {}
 ) {
-  let subdistrict = cleanPrefix(userSubdistrict || survey?.subdistrict || '', 'subdistrict');
-  let district = cleanPrefix(userDistrict || survey?.district || '', 'district');
-  let province = cleanPrefix(userProvince || survey?.province || '', 'province');
+  let subdistrict = sanitizeAreaToken(userSubdistrict, 'subdistrict') || sanitizeAreaToken(survey?.subdistrict, 'subdistrict');
+  let district = sanitizeAreaToken(userDistrict, 'district') || sanitizeAreaToken(survey?.district, 'district');
+  let province = sanitizeAreaToken(userProvince, 'province') || sanitizeAreaToken(survey?.province, 'province');
 
   const raw = String(address || '').trim();
 
@@ -376,9 +384,9 @@ export function extractDistrictAndProvince(
   }
 
   // Fallbacks from survey
-  if (!subdistrict && survey?.subdistrict) subdistrict = cleanPrefix(survey.subdistrict, 'subdistrict');
-  if (!district && survey?.district) district = cleanPrefix(survey.district, 'district');
-  if (!province && survey?.province) province = cleanPrefix(survey.province, 'province');
+  if (!subdistrict && survey?.subdistrict) subdistrict = sanitizeAreaToken(survey.subdistrict, 'subdistrict');
+  if (!district && survey?.district) district = sanitizeAreaToken(survey.district, 'district');
+  if (!province && survey?.province) province = sanitizeAreaToken(survey.province, 'province');
 
   if (fuzzy) {
     if (province) {
