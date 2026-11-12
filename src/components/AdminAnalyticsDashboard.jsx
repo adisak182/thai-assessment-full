@@ -6,9 +6,9 @@ import {
   CartesianGrid, Cell, Legend, PieChart, Pie, LabelList
 } from 'recharts';
 import {
-  Users, CheckCircle2, XCircle, ClipboardCheck, Hourglass, Search, FileSpreadsheet,
+  Users, ClipboardCheck, Hourglass, Search, FileSpreadsheet,
   ChevronDown, ChevronRight, Calendar, MapPin, Headphones, MessageCircle, BookOpen,
-  PenTool, RotateCcw, AlertCircle, X, Eye, UserCheck, UserRound
+  PenTool, RotateCcw, AlertCircle, X, Eye, UserCheck, UserRound, Check, X as XIcon
 } from 'lucide-react';
 import {
   SKILL_META,
@@ -34,10 +34,31 @@ const SKILL_ICONS = {
 };
 
 const DETAIL_PAGE_SIZE = 25;
+const RADIAN = Math.PI / 180;
 
 const fmtPct = (v) => `${Number(v || 0).toFixed(2)}%`;
 
-function SkillStatusIcon({ skill }) {
+function renderDonutSliceLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }) {
+  if (!percent || percent < 0.06) return null;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.52;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  return (
+    <text
+      x={x}
+      y={y}
+      fill="#ffffff"
+      textAnchor="middle"
+      dominantBaseline="central"
+      fontSize={11}
+      fontWeight={700}
+    >
+      {`${(percent * 100).toFixed(2)}%`}
+    </text>
+  );
+}
+
+function SkillStatusBadge({ skill }) {
   if (!skill || !skill.assessed) {
     return (
       <span className="exec-skill-dash" title={skill?.pending ? 'อยู่ระหว่างรอตรวจ' : 'ยังไม่ได้ประเมิน'}>
@@ -48,14 +69,14 @@ function SkillStatusIcon({ skill }) {
   const tip = `${skill.score}/${skill.max} (${skill.exactPct}%)`;
   if (skill.passed) {
     return (
-      <span className="exec-skill-icon pass" title={`ผ่าน · ${tip}`}>
-        <CheckCircle2 size={18} />
+      <span className="exec-circle-mark pass" title={`ผ่าน · ${tip}`}>
+        <Check size={12} strokeWidth={3.2} />
       </span>
     );
   }
   return (
-    <span className="exec-skill-icon fail" title={`ไม่ผ่าน · ${tip}`}>
-      <XCircle size={18} />
+    <span className="exec-circle-mark fail" title={`ไม่ผ่าน · ${tip}`}>
+      <XIcon size={12} strokeWidth={3.2} />
     </span>
   );
 }
@@ -74,7 +95,7 @@ export default function AdminAnalyticsDashboard({
 }) {
   // Navigation & UI state
   const [areaLevel, setAreaLevel] = useState('province'); // 'province' | 'district' | 'subdistrict'
-  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [showLearnerFilters, setShowLearnerFilters] = useState(false);
   const [showAllAreas, setShowAllAreas] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
@@ -175,15 +196,14 @@ export default function AdminAnalyticsDashboard({
     return { ...sum, passRate };
   }, [activeAreaRows]);
 
-  // Chart datasets matching screenshot
   const overallPieData = useMemo(() => ([
-    { name: 'ผ่านการประเมิน', value: summary.passedLearners, pct: summary.learnerPassRatePct, color: '#6d28d9' },
-    { name: 'ไม่ผ่านการประเมิน', value: summary.notPassedLearners, pct: summary.learnerFailRatePct, color: '#f43f8e' },
+    { name: 'ผ่านการประเมิน', value: summary.passedLearners, pct: summary.learnerPassRatePct, color: '#7c3aed' },
+    { name: 'ไม่ผ่านการประเมิน', value: summary.notPassedLearners, pct: summary.learnerFailRatePct, color: '#f472b6' },
   ]), [summary]);
 
   const genderPieData = useMemo(() => ([
     { name: 'ชาย', value: summary.assessedMale, pct: summary.assessedMalePct, color: '#3b82f6' },
-    { name: 'หญิง', value: summary.assessedFemale, pct: summary.assessedFemalePct, color: '#f43f8e' },
+    { name: 'หญิง', value: summary.assessedFemale, pct: summary.assessedFemalePct, color: '#f472b6' },
     ...(summary.assessedOtherGender > 0
       ? [{ name: 'ไม่ระบุ', value: summary.assessedOtherGender, pct: Number((100 - summary.assessedMalePct - summary.assessedFemalePct).toFixed(2)), color: '#94a3b8' }]
       : []),
@@ -194,8 +214,8 @@ export default function AdminAnalyticsDashboard({
       name: s.shortName,
       passRatePct: s.assessedCount > 0 ? s.passRatePct : 0,
       failRatePct: s.assessedCount > 0 ? s.failRatePct : 0,
-      passLabel: s.assessedCount > 0 ? `${s.passRatePct.toFixed(2)}%` : '',
-      failLabel: s.assessedCount > 0 && s.failRatePct >= 8 ? `${s.failRatePct.toFixed(2)}%` : '',
+      passLabel: s.assessedCount > 0 && s.passRatePct >= 12 ? `${s.passRatePct.toFixed(2)}%` : '',
+      failLabel: s.assessedCount > 0 && s.failRatePct >= 10 ? `${s.failRatePct.toFixed(2)}%` : '',
       passedCount: s.passedCount,
       failedCount: s.failedCount,
     })),
@@ -233,7 +253,7 @@ export default function AdminAnalyticsDashboard({
   };
 
   const openLearnerSearch = () => {
-    setShowSearchBar(true);
+    setShowLearnerFilters(true);
     setTimeout(() => {
       searchSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       searchInputRef.current?.focus();
@@ -252,6 +272,16 @@ export default function AdminAnalyticsDashboard({
     setDetailSearch('');
     setDetailPage(1);
   };
+
+  const hasCustomFilter =
+    Boolean(detailSearch) ||
+    prefixFilter !== 'all' ||
+    genderFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    enrollmentFilter !== 'literacy' ||
+    districtFilter !== 'all' ||
+    subdistrictFilter !== 'all' ||
+    dateRange !== 'all';
 
   const dateTag = new Date().toISOString().slice(0, 10);
   const activeFilterSummaryText = useMemo(() => {
@@ -459,16 +489,16 @@ export default function AdminAnalyticsDashboard({
 
       {/* 3. 7-Card KPI Strip */}
       <section className="exec-kpi-strip" aria-label="สรุปตัวชี้วัดหลัก">
-        <div className="exec-kpi-card">
-          <div className="exec-kpi-icon purple"><Users size={20} /></div>
+        <div className="exec-kpi-card exec-kpi-first">
+          <div className="exec-kpi-icon purple"><Users size={22} /></div>
           <div className="exec-kpi-body">
-            <span>ผู้เข้ารับการประเมินทั้งหมด</span>
+            <span>ผู้เข้ารับการประเมิน<br />ทั้งหมด</span>
             <strong>{summary.assessedLearners.toLocaleString()} <small>คน</small></strong>
           </div>
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon blue"><UserCheck size={20} /></div>
+          <div className="exec-kpi-icon solid-blue"><UserCheck size={18} /></div>
           <div className="exec-kpi-body">
             <span>เพศชาย</span>
             <strong>{summary.assessedMale.toLocaleString()} <small>คน</small></strong>
@@ -477,7 +507,7 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon pink"><UserRound size={20} /></div>
+          <div className="exec-kpi-icon solid-pink"><UserRound size={18} /></div>
           <div className="exec-kpi-body">
             <span>เพศหญิง</span>
             <strong>{summary.assessedFemale.toLocaleString()} <small>คน</small></strong>
@@ -486,7 +516,7 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon green"><CheckCircle2 size={20} /></div>
+          <div className="exec-kpi-icon solid-green"><Check size={18} strokeWidth={3} /></div>
           <div className="exec-kpi-body">
             <span>ผ่านการประเมิน</span>
             <strong>{summary.passedLearners.toLocaleString()} <small>คน</small></strong>
@@ -495,7 +525,7 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon rose"><XCircle size={20} /></div>
+          <div className="exec-kpi-icon solid-rose"><XIcon size={18} strokeWidth={3} /></div>
           <div className="exec-kpi-body">
             <span>ไม่ผ่านการประเมิน</span>
             <strong>{summary.notPassedLearners.toLocaleString()} <small>คน</small></strong>
@@ -504,7 +534,7 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon indigo"><ClipboardCheck size={20} /></div>
+          <div className="exec-kpi-icon solid-indigo"><ClipboardCheck size={18} /></div>
           <div className="exec-kpi-body">
             <span>ประเมินครบ 4 ทักษะ</span>
             <strong>{summary.completed4Learners.toLocaleString()} <small>คน</small></strong>
@@ -513,7 +543,7 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         <div className="exec-kpi-card">
-          <div className="exec-kpi-icon amber"><Hourglass size={20} /></div>
+          <div className="exec-kpi-icon solid-amber"><Hourglass size={18} /></div>
           <div className="exec-kpi-body">
             <span>ยังไม่ครบ 4 ทักษะ</span>
             <strong>{summary.incomplete4Learners.toLocaleString()} <small>คน</small></strong>
@@ -526,13 +556,13 @@ export default function AdminAnalyticsDashboard({
       <section className="exec-charts-row">
         {/* Chart 1: Overall Pass / Fail Donut */}
         <div className="exec-card">
-          <div className="exec-card-title">ผลการประเมินโดยรวม</div>
+          <div className="exec-card-title centered">ผลการประเมินโดยรวม</div>
           <div className="exec-donut-layout">
             <div className="exec-donut-canvas">
               {summary.evaluatedLearners === 0 ? (
                 <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมินครบ</p>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={205}>
                   <PieChart>
                     <Pie
                       data={overallPieData.filter(d => d.value > 0)}
@@ -540,20 +570,22 @@ export default function AdminAnalyticsDashboard({
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
+                      innerRadius={44}
                       outerRadius={78}
-                      paddingAngle={2}
+                      startAngle={90}
+                      endAngle={-270}
                       labelLine={false}
+                      label={renderDonutSliceLabel}
                     >
                       {overallPieData.filter(d => d.value > 0).map(entry => (
-                        <Cell key={entry.name} fill={entry.color} />
+                        <Cell key={entry.name} fill={entry.color} stroke="#ffffff" strokeWidth={1.5} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
-                    <text x="50%" y="47%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
+                    <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
                       {summary.evaluatedLearners.toLocaleString()}
                     </text>
-                    <text x="50%" y="58%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
+                    <text x="50%" y="57%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
                       คน
                     </text>
                   </PieChart>
@@ -576,13 +608,13 @@ export default function AdminAnalyticsDashboard({
 
         {/* Chart 2: 4-Skill 100% Stacked Bar */}
         <div className="exec-card">
-          <div className="exec-card-title">ผลการประเมินรายทักษะ (ผ่าน/ไม่ผ่าน)</div>
+          <div className="exec-card-title centered">ผลการประเมินรายทักษะ (ผ่าน/ไม่ผ่าน)</div>
           <div className="exec-bar-canvas">
-            <ResponsiveContainer width="100%" height={210}>
-              <BarChart data={skillBarData} margin={{ top: 10, right: 8, left: -16, bottom: 0 }} barCategoryGap="24%">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }} />
-                <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: '#64748b' }} />
+            <ResponsiveContainer width="100%" height={205}>
+              <BarChart data={skillBarData} margin={{ top: 10, right: 4, left: -16, bottom: 0 }} barCategoryGap="22%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }} />
+                <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} unit="%" tick={{ fontSize: 11, fill: '#475569' }} />
                 <RechartsTooltip
                   contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }}
                   formatter={(value, name, props) => {
@@ -590,11 +622,11 @@ export default function AdminAnalyticsDashboard({
                     return [`${Number(value).toFixed(2)}% (${cnt} คน)`, name];
                   }}
                 />
-                <Legend verticalAlign="middle" align="right" layout="vertical" wrapperStyle={{ fontSize: '12px', paddingLeft: '6px' }} />
+                <Legend verticalAlign="middle" align="right" layout="vertical" iconType="square" wrapperStyle={{ fontSize: '12px', paddingLeft: '4px' }} />
                 <Bar dataKey="passRatePct" name="ผ่าน" stackId="sk" fill="#6d28d9">
                   <LabelList dataKey="passLabel" position="center" fill="#ffffff" fontSize={10.5} fontWeight={700} />
                 </Bar>
-                <Bar dataKey="failRatePct" name="ไม่ผ่าน" stackId="sk" fill="#f472b6" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="failRatePct" name="ไม่ผ่าน" stackId="sk" fill="#f472b6" radius={[5, 5, 0, 0]}>
                   <LabelList dataKey="failLabel" position="center" fill="#ffffff" fontSize={10.5} fontWeight={700} />
                 </Bar>
               </BarChart>
@@ -604,13 +636,13 @@ export default function AdminAnalyticsDashboard({
 
         {/* Chart 3: Gender Donut */}
         <div className="exec-card">
-          <div className="exec-card-title">จำนวนผู้เข้ารับการประเมิน จำแนกตามเพศ</div>
+          <div className="exec-card-title centered">จำนวนผู้เข้ารับการประเมิน จำแนกตามเพศ</div>
           <div className="exec-donut-layout">
             <div className="exec-donut-canvas">
               {summary.assessedLearners === 0 ? (
                 <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมิน</p>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={205}>
                   <PieChart>
                     <Pie
                       data={genderPieData.filter(d => d.value > 0)}
@@ -618,20 +650,22 @@ export default function AdminAnalyticsDashboard({
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={50}
+                      innerRadius={44}
                       outerRadius={78}
-                      paddingAngle={2}
+                      startAngle={90}
+                      endAngle={-270}
                       labelLine={false}
+                      label={renderDonutSliceLabel}
                     >
                       {genderPieData.filter(d => d.value > 0).map(entry => (
-                        <Cell key={entry.name} fill={entry.color} />
+                        <Cell key={entry.name} fill={entry.color} stroke="#ffffff" strokeWidth={1.5} />
                       ))}
                     </Pie>
                     <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
-                    <text x="50%" y="47%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
+                    <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
                       {summary.assessedLearners.toLocaleString()}
                     </text>
-                    <text x="50%" y="58%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
+                    <text x="50%" y="57%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
                       คน
                     </text>
                   </PieChart>
@@ -668,7 +702,7 @@ export default function AdminAnalyticsDashboard({
                   <th colSpan={3} className="group">ผู้เข้ารับการประเมิน (คน)</th>
                   <th colSpan={3} className="group">ผ่านการประเมิน (คน)</th>
                   <th colSpan={3} className="group">ไม่ผ่านการประเมิน (คน)</th>
-                  <th rowSpan={2} className="num">ร้อยละผ่าน</th>
+                  <th rowSpan={2} className="center">ร้อยละผ่าน</th>
                 </tr>
                 <tr>
                   <th className="num">ชาย</th>
@@ -691,17 +725,17 @@ export default function AdminAnalyticsDashboard({
                         <Icon size={15} color={s.color} />
                         <strong>{s.shortName}</strong>
                       </td>
-                      <td className="num">{s.assessedMale.toLocaleString()}</td>
+                      <td className="num group-start">{s.assessedMale.toLocaleString()}</td>
                       <td className="num">{s.assessedFemale.toLocaleString()}</td>
                       <td className="num strong">{s.assessedCount.toLocaleString()}</td>
-                      <td className="num">{s.passedMale.toLocaleString()}</td>
+                      <td className="num group-start">{s.passedMale.toLocaleString()}</td>
                       <td className="num">{s.passedFemale.toLocaleString()}</td>
                       <td className="num strong">{s.passedCount.toLocaleString()}</td>
-                      <td className="num">{s.failedMale.toLocaleString()}</td>
+                      <td className="num group-start">{s.failedMale.toLocaleString()}</td>
                       <td className="num">{s.failedFemale.toLocaleString()}</td>
                       <td className="num strong">{s.failedCount.toLocaleString()}</td>
-                      <td className="num">
-                        <span className="exec-rate-pill">{fmtPct(s.passRatePct)}</span>
+                      <td className="center rate-col-cell">
+                        <span className="exec-rate-text">{fmtPct(s.passRatePct)}</span>
                       </td>
                     </tr>
                   );
@@ -727,7 +761,7 @@ export default function AdminAnalyticsDashboard({
                 className="exec-see-all-btn"
                 onClick={() => setShowAllAreas(v => !v)}
               >
-                {showAllAreas ? 'ย่อลง' : `ดูทั้งหมด (${activeAreaRows.length})`} <ChevronRight size={14} />
+                {showAllAreas ? 'ย่อลง' : 'ดูทั้งหมด'} <ChevronRight size={14} />
               </button>
             )}
           </div>
@@ -741,7 +775,7 @@ export default function AdminAnalyticsDashboard({
                   <th className="num">หญิง (คน)</th>
                   <th className="num">ผ่าน (คน)</th>
                   <th className="num">ไม่ผ่าน (คน)</th>
-                  <th className="num">ร้อยละผ่าน</th>
+                  <th className="center">ร้อยละผ่าน</th>
                 </tr>
               </thead>
               <tbody>
@@ -781,8 +815,8 @@ export default function AdminAnalyticsDashboard({
                           <td className="num">{(row.femaleCount ?? 0).toLocaleString()}</td>
                           <td className="num">{(row.passedLearnerCount ?? 0).toLocaleString()}</td>
                           <td className="num">{(row.failedLearnerCount ?? row.notPassedLearnerCount ?? 0).toLocaleString()}</td>
-                          <td className="num">
-                            {passVal === null ? '—' : <span className="exec-rate-pill">{fmtPct(passVal)}</span>}
+                          <td className="center rate-col-cell">
+                            {passVal === null ? '—' : <span className="exec-rate-text">{fmtPct(passVal)}</span>}
                           </td>
                         </tr>
                       );
@@ -794,7 +828,7 @@ export default function AdminAnalyticsDashboard({
                       <td className="num">{areaTotals.female.toLocaleString()}</td>
                       <td className="num">{areaTotals.passed.toLocaleString()}</td>
                       <td className="num">{areaTotals.failed.toLocaleString()}</td>
-                      <td className="num">{fmtPct(areaTotals.passRate)}</td>
+                      <td className="center">{fmtPct(areaTotals.passRate)}</td>
                     </tr>
                   </>
                 )}
@@ -804,18 +838,31 @@ export default function AdminAnalyticsDashboard({
         </div>
       </section>
 
-      {/* 6. Bottom Learner Table + Expandable Search Controls */}
+      {/* 6. Bottom Learner Table */}
       <section className="exec-panel" ref={searchSectionRef}>
         <div className="exec-panel-head exec-learner-head">
-          <h3>รายชื่อผู้เรียน ({filtered.learners.length.toLocaleString()} คน)</h3>
+          <h3>รายชื่อผู้เรียน</h3>
 
-          <div className="exec-learner-filters">
+          <div className="exec-learner-head-right">
+            <span className="exec-learner-count">{filtered.learners.length.toLocaleString()} คน</span>
+            <button
+              type="button"
+              className="exec-filter-toggle-btn"
+              onClick={() => setShowLearnerFilters(v => !v)}
+            >
+              <Search size={13} /> {showLearnerFilters ? 'ซ่อนตัวกรอง' : 'ค้นหา / กรอง'}
+            </button>
+          </div>
+        </div>
+
+        {(showLearnerFilters || hasCustomFilter) && (
+          <div className="exec-learner-filter-bar">
             <div className="exec-inline-search">
               <Search size={14} color="#64748b" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="ค้นหาคำนำหน้า ชื่อ-นามสกุล..."
+                placeholder="ค้นหาคำนำหน้า ชื่อ-นามสกุล, อำเภอ, ตำบล..."
                 value={detailSearch}
                 onChange={e => { setDetailSearch(e.target.value); setDetailPage(1); }}
               />
@@ -862,13 +909,13 @@ export default function AdminAnalyticsDashboard({
               <option value="other">ผู้เรียนทั่วไป</option>
             </select>
 
-            {(showSearchBar || detailSearch || prefixFilter !== 'all' || genderFilter !== 'all' || statusFilter !== 'all' || enrollmentFilter !== 'literacy' || districtFilter !== 'all' || dateRange !== 'all') && (
-              <button type="button" className="exec-reset-btn" onClick={resetAllFilters} title="ล้างตัวกรองทั้งหมด">
-                <RotateCcw size={14} /> ล้างตัวกรอง
+            {hasCustomFilter && (
+              <button type="button" className="exec-reset-btn" onClick={resetAllFilters}>
+                <RotateCcw size={13} /> ล้างตัวกรอง
               </button>
             )}
           </div>
-        </div>
+        )}
 
         <div className="exec-table-wrap">
           <table className="exec-table exec-learner-table">
@@ -885,10 +932,10 @@ export default function AdminAnalyticsDashboard({
                 <th rowSpan={2} className="center">สถานะ</th>
               </tr>
               <tr>
-                <th className="center">การฟัง</th>
-                <th className="center">การพูด</th>
-                <th className="center">การอ่าน</th>
-                <th className="center">การเขียน</th>
+                <th className="center sub-skill-head">การฟัง</th>
+                <th className="center sub-skill-head">การพูด</th>
+                <th className="center sub-skill-head">การอ่าน</th>
+                <th className="center sub-skill-head">การเขียน</th>
               </tr>
             </thead>
             <tbody>
@@ -921,10 +968,10 @@ export default function AdminAnalyticsDashboard({
                       <td>{l.district}</td>
                       <td>{l.subdistrict}</td>
                       <td className="center">{l.gender || 'ไม่ระบุ'}</td>
-                      <td className="center"><SkillStatusIcon skill={l.skills?.listening} /></td>
-                      <td className="center"><SkillStatusIcon skill={l.skills?.speaking} /></td>
-                      <td className="center"><SkillStatusIcon skill={l.skills?.reading} /></td>
-                      <td className="center"><SkillStatusIcon skill={l.skills?.writing} /></td>
+                      <td className="center"><SkillStatusBadge skill={l.skills?.listening} /></td>
+                      <td className="center"><SkillStatusBadge skill={l.skills?.speaking} /></td>
+                      <td className="center"><SkillStatusBadge skill={l.skills?.reading} /></td>
+                      <td className="center"><SkillStatusBadge skill={l.skills?.writing} /></td>
                       <td className="center strong">{overallWord}</td>
                       <td className="center">
                         <span className={`exec-status-pill ${statusClass}`}>
