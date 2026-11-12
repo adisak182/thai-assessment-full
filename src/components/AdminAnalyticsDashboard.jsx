@@ -172,7 +172,7 @@ export default function AdminAnalyticsDashboard({
       search: detailSearch,
       dateRange,
     });
-    const literacy = baseFiltered.learners.filter(l => l.isLiteracyLearner).length;
+    const literacy = baseFiltered.learners.filter(l => Boolean(l.is_literacy_learner)).length;
     const all = baseFiltered.learners.length;
     return { literacy, other: all - literacy, all };
   }, [
