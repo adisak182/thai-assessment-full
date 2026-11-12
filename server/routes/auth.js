@@ -3,8 +3,10 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import LevelProgress from '../models/LevelProgress.js';
+import ExamSettings from '../models/ExamSettings.js';
 import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 import { combineNameWithPrefix } from '../../src/utils/namePrefix.js';
+import { evaluateExamWindow } from '../../src/utils/examSchedule.js';
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
@@ -185,6 +187,28 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+// ==================== PUBLIC EXAM OPEN/CLOSE STATUS ====================
+router.get('/exam-status', async (req, res) => {
+  try {
+    let isAdmin = false;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'dev_secret');
+        const userDoc = await User.findById(decoded.userId).select('role').lean();
+        isAdmin = userDoc?.role === 'admin';
+      } catch {
+        // Ignore invalid token for public schedule status check
+      }
+    }
+    const settings = await ExamSettings.findOne({ key: 'global' }).lean();
+    return res.json(evaluateExamWindow(settings, new Date(), { isAdmin }));
+  } catch (err) {
+    console.error('Get exam status error:', err);
+    return res.status(500).json({ message: 'ไม่สามารถตรวจสอบสถานะเวลาสอบได้' });
   }
 });
 

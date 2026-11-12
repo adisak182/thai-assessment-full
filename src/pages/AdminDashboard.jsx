@@ -5,14 +5,15 @@ import { filterUsers, summarizeLearners, summarizeAttempts } from '../utils/admi
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory, updateAdminSurvey, normalizeAdminLocations } from '../services/api';
-import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
+import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory, updateAdminSurvey, normalizeAdminLocations, getAdminExamSettings } from '../services/api';
+import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer, AlertTriangle, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
 import AdminAnalyticsDashboard from '../components/AdminAnalyticsDashboard';
 import NarathiwatLocationFields from '../components/NarathiwatLocationFields';
 import LocationCleanupModal from '../components/LocationCleanupModal';
+import ExamScheduleModal from '../components/ExamScheduleModal';
 import { extractDistrictAndProvince, detectLocationAnomalies } from '../utils/addressHelper';
 import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
 import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
@@ -71,6 +72,8 @@ export default function AdminDashboard() {
   const [showAnswerKeyModal, setShowAnswerKeyModal] = useState(false);
   const [showLocationCleanupModal, setShowLocationCleanupModal] = useState(false);
   const [normalizingLocations, setNormalizingLocations] = useState(false);
+  const [showExamScheduleModal, setShowExamScheduleModal] = useState(false);
+  const [examScheduleStatus, setExamScheduleStatus] = useState(null);
   const [surveys, setSurveys] = useState([]);
   const [surveysLoading, setSurveysLoading] = useState(false);
   const [surveyTab, setSurveyTab] = useState('overview'); // 'overview' | 'list'
@@ -138,7 +141,10 @@ export default function AdminDashboard() {
     }
     fetchUsers();
     fetchAllHistory();
-    if (token) getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {});
+    if (token) {
+      getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {});
+      getAdminExamSettings(token).then(data => setExamScheduleStatus(data || null)).catch(() => {});
+    }
     const refresh=event=>{
       fetchUsers();fetchAllHistory();
       setUserScores(previous=>previous.map(attempt=>attempt.id===event.detail.id?{...attempt,...event.detail}:attempt));
@@ -484,6 +490,15 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และสถิติการสอบ</p></div>
         <div className="admin-header-actions">
+          <button onClick={() => setShowExamScheduleModal(true)} className="btn-secondary">
+            <Clock size={16} color={examScheduleStatus && !examScheduleStatus.rawOpen ? '#dc2626' : '#059669'} />
+            ตั้งเวลาเปิด-ปิดสอบ
+            {examScheduleStatus && (
+              <span className={`schedule-status-chip ${examScheduleStatus.rawOpen ? 'open' : 'closed'}`}>
+                {examScheduleStatus.rawOpen ? 'เปิดอยู่' : 'ปิดอยู่'}
+              </span>
+            )}
+          </button>
           <button onClick={() => setShowLocationCleanupModal(true)} className="btn-secondary">
             <AlertTriangle size={16} color={locationAnomalies.length > 0 ? '#d97706' : undefined} />
             จัดการชื่ออำเภอ/ตำบล{locationAnomalies.length > 0 ? ` (${locationAnomalies.length})` : ''}
@@ -1285,6 +1300,16 @@ export default function AdminDashboard() {
           busy={normalizingLocations}
           onApplyNormalization={handleNormalizeLocations}
           onClose={() => setShowLocationCleanupModal(false)}
+        />
+      )}
+
+      {/* EXAM SCHEDULE MODAL */}
+      {showExamScheduleModal && (
+        <ExamScheduleModal
+          token={token}
+          initialStatus={examScheduleStatus}
+          onSaved={(nextStatus) => setExamScheduleStatus(nextStatus)}
+          onClose={() => setShowExamScheduleModal(false)}
         />
       )}
 

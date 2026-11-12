@@ -7,7 +7,9 @@ import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 import SurveyResponse from '../models/SurveyResponse.js';
+import ExamSettings from '../models/ExamSettings.js';
 import { resolveLocationUpdates, buildNormalizedLocationPatch } from '../../src/utils/addressHelper.js';
+import { validateExamScheduleInput, evaluateExamWindow } from '../../src/utils/examSchedule.js';
 
 const router = express.Router();
 
@@ -322,6 +324,45 @@ router.put('/attempts/:id/review', authenticateAdmin, async (req,res)=>{
     if(!updated)return res.status(409).json({message:'มีการตรวจพร้อมกัน กรุณาโหลดข้อมูลใหม่'});
     return res.json(updated);
   }catch{return res.status(500).json({message:'บันทึกผลตรวจไม่สำเร็จ'});}
+});
+
+// ==================== GET / UPDATE EXAM SCHEDULE SETTINGS ====================
+router.get('/exam-settings', authenticateAdmin, async (req, res) => {
+  try {
+    const settings = await ExamSettings.findOne({ key: 'global' }).lean();
+    return res.json(evaluateExamWindow(settings, new Date(), { isAdmin: true }));
+  } catch (err) {
+    console.error('Get exam settings error:', err);
+    return res.status(500).json({ message: 'โหลดการตั้งค่าเวลาสอบไม่สำเร็จ' });
+  }
+});
+
+router.put('/exam-settings', authenticateAdmin, async (req, res) => {
+  const validated = validateExamScheduleInput(req.body);
+  if (validated.error) {
+    return res.status(400).json({ message: validated.error });
+  }
+  try {
+    const updated = await ExamSettings.findOneAndUpdate(
+      { key: 'global' },
+      {
+        $set: {
+          ...validated,
+          key: 'global',
+          updated_by: req.userId,
+          updated_at: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    ).lean();
+    return res.json({
+      message: 'บันทึกเวลาเปิด-ปิดการทำข้อสอบสำเร็จ',
+      status: evaluateExamWindow(updated, new Date(), { isAdmin: true }),
+    });
+  } catch (err) {
+    console.error('Update exam settings error:', err);
+    return res.status(500).json({ message: 'บันทึกการตั้งค่าเวลาสอบไม่สำเร็จ' });
+  }
 });
 
 export default router;

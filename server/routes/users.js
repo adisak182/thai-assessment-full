@@ -9,7 +9,9 @@ import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 import mongoose from 'mongoose';
+import ExamSettings from '../models/ExamSettings.js';
 import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
+import { evaluateExamWindow } from '../../src/utils/examSchedule.js';
 
 
 const router = express.Router();
@@ -127,8 +129,15 @@ router.post('/score', authenticate, async (req, res) => {
   }
   catch(error){return res.status(400).json({message:error.message});}
   try {
-    const exists=await User.exists({_id:req.userId});
-    if(!exists)return res.status(401).json({message:'ไม่พบบัญชีผู้ใช้'});
+    const userDoc = await User.findById(req.userId).select('role').lean();
+    if (!userDoc) return res.status(401).json({ message: 'ไม่พบบัญชีผู้ใช้' });
+
+    const examSettings = await ExamSettings.findOne({ key: 'global' }).lean();
+    const windowStatus = evaluateExamWindow(examSettings, new Date(), { isAdmin: userDoc.role === 'admin' });
+    if (!windowStatus.isOpen) {
+      return res.status(403).json({ message: windowStatus.reason, examStatus: windowStatus });
+    }
+
     const audioIds=req.body.responses.filter(r=>r.audioId).map(r=>r.audioId);
     const clips=audioIds.length?await SpeakingAudio.find({_id:{$in:audioIds}}):[];
     try{validateAudioReferences(req.body.responses,clips,{userId:req.userId,submissionId:req.body.submissionId,skill:req.body.skill});}

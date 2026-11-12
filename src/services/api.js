@@ -242,6 +242,38 @@ export const normalizeAdminLocations = async (token, payload) => {
   return result;
 };
 
+export const getExamStatus = async (token = '') => {
+  const response = await fetch(`${API_URL}/auth/exam-status`, {
+    headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'ตรวจสอบสถานะเวลาสอบไม่สำเร็จ');
+  return result;
+};
+
+export const getAdminExamSettings = async (token) => {
+  const response = await fetch(`${API_URL}/admin/exam-settings`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'โหลดการตั้งค่าเวลาสอบไม่สำเร็จ');
+  return result;
+};
+
+export const updateAdminExamSettings = async (token, payload) => {
+  const response = await fetch(`${API_URL}/admin/exam-settings`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'บันทึกเวลาเปิด-ปิดการทำข้อสอบไม่สำเร็จ');
+  return result;
+};
+
 export const reviewAttempt = async (token, attemptId, questionId, correct) => {
   const response=await fetch(`${API_URL}/admin/attempts/${attemptId}/review`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({questionId,correct})});
   const result=await response.json();

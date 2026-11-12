@@ -18,6 +18,7 @@ import ReadingTest from './pages/ReadingTest';
 import WritingTest from './pages/WritingTest';
 import FullTest from './pages/FullTest';
 import Ranking from './pages/Ranking';
+import ExamAccessGate from './components/ExamAccessGate';
 
 // Protected route: redirect to /start if not authenticated
 function ProtectedRoute({ children }) {
@@ -86,12 +87,12 @@ function AppLayout() {
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/ranking" element={<ProtectedRoute><Ranking /></ProtectedRoute>} />
-          <Route path="/skills" element={<ProtectedRoute><FullTest /></ProtectedRoute>} />
+          <Route path="/skills" element={<ProtectedRoute><ExamAccessGate><FullTest /></ExamAccessGate></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-          <Route path="/test/listening" element={<ProtectedRoute><ListeningTest /></ProtectedRoute>} />
-          <Route path="/test/speaking" element={<ProtectedRoute><SpeakingTest /></ProtectedRoute>} />
-          <Route path="/test/reading" element={<ProtectedRoute><ReadingTest /></ProtectedRoute>} />
-          <Route path="/test/writing" element={<ProtectedRoute><WritingTest /></ProtectedRoute>} />
+          <Route path="/test/listening" element={<ProtectedRoute><ExamAccessGate><ListeningTest /></ExamAccessGate></ProtectedRoute>} />
+          <Route path="/test/speaking" element={<ProtectedRoute><ExamAccessGate><SpeakingTest /></ExamAccessGate></ProtectedRoute>} />
+          <Route path="/test/reading" element={<ProtectedRoute><ExamAccessGate><ReadingTest /></ExamAccessGate></ProtectedRoute>} />
+          <Route path="/test/writing" element={<ProtectedRoute><ExamAccessGate><WritingTest /></ExamAccessGate></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
           {/* Legacy redirects */}
           <Route path="/levels" element={<Navigate to="/skills" replace />} />

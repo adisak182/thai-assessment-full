@@ -222,6 +222,40 @@
 .cleanup-selectors select,.cleanup-single-select { padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; font:inherit; font-size:.82rem; background:white; min-width:155px; }
 .cleanup-suggest-note { display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:.73rem; color:#059669; font-weight:600; }
 
+.schedule-status-chip { padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:700; }
+.schedule-status-chip.open { background:#dcfce7; color:#047857; }
+.schedule-status-chip.closed { background:#fee2e2; color:#be123c; }
+
+.exam-schedule-modal { max-width:660px; width:100%; }
+.schedule-form { display:flex; flex-direction:column; gap:16px; }
+.schedule-saved-banner { display:flex; align-items:center; gap:8px; background:#ecfdf5; border:1px solid #a7f3d0; color:#047857; padding:10px 14px; border-radius:10px; font-size:.86rem; font-weight:600; }
+.schedule-preview-bar { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:12px; font-size:.84rem; }
+.schedule-preview-bar.open { background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; }
+.schedule-preview-bar.closed { background:#fff1f2; border:1px solid #fecdd3; color:#9f1239; }
+.schedule-preview-bar strong { display:block; margin-bottom:2px; }
+
+.schedule-modes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.schedule-modes button { display:flex; align-items:flex-start; gap:10px; padding:12px; border-radius:12px; border:1.5px solid #cbd5e1; background:#ffffff; color:#334155; font:inherit; text-align:left; cursor:pointer; transition:all .15s; }
+.schedule-modes button[aria-pressed="true"] { border-color:#4f46e5; background:#eef2ff; color:#312e81; }
+.schedule-modes strong { display:block; font-size:.88rem; }
+.schedule-modes small { display:block; font-size:.74rem; color:#64748b; margin-top:2px; }
+
+.schedule-datetime-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:14px; display:flex; flex-direction:column; gap:12px; }
+.schedule-presets { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:.78rem; color:#64748b; }
+.schedule-presets button { padding:4px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; color:#334155; font:inherit; font-size:.76rem; font-weight:600; cursor:pointer; }
+.schedule-presets button:hover { border-color:#4f46e5; color:#4f46e5; }
+.schedule-datetime-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.schedule-datetime-grid label { display:flex; flex-direction:column; gap:6px; }
+.schedule-datetime-grid label > span { display:inline-flex; align-items:center; gap:5px; font-size:.8rem; font-weight:700; color:#334155; }
+.schedule-datetime-grid input { width:100%; padding:9px 12px; border-radius:9px; border:1px solid #cbd5e1; font:inherit; font-size:.88rem; background:#ffffff; box-sizing:border-box; }
+.schedule-datetime-grid small { font-size:.75rem; color:#64748b; }
+
+.schedule-msg-field { display:flex; flex-direction:column; gap:6px; }
+.schedule-msg-field > span { font-size:.82rem; font-weight:700; color:#334155; }
+.schedule-msg-field textarea { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #cbd5e1; font:inherit; font-size:.86rem; resize:vertical; box-sizing:border-box; }
+.schedule-bypass-check { display:flex; align-items:center; gap:8px; font-size:.84rem; color:#334155; cursor:pointer; }
+.schedule-bypass-check input { width:17px; height:17px; accent-color:#4f46e5; }
+
 @media(max-width:1100px) {
   .clean-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .clean-filter-primary { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -231,6 +265,6 @@
   .clean-charts-pair,.analytics-pies-wrap,.clean-quick-links { grid-template-columns:1fr; }
 }
 @media(max-width:600px) {
-  .clean-kpis,.clean-filter-primary,.clean-filter-secondary,.learner-modal-meta { grid-template-columns:1fr; }
+  .clean-kpis,.clean-filter-primary,.clean-filter-secondary,.learner-modal-meta,.schedule-modes,.schedule-datetime-grid { grid-template-columns:1fr; }
   .clean-subtabs button { flex:1 1 45%; justify-content:center; }
 }
