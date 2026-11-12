@@ -99,6 +99,7 @@ test('resolveLocationUpdates keeps explicit fields or extracts from edited addre
 
 test('covers all 13 Narathiwat districts and 77 official subdistricts without collisions', () => {
   assert.equal(NARATHIWAT_DISTRICT_NAMES.length, 13);
+  assert.deepEqual(NARATHIWAT_SUBDISTRICTS_BY_DISTRICT['เจาะไอร้อง'], ['จวบ', 'บูกิต', 'มะรือโบออก']);
   const totalSubs = Object.values(NARATHIWAT_SUBDISTRICTS_BY_DISTRICT).reduce((sum, list) => sum + list.length, 0);
   assert.equal(totalSubs, 77);
 });
