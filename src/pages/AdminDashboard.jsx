@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatusFilter, setHistoryStatusFilter] = useState('all'); // 'all' | 'passed' | 'notPassed'
   const [historyDateFilter, setHistoryDateFilter] = useState('all'); // 'all' | 'today' | 'week' | 'month'
+  const [historyPage, setHistoryPage] = useState(1);
 
   // ScoreDetailModal state
   const [activeDetailAttempt, setActiveDetailAttempt] = useState(null);
@@ -188,6 +189,11 @@ export default function AdminDashboard() {
     const summary = summarizeAttempts(allHistory);
     return {total:summary.total,passed:summary.passed,notPassed:summary.reviewed-summary.passed,avg:summary.average,pending:summary.pending};
   }, [allHistory]);
+
+  const HISTORY_PAGE_SIZE = 50;
+  const historyPageCount = Math.max(1, Math.ceil(filteredAllHistory.length / HISTORY_PAGE_SIZE));
+  const currentHistoryPage = Math.min(historyPage, historyPageCount);
+  const pageHistory = filteredAllHistory.slice((currentHistoryPage - 1) * HISTORY_PAGE_SIZE, currentHistoryPage * HISTORY_PAGE_SIZE);
 
   const triggerCsvDownload = (csvContent, filename) => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -488,7 +494,7 @@ export default function AdminDashboard() {
       ) : (
         /* ALL EXAM HISTORY TAB */
         <div>
-          <p className="admin-muted">แสดงประวัติล่าสุดสูงสุด 300 ครั้ง สถิติส่วนนี้คำนวณจากรายการที่โหลด · ค่าเฉลี่ยใช้เฉพาะผลที่ตรวจครบ</p>
+          <p className="admin-muted">แสดงประวัติการสอบทั้งหมด ({allHistory.length} ครั้ง) · ค่าเฉลี่ยใช้เฉพาะผลที่ตรวจครบ</p>
           {/* History Statistics Cards */}
           <div className="admin-grid">
             <div className="stat-card">
@@ -547,7 +553,7 @@ export default function AdminDashboard() {
                 type="text" 
                 placeholder="ค้นหาชื่อผู้เข้าสอบ หรือ Username..." 
                 value={historySearch}
-                onChange={(e) => setHistorySearch(e.target.value)}
+                onChange={(e) => { setHistorySearch(e.target.value); setHistoryPage(1); }}
               />
             </div>
 
@@ -556,7 +562,7 @@ export default function AdminDashboard() {
               <select 
                 className="filter-select"
                 value={historyStatusFilter}
-                onChange={(e) => setHistoryStatusFilter(e.target.value)}
+                onChange={(e) => { setHistoryStatusFilter(e.target.value); setHistoryPage(1); }}
               >
                 <option value="all">ผลสอบทั้งหมด</option>
                 <option value="passed">เฉพาะที่ผ่านเกณฑ์ (≥70%)</option>
@@ -566,7 +572,7 @@ export default function AdminDashboard() {
               <select 
                 className="filter-select"
                 value={historyDateFilter}
-                onChange={(e) => setHistoryDateFilter(e.target.value)}
+                onChange={(e) => { setHistoryDateFilter(e.target.value); setHistoryPage(1); }}
               >
                 <option value="all">ทุกช่วงเวลา</option>
                 <option value="today">วันนี้</option>
@@ -632,7 +638,7 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAllHistory.map((h, idx) => {
+                  {pageHistory.map((h, idx) => {
                     const pct = Math.round((h.score / (h.max_score || 100)) * 100);
                     const passed = !(h.pending_count > 0) && pct >= 70;
                     let grade = 'ปรับปรุง';
@@ -709,6 +715,16 @@ export default function AdminDashboard() {
                   })}
                 </tbody>
               </table>
+              {filteredAllHistory.length > HISTORY_PAGE_SIZE && (
+                <div className="admin-pagination" style={{ padding: '16px 24px' }}>
+                  <span>แสดง {(currentHistoryPage - 1) * HISTORY_PAGE_SIZE + 1}–{Math.min(currentHistoryPage * HISTORY_PAGE_SIZE, filteredAllHistory.length)} จาก {filteredAllHistory.length} รายการ</span>
+                  <div>
+                    <button className="btn-secondary" disabled={currentHistoryPage === 1} onClick={() => setHistoryPage(currentHistoryPage - 1)}>ก่อนหน้า</button>
+                    <span>{currentHistoryPage} / {historyPageCount}</span>
+                    <button className="btn-secondary" disabled={currentHistoryPage === historyPageCount} onClick={() => setHistoryPage(currentHistoryPage + 1)}>ถัดไป</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import User from './models/User.js';
 import ScoreHistory from './models/ScoreHistory.js';
+import SurveyResponse from './models/SurveyResponse.js';
 import users from './routes/users.js';
 import admin from './routes/admin.js';
 import jwt from 'jsonwebtoken';
@@ -111,4 +112,17 @@ test('profile and admin user updates toggle literacy status and validate boolean
    assert.equal(trueRes.code,200);assert.equal(capturedUpdate.is_literacy_learner,true);
   }
  }finally{User.findByIdAndUpdate=original;}
+});
+test('admin history endpoint returns all exam records without a 300-row cap',async()=>{
+ const original=[ScoreHistory.find,SurveyResponse.find];
+ const sampleRows=Array.from({length:350},(_,i)=>({_id:`h${i}`,user_id:{_id:'u1',name:'สมชาย',username:'u1'},level:1,skill:'full_test',score:80,max_score:100,taken_at:new Date()}));
+ let limited=false;
+ const historyChain={populate(){return this;},sort(){return this;},limit(){limited=true;return this;},lean:async()=>sampleRows};
+ ScoreHistory.find=()=>historyChain;
+ SurveyResponse.find=()=>({select(){return this;},sort(){return this;},lean:async()=>[]});
+ try{
+  const res=response();
+  await admin.stack.find(l=>l.route?.path==='/history'&&l.route.methods.get).route.stack.at(-1).handle({},res);
+  assert.equal(res.code,200);assert.equal(limited,false);assert.equal(res.body.length,350);
+ }finally{[ScoreHistory.find,SurveyResponse.find]=original;}
 });

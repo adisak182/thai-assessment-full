@@ -52,12 +52,12 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 router.get('/history', authenticateAdmin, async (req, res) => {
   try {
     const history = await ScoreHistory.find()
-      .populate('user_id', 'username name avatar age address subdistrict district province role')
+      .populate('user_id', 'username name age address subdistrict district province role')
       .sort({ taken_at: -1 })
-      .limit(300);
+      .lean();
 
     const userIds = history.map(h => h.user_id?._id).filter(Boolean);
-    const surveys = userIds.length ? await SurveyResponse.find({ user_id: { $in: userIds } }).select('user_id subdistrict district province submitted_at').sort({ submitted_at: 1 }) : [];
+    const surveys = userIds.length ? await SurveyResponse.find({ user_id: { $in: userIds } }).select('user_id subdistrict district province submitted_at').sort({ submitted_at: 1 }).lean() : [];
     const surveyMap = new Map();
     for (const s of surveys) {
       if (s.user_id) surveyMap.set(s.user_id.toString(), { subdistrict: s.subdistrict, district: s.district, province: s.province });
@@ -73,7 +73,6 @@ router.get('/history', authenticateAdmin, async (req, res) => {
           id: u._id.toString(),
           name: u.name,
           username: u.username,
-          avatar: u.avatar,
           age: u.age,
           address: u.address,
           subdistrict: u.subdistrict || s?.subdistrict || null,
