@@ -161,6 +161,31 @@ export default function AdminAnalyticsDashboard({
     ]
   );
 
+  const groupCounts = useMemo(() => {
+    const baseFiltered = filterAnalyticsData(enriched, {
+      district: districtFilter,
+      subdistrict: subdistrictFilter,
+      enrollment: 'all',
+      gender: genderFilter,
+      assessmentStatus: statusFilter,
+      prefix: prefixFilter,
+      search: detailSearch,
+      dateRange,
+    });
+    const literacy = baseFiltered.learners.filter(l => l.isLiteracyLearner).length;
+    const all = baseFiltered.learners.length;
+    return { literacy, other: all - literacy, all };
+  }, [
+    enriched,
+    districtFilter,
+    subdistrictFilter,
+    genderFilter,
+    statusFilter,
+    prefixFilter,
+    detailSearch,
+    dateRange,
+  ]);
+
   const summary = useMemo(
     () => buildAnalyticsSummary(filtered.learners, filtered.attempts),
     [filtered.learners, filtered.attempts]
@@ -196,18 +221,29 @@ export default function AdminAnalyticsDashboard({
     return { ...sum, passRate };
   }, [activeAreaRows]);
 
+  // Unified percentages over summary.totalLearners so KPI cards, donuts, and tables share one exact total base.
+  const overallPassTotalPct = summary.totalLearners > 0
+    ? Number(((summary.passedLearners / summary.totalLearners) * 100).toFixed(2))
+    : 0;
+  const overallFailTotalPct = summary.totalLearners > 0
+    ? Number(((summary.notPassedLearners / summary.totalLearners) * 100).toFixed(2))
+    : 0;
+
   const overallPieData = useMemo(() => ([
-    { name: 'ผ่านการประเมิน', value: summary.passedLearners, pct: summary.learnerPassRatePct, color: '#7c3aed' },
-    { name: 'ไม่ผ่านการประเมิน', value: summary.notPassedLearners, pct: summary.learnerFailRatePct, color: '#f472b6' },
-  ]), [summary]);
+    { name: 'ผ่านการประเมิน', value: summary.passedLearners, pct: overallPassTotalPct, color: '#7c3aed' },
+    { name: 'ไม่ผ่านการประเมิน', value: summary.notPassedLearners, pct: overallFailTotalPct, color: '#f472b6' },
+    ...(summary.untestedLearners > 0
+      ? [{ name: 'ยังไม่ครบ 4 ทักษะ', value: summary.untestedLearners, pct: summary.untestedRatePct, color: '#94a3b8' }]
+      : []),
+  ]), [summary.passedLearners, summary.notPassedLearners, summary.untestedLearners, summary.untestedRatePct, overallPassTotalPct, overallFailTotalPct]);
 
   const genderPieData = useMemo(() => ([
-    { name: 'ชาย', value: summary.assessedMale, pct: summary.assessedMalePct, color: '#3b82f6' },
-    { name: 'หญิง', value: summary.assessedFemale, pct: summary.assessedFemalePct, color: '#f472b6' },
-    ...(summary.assessedOtherGender > 0
-      ? [{ name: 'ไม่ระบุ', value: summary.assessedOtherGender, pct: Number((100 - summary.assessedMalePct - summary.assessedFemalePct).toFixed(2)), color: '#94a3b8' }]
+    { name: 'ชาย', value: summary.maleLearners, pct: summary.malePct, color: '#3b82f6' },
+    { name: 'หญิง', value: summary.femaleLearners, pct: summary.femalePct, color: '#f472b6' },
+    ...(summary.otherGenderLearners > 0
+      ? [{ name: 'ไม่ระบุ', value: summary.otherGenderLearners, pct: summary.otherGenderPct, color: '#94a3b8' }]
       : []),
-  ]), [summary]);
+  ]), [summary.maleLearners, summary.femaleLearners, summary.otherGenderLearners, summary.malePct, summary.femalePct, summary.otherGenderPct]);
 
   const skillBarData = useMemo(
     () => summary.skillBreakdown.map(s => ({
@@ -399,6 +435,33 @@ export default function AdminAnalyticsDashboard({
       {/* 2. Control & Filter Toolbar */}
       <section className="exec-controls-bar">
         <div className="exec-control-group">
+          <span className="exec-ctrl-label">กลุ่มผู้เรียน :</span>
+          <div className="exec-level-pills exec-group-pills" role="group" aria-label="เลือกกลุ่มผู้เรียน">
+            <button
+              type="button"
+              aria-pressed={enrollmentFilter === 'literacy'}
+              onClick={() => { setEnrollmentFilter('literacy'); setDetailPage(1); }}
+            >
+              กิจกรรมรู้หนังสือ ({groupCounts.literacy.toLocaleString()})
+            </button>
+            <button
+              type="button"
+              aria-pressed={enrollmentFilter === 'other'}
+              onClick={() => { setEnrollmentFilter('other'); setDetailPage(1); }}
+            >
+              ทั่วไป ({groupCounts.other.toLocaleString()})
+            </button>
+            <button
+              type="button"
+              aria-pressed={enrollmentFilter === 'all'}
+              onClick={() => { setEnrollmentFilter('all'); setDetailPage(1); }}
+            >
+              ทั้งหมด ({groupCounts.all.toLocaleString()})
+            </button>
+          </div>
+        </div>
+
+        <div className="exec-control-group">
           <span className="exec-ctrl-label">ระดับข้อมูล :</span>
           <div className="exec-level-pills" role="group" aria-label="เลือกระดับข้อมูล">
             <button type="button" aria-pressed={areaLevel === 'province'} onClick={() => handleAreaLevelChange('province')}>
@@ -493,7 +556,12 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-kpi-icon purple"><Users size={22} /></div>
           <div className="exec-kpi-body">
             <span>ผู้เข้ารับการประเมิน<br />ทั้งหมด</span>
-            <strong>{summary.assessedLearners.toLocaleString()} <small>คน</small></strong>
+            <strong>{summary.totalLearners.toLocaleString()} <small>คน</small></strong>
+            {summary.unassessedLearners > 0 && (
+              <em title="จำนวนผู้ที่มีผลประเมินอย่างน้อย 1 ทักษะ กับผู้ที่ยังไม่เข้าประเมิน">
+                สอบแล้ว {summary.assessedLearners.toLocaleString()} · ยังไม่สอบ {summary.unassessedLearners.toLocaleString()}
+              </em>
+            )}
           </div>
         </div>
 
@@ -501,8 +569,8 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-kpi-icon solid-blue"><UserCheck size={18} /></div>
           <div className="exec-kpi-body">
             <span>เพศชาย</span>
-            <strong>{summary.assessedMale.toLocaleString()} <small>คน</small></strong>
-            <em>({fmtPct(summary.assessedMalePct)})</em>
+            <strong>{summary.maleLearners.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.malePct)})</em>
           </div>
         </div>
 
@@ -510,8 +578,8 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-kpi-icon solid-pink"><UserRound size={18} /></div>
           <div className="exec-kpi-body">
             <span>เพศหญิง</span>
-            <strong>{summary.assessedFemale.toLocaleString()} <small>คน</small></strong>
-            <em>({fmtPct(summary.assessedFemalePct)})</em>
+            <strong>{summary.femaleLearners.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.femalePct)})</em>
           </div>
         </div>
 
@@ -520,7 +588,7 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-kpi-body">
             <span>ผ่านการประเมิน</span>
             <strong>{summary.passedLearners.toLocaleString()} <small>คน</small></strong>
-            <em className="text-green">({fmtPct(summary.learnerPassRatePct)})</em>
+            <em className="text-green">({fmtPct(overallPassTotalPct)})</em>
           </div>
         </div>
 
@@ -529,7 +597,7 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-kpi-body">
             <span>ไม่ผ่านการประเมิน</span>
             <strong>{summary.notPassedLearners.toLocaleString()} <small>คน</small></strong>
-            <em className="text-rose">({fmtPct(summary.learnerFailRatePct)})</em>
+            <em className="text-rose">({fmtPct(overallFailTotalPct)})</em>
           </div>
         </div>
 
@@ -559,8 +627,8 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-card-title centered">ผลการประเมินโดยรวม</div>
           <div className="exec-donut-layout">
             <div className="exec-donut-canvas">
-              {summary.evaluatedLearners === 0 ? (
-                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมินครบ</p>
+              {summary.totalLearners === 0 ? (
+                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้เรียนในกลุ่มนี้</p>
               ) : (
                 <ResponsiveContainer width="100%" height={205}>
                   <PieChart>
@@ -583,7 +651,7 @@ export default function AdminAnalyticsDashboard({
                     </Pie>
                     <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
                     <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
-                      {summary.evaluatedLearners.toLocaleString()}
+                      {summary.totalLearners.toLocaleString()}
                     </text>
                     <text x="50%" y="57%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
                       คน
@@ -639,8 +707,8 @@ export default function AdminAnalyticsDashboard({
           <div className="exec-card-title centered">จำนวนผู้เข้ารับการประเมิน จำแนกตามเพศ</div>
           <div className="exec-donut-layout">
             <div className="exec-donut-canvas">
-              {summary.assessedLearners === 0 ? (
-                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมิน</p>
+              {summary.totalLearners === 0 ? (
+                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้เรียนในกลุ่มนี้</p>
               ) : (
                 <ResponsiveContainer width="100%" height={205}>
                   <PieChart>
@@ -663,7 +731,7 @@ export default function AdminAnalyticsDashboard({
                     </Pie>
                     <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
                     <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
-                      {summary.assessedLearners.toLocaleString()}
+                      {summary.totalLearners.toLocaleString()}
                     </text>
                     <text x="50%" y="57%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
                       คน

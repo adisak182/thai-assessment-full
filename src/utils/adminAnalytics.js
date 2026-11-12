@@ -781,6 +781,10 @@ export function buildAnalyticsSummary(learners = [], attempts = []) {
 
   const assessedMalePct = assessedLearners ? roundPct(assessedMale, assessedLearners) : 0;
   const assessedFemalePct = assessedLearners ? roundPct(assessedFemale, assessedLearners) : 0;
+  const malePct = totalLearners ? roundPct(maleLearners, totalLearners) : 0;
+  const femalePct = totalLearners ? roundPct(femaleLearners, totalLearners) : 0;
+  const otherGenderPct = totalLearners ? roundPct(otherGenderLearners, totalLearners) : 0;
+  const untestedRatePct = totalLearners ? roundPct(untestedLearners, totalLearners) : 0;
 
   const reviewed = attempts.filter(a => a.isReviewed);
   const passedAttempts = reviewed.filter(a => a.passed).length;
@@ -872,11 +876,15 @@ export function buildAnalyticsSummary(learners = [], attempts = []) {
     maleLearners,
     femaleLearners,
     otherGenderLearners,
+    malePct,
+    femalePct,
+    otherGenderPct,
     assessedMale,
     assessedFemale,
     assessedOtherGender,
     assessedMalePct,
     assessedFemalePct,
+    untestedRatePct,
     completed4Learners,
     incomplete4Learners,
     partialSkillsLearners,
