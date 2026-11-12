@@ -1,17 +1,17 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
 import ModalPortal from './ModalPortal';
+import logoImg from '../assets/logo.jpg';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer,
-  CartesianGrid, Cell, Legend, PieChart, Pie, AreaChart, Area
+  CartesianGrid, Cell, Legend, PieChart, Pie, LabelList
 } from 'recharts';
 import {
-  Users, Award, CheckCircle, MapPin, FileSpreadsheet, Filter, RotateCcw,
-  Eye, Search, FileDown, X, AlertCircle, BookOpen, ChevronDown, SlidersHorizontal,
-  BarChart2, Layers, ArrowRight
+  Users, CheckCircle2, XCircle, ClipboardCheck, Hourglass, Search, FileSpreadsheet,
+  ChevronDown, ChevronRight, Calendar, MapPin, Headphones, MessageCircle, BookOpen,
+  PenTool, RotateCcw, AlertCircle, X, Eye, UserCheck, UserRound
 } from 'lucide-react';
 import {
   SKILL_META,
-  NARATHIWAT_DISTRICT_NAMES,
   enrichAnalyticsData,
   getAreaFilterOptions,
   filterAnalyticsData,
@@ -26,139 +26,37 @@ import { NAME_PREFIXES } from '../utils/namePrefix';
 import { buildHistoryCsv } from '../utils/csvExport';
 import { buildXlsxWorkbook } from '../utils/xlsxExport';
 
-const SKILL_LABELS = {
-  full_test: 'แบบทดสอบรวม 100 ข้อ',
-  listening: 'การฟัง',
-  conversation: 'การพูด',
-  speaking: 'การพูด',
-  reading: 'การอ่าน',
-  writing: 'การเขียน',
+const SKILL_ICONS = {
+  listening: Headphones,
+  speaking: MessageCircle,
+  reading: BookOpen,
+  writing: PenTool,
 };
 
 const DETAIL_PAGE_SIZE = 25;
 
-function SkillScoreText({ skill }) {
+const fmtPct = (v) => `${Number(v || 0).toFixed(2)}%`;
+
+function SkillStatusIcon({ skill }) {
   if (!skill || !skill.assessed) {
     return (
-      <span className="clean-skill-cell muted">
-        {skill?.pending ? 'รอตรวจ' : '—'}
+      <span className="exec-skill-dash" title={skill?.pending ? 'อยู่ระหว่างรอตรวจ' : 'ยังไม่ได้ประเมิน'}>
+        —
+      </span>
+    );
+  }
+  const tip = `${skill.score}/${skill.max} (${skill.exactPct}%)`;
+  if (skill.passed) {
+    return (
+      <span className="exec-skill-icon pass" title={`ผ่าน · ${tip}`}>
+        <CheckCircle2 size={18} />
       </span>
     );
   }
   return (
-    <div className="clean-skill-cell">
-      <span className="clean-skill-num">{skill.score}/{skill.max}</span>
-      <small className={skill.passed ? 'text-green' : 'text-rose'}>
-        {skill.passed ? 'ผ่าน' : 'ไม่ผ่าน'} ({skill.pct}%)
-      </small>
-    </div>
-  );
-}
-
-function AreaBreakdownTable({
-  title,
-  subtitle,
-  rows,
-  mode,
-  selectedDistrict,
-  selectedSubdistrict,
-  onSelectRow,
-  onExportCsv,
-  onExportExcel,
-}) {
-  const isSub = mode === 'subdistrict';
-  return (
-    <section className="clean-panel">
-      <div className="clean-panel-header">
-        <div>
-          <h3>{title}</h3>
-          <p className="admin-muted">{subtitle}</p>
-        </div>
-        <div className="clean-panel-actions">
-          <button type="button" className="clean-btn-outline excel" onClick={onExportExcel}>
-            <FileDown size={15} /> Excel
-          </button>
-          <button type="button" className="clean-btn-outline" onClick={onExportCsv}>
-            <FileSpreadsheet size={15} /> CSV ({rows.length})
-          </button>
-        </div>
-      </div>
-      {rows.length === 0 ? (
-        <p className="admin-empty">ไม่มีข้อมูลพื้นที่ตามเงื่อนไขที่เลือก</p>
-      ) : (
-        <div className="clean-table-wrap">
-          <table className="clean-table">
-            <thead>
-              <tr>
-                <th>{isSub ? 'ตำบล / อำเภอ' : 'อำเภอ (13 แห่ง)'}</th>
-                {!isSub && <th className="num">ตำบล</th>}
-                <th className="num">ผู้เรียน (ช / ญ)</th>
-                <th className="num">ครบ 4 ทักษะ</th>
-                <th className="num">ยังไม่ครบ</th>
-                <th className="num">ผ่าน (≥70%)</th>
-                <th className="num">ไม่ผ่าน</th>
-                <th className="num">อัตราผ่าน</th>
-                <th className="num">ฟัง</th>
-                <th className="num">พูด</th>
-                <th className="num">อ่าน</th>
-                <th className="num">เขียน</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(row => {
-                const isSelected = isSub
-                  ? selectedSubdistrict === row.subdistrict && (selectedDistrict === 'all' || selectedDistrict === row.district)
-                  : selectedDistrict === row.district;
-                const sk = row.skillStats || {};
-                const fmtSkill = (key) => {
-                  const s = sk[key];
-                  if (!s || !s.assessed) return <span className="muted-dash">—</span>;
-                  return (
-                    <span title={`ผ่าน ${s.passed} จาก ${s.assessed} คน`}>
-                      <strong>{s.passed}</strong>/{s.assessed}
-                    </span>
-                  );
-                };
-                const passVal = row.exactPassRate ?? row.passRate;
-                return (
-                  <tr
-                    key={row.key}
-                    onClick={() => onSelectRow(row)}
-                    className={isSelected ? 'selected-row' : 'clickable-row'}
-                    title={isSub ? 'คลิกเพื่อกรองดูรายชื่อผู้เรียนในตำบลนี้' : 'คลิกเพื่อดูข้อมูลระดับตำบลในอำเภอนี้'}
-                  >
-                    <td>
-                      <strong className="primary-cell">{isSub ? row.subdistrict : row.district}</strong>
-                      {isSub && <div className="sub-meta">อ.{row.district}</div>}
-                    </td>
-                    {!isSub && <td className="num">{row.subdistrictCount}</td>}
-                    <td className="num">
-                      <strong>{row.learnerCount}</strong>
-                      <div className="sub-meta">ช {row.maleCount ?? 0} · ญ {row.femaleCount ?? 0}</div>
-                    </td>
-                    <td className="num">{row.completed4Count ?? 0}</td>
-                    <td className="num">{row.incomplete4Count ?? 0}</td>
-                    <td className="num text-green">{row.passedLearnerCount ?? 0}</td>
-                    <td className="num text-rose">{row.failedLearnerCount ?? row.notPassedLearnerCount ?? 0}</td>
-                    <td className="num">
-                      {passVal === null ? '—' : (
-                        <strong className={passVal >= 70 ? 'text-green' : passVal >= 50 ? 'text-amber' : 'text-rose'}>
-                          {passVal}%
-                        </strong>
-                      )}
-                    </td>
-                    <td className="num">{fmtSkill('listening')}</td>
-                    <td className="num">{fmtSkill('speaking')}</td>
-                    <td className="num">{fmtSkill('reading')}</td>
-                    <td className="num">{fmtSkill('writing')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
+    <span className="exec-skill-icon fail" title={`ไม่ผ่าน · ${tip}`}>
+      <XCircle size={18} />
+    </span>
   );
 }
 
@@ -173,40 +71,37 @@ export default function AdminAnalyticsDashboard({
   anomalyCount = 0,
   onOpenLocationCleanup,
   onInspectUser,
-  onInspectAttempt,
 }) {
-  // Primary navigation & view state
-  const [sectionTab, setSectionTab] = useState('overview'); // 'overview' | 'skills' | 'areas' | 'learners'
+  // Navigation & UI state
   const [areaLevel, setAreaLevel] = useState('province'); // 'province' | 'district' | 'subdistrict'
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [showAllAreas, setShowAllAreas] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
+  const searchSectionRef = useRef(null);
+  const searchInputRef = useRef(null);
 
-  // Unified filters (default focus: literacy learners)
+  // Unified filters
   const [districtFilter, setDistrictFilter] = useState('all');
   const [subdistrictFilter, setSubdistrictFilter] = useState('all');
-  const [enrollmentFilter, setEnrollmentFilter] = useState('literacy');
+  const [enrollmentFilter, setEnrollmentFilter] = useState('literacy'); // 'literacy' | 'all' | 'other'
   const [genderFilter, setGenderFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [prefixFilter, setPrefixFilter] = useState('all');
   const [dateRange, setDateRange] = useState('all');
   const [detailSearch, setDetailSearch] = useState('');
 
-  // Chart toggles & detail pagination
-  const [skillChartMode, setSkillChartMode] = useState('passFail'); // 'passFail' | 'gender'
-  const [areaChartMode, setAreaChartMode] = useState('counts'); // 'counts' | 'gender' | 'passRate'
-  const [detailMode, setDetailMode] = useState('learners'); // 'learners' | 'attempts'
   const [detailPage, setDetailPage] = useState(1);
   const [inspectedLearner, setInspectedLearner] = useState(null);
 
   useEffect(() => {
-    const closeMenu = (e) => {
+    const handleOutside = (e) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
         setShowExportMenu(false);
       }
     };
-    document.addEventListener('mousedown', closeMenu);
-    return () => document.removeEventListener('mousedown', closeMenu);
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
   const enriched = useMemo(
@@ -252,9 +147,9 @@ export default function AdminAnalyticsDashboard({
 
   const districtRows = useMemo(
     () => aggregateByArea(filtered.learners, filtered.attempts, 'district', {
-      includeAllNarathiwatDistricts: districtFilter === 'all' && areaLevel !== 'subdistrict',
+      includeAllNarathiwatDistricts: districtFilter === 'all',
     }),
-    [filtered.learners, filtered.attempts, districtFilter, areaLevel]
+    [filtered.learners, filtered.attempts, districtFilter]
   );
 
   const subdistrictRows = useMemo(
@@ -262,30 +157,58 @@ export default function AdminAnalyticsDashboard({
     [filtered.learners, filtered.attempts]
   );
 
-  const districtChartData = useMemo(() => districtRows.slice(0, 13), [districtRows]);
-  const subdistrictChartData = useMemo(() => subdistrictRows.slice(0, 15), [subdistrictRows]);
+  const isSubdistrictAreaView = areaLevel === 'subdistrict' || districtFilter !== 'all';
+  const activeAreaRows = isSubdistrictAreaView ? subdistrictRows : districtRows;
+  const visibleAreaRows = showAllAreas ? activeAreaRows : activeAreaRows.slice(0, 5);
 
-  const activeRows = detailMode === 'learners' ? filtered.learners : filtered.attempts;
-  const detailPageCount = Math.max(1, Math.ceil(activeRows.length / DETAIL_PAGE_SIZE));
+  const areaTotals = useMemo(() => {
+    const sum = activeAreaRows.reduce((acc, r) => {
+      acc.total += r.learnerCount || 0;
+      acc.male += r.maleCount || 0;
+      acc.female += r.femaleCount || 0;
+      acc.passed += r.passedLearnerCount || 0;
+      acc.failed += r.failedLearnerCount ?? r.notPassedLearnerCount ?? 0;
+      return acc;
+    }, { total: 0, male: 0, female: 0, passed: 0, failed: 0 });
+    const denom = sum.passed + sum.failed;
+    const passRate = denom > 0 ? Number(((sum.passed / denom) * 100).toFixed(2)) : 0;
+    return { ...sum, passRate };
+  }, [activeAreaRows]);
+
+  // Chart datasets matching screenshot
+  const overallPieData = useMemo(() => ([
+    { name: 'ผ่านการประเมิน', value: summary.passedLearners, pct: summary.learnerPassRatePct, color: '#6d28d9' },
+    { name: 'ไม่ผ่านการประเมิน', value: summary.notPassedLearners, pct: summary.learnerFailRatePct, color: '#f43f8e' },
+  ]), [summary]);
+
+  const genderPieData = useMemo(() => ([
+    { name: 'ชาย', value: summary.assessedMale, pct: summary.assessedMalePct, color: '#3b82f6' },
+    { name: 'หญิง', value: summary.assessedFemale, pct: summary.assessedFemalePct, color: '#f43f8e' },
+    ...(summary.assessedOtherGender > 0
+      ? [{ name: 'ไม่ระบุ', value: summary.assessedOtherGender, pct: Number((100 - summary.assessedMalePct - summary.assessedFemalePct).toFixed(2)), color: '#94a3b8' }]
+      : []),
+  ]), [summary]);
+
+  const skillBarData = useMemo(
+    () => summary.skillBreakdown.map(s => ({
+      name: s.shortName,
+      passRatePct: s.assessedCount > 0 ? s.passRatePct : 0,
+      failRatePct: s.assessedCount > 0 ? s.failRatePct : 0,
+      passLabel: s.assessedCount > 0 ? `${s.passRatePct.toFixed(2)}%` : '',
+      failLabel: s.assessedCount > 0 && s.failRatePct >= 8 ? `${s.failRatePct.toFixed(2)}%` : '',
+      passedCount: s.passedCount,
+      failedCount: s.failedCount,
+    })),
+    [summary.skillBreakdown]
+  );
+
+  // Pagination for learner list
+  const detailPageCount = Math.max(1, Math.ceil(filtered.learners.length / DETAIL_PAGE_SIZE));
   const currentDetailPage = Math.min(detailPage, detailPageCount);
-  const pagedDetailRows = activeRows.slice(
+  const pagedLearners = filtered.learners.slice(
     (currentDetailPage - 1) * DETAIL_PAGE_SIZE,
     currentDetailPage * DETAIL_PAGE_SIZE
   );
-
-  const advancedFilterCount = [
-    genderFilter !== 'all',
-    statusFilter !== 'all',
-    prefixFilter !== 'all',
-    enrollmentFilter !== 'literacy',
-    dateRange !== 'all',
-  ].filter(Boolean).length;
-
-  const hasAnyFilter =
-    districtFilter !== 'all' ||
-    subdistrictFilter !== 'all' ||
-    detailSearch.trim() !== '' ||
-    advancedFilterCount > 0;
 
   const handleAreaLevelChange = (level) => {
     setAreaLevel(level);
@@ -294,9 +217,6 @@ export default function AdminAnalyticsDashboard({
       setSubdistrictFilter('all');
     } else if (level === 'district') {
       setSubdistrictFilter('all');
-      if (sectionTab === 'overview') setSectionTab('areas');
-    } else if (level === 'subdistrict') {
-      if (sectionTab === 'overview') setSectionTab('areas');
     }
     setDetailPage(1);
   };
@@ -306,8 +226,18 @@ export default function AdminAnalyticsDashboard({
     setSubdistrictFilter('all');
     if (val !== 'all' && areaLevel === 'province') {
       setAreaLevel('subdistrict');
+    } else if (val === 'all' && areaLevel === 'subdistrict') {
+      setAreaLevel('district');
     }
     setDetailPage(1);
+  };
+
+  const openLearnerSearch = () => {
+    setShowSearchBar(true);
+    setTimeout(() => {
+      searchSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      searchInputRef.current?.focus();
+    }, 60);
   };
 
   const resetAllFilters = () => {
@@ -324,23 +254,18 @@ export default function AdminAnalyticsDashboard({
   };
 
   const dateTag = new Date().toISOString().slice(0, 10);
-
   const activeFilterSummaryText = useMemo(() => {
     const parts = [
       enrollmentFilter === 'literacy'
-        ? 'ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ'
-        : (enrollmentFilter === 'other' ? 'ผู้เรียนทั่วไป' : 'ผู้เรียนทั้งหมด'),
-      districtFilter === 'all' ? 'จังหวัดนราธิวาส (13 อำเภอ)' : `อ.${districtFilter}`,
+        ? 'กลุ่ม: ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ'
+        : (enrollmentFilter === 'other' ? 'กลุ่ม: บุคคลทั่วไป' : 'กลุ่ม: ผู้เรียนทั้งหมด'),
+      districtFilter === 'all' ? 'จังหวัดนราธิวาส (ทุกอำเภอ)' : `อ.${districtFilter}`,
       subdistrictFilter !== 'all' ? `ต.${subdistrictFilter}` : null,
       genderFilter !== 'all' ? `เพศ${genderFilter}` : null,
-      statusFilter === 'passed'
-        ? 'ผ่าน'
-        : (statusFilter === 'failed' ? 'ไม่ผ่าน' : (statusFilter === 'incomplete' ? 'ยังไม่ครบ' : null)),
-      prefixFilter !== 'all' ? `คำนำหน้า: ${prefixFilter}` : null,
-      detailSearch.trim() ? `ค้นหา "${detailSearch.trim()}"` : null,
+      statusFilter !== 'all' ? `สถานะ: ${statusFilter}` : null,
     ].filter(Boolean);
-    return parts.join(' · ');
-  }, [enrollmentFilter, districtFilter, subdistrictFilter, genderFilter, statusFilter, prefixFilter, detailSearch]);
+    return parts.join(' | ');
+  }, [enrollmentFilter, districtFilter, subdistrictFilter, genderFilter, statusFilter]);
 
   const exportExcel = (target, baseFilename) => {
     const sheets = buildWorkbookSheetsForTarget(target, {
@@ -387,51 +312,125 @@ export default function AdminAnalyticsDashboard({
       onDownloadCsv(buildAreaSummaryCsv(districtRows, 'district'), `รายงานข้อมูลรายอำเภอ_${dateTag}.csv`);
     } else if (target === 'subdistrict') {
       onDownloadCsv(buildAreaSummaryCsv(subdistrictRows, 'subdistrict'), `รายงานข้อมูลรายตำบล_${dateTag}.csv`);
-    } else {
+    } else if (target === 'learners') {
       onDownloadCsv(buildLearnersCsv(filtered.learners, formatDate), `รายงานรายบุคคล_4ทักษะ_${dateTag}.csv`);
+    } else {
+      onDownloadCsv(
+        buildHistoryCsv({ history: filtered.attempts, users, surveys, formatDate }),
+        `ประวัติผลสอบทั้งหมด_${dateTag}.csv`
+      );
     }
     setShowExportMenu(false);
   };
 
+  const subtitleLabel =
+    enrollmentFilter === 'literacy'
+      ? 'ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ'
+      : (enrollmentFilter === 'other' ? 'ผู้เรียนทั่วไป (นอกกิจกรรมฯ)' : 'ผู้เรียนทั้งหมดในระบบ');
+
   return (
-    <div className="clean-dashboard animate-fade-in">
-      {/* Calm Formal Report Header */}
-      <header className="clean-header-card">
-        <div className="clean-header-title">
-          <span className="clean-eyebrow">รายงานผลการประเมินการรู้หนังสือ · จังหวัดนราธิวาส</span>
-          <h2>ภาพรวมผลการประเมินทักษะภาษาไทย</h2>
-          <p className="clean-scope-line">{activeFilterSummaryText}</p>
+    <div className="exec-dashboard animate-fade-in">
+      {/* 1. Top Official Banner */}
+      <header className="exec-hero">
+        <div className="exec-hero-left">
+          <h2>แดชบอร์ดผลการประเมินทักษะภาษาไทย</h2>
+          <p>{subtitleLabel}</p>
         </div>
 
-        <div className="clean-header-actions">
-          {anomalyCount > 0 && onOpenLocationCleanup && (
-            <button
-              type="button"
-              className="clean-warn-pill"
-              onClick={onOpenLocationCleanup}
-              title="ตรวจสอบและรวมชื่ออำเภอ/ตำบลที่พิมพ์ผิด"
+        <div className="exec-hero-right">
+          <label className="exec-fy-picker">
+            <Calendar size={16} color="#5b21b6" />
+            <select
+              aria-label="ปีงบประมาณหรือช่วงเวลา"
+              value={dateRange}
+              onChange={e => { setDateRange(e.target.value); setDetailPage(1); }}
             >
-              <AlertCircle size={15} /> พบชื่อพื้นที่ไม่มาตรฐาน ({anomalyCount})
+              <option value="all">ทุกปีงบประมาณ</option>
+              <option value="fy2570">ปีงบประมาณ พ.ศ. 2570</option>
+              <option value="fy2569">ปีงบประมาณ พ.ศ. 2569</option>
+              <option value="fy2568">ปีงบประมาณ พ.ศ. 2568</option>
+              <option value="month">30 วันล่าสุด</option>
+              <option value="week">7 วันล่าสุด</option>
+              <option value="today">วันนี้</option>
+            </select>
+          </label>
+
+          <div className="exec-agency-badge">
+            <MapPin size={18} color="#4c1d95" />
+            <div>
+              <strong>สำนักงานส่งเสริมการเรียนรู้</strong>
+              <span>ประจำจังหวัดนราธิวาส</span>
+            </div>
+            <img src={logoImg} alt="ตราสัญลักษณ์" className="exec-agency-logo" />
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Control & Filter Toolbar */}
+      <section className="exec-controls-bar">
+        <div className="exec-control-group">
+          <span className="exec-ctrl-label">ระดับข้อมูล :</span>
+          <div className="exec-level-pills" role="group" aria-label="เลือกระดับข้อมูล">
+            <button type="button" aria-pressed={areaLevel === 'province'} onClick={() => handleAreaLevelChange('province')}>
+              ภาพรวมจังหวัด
+            </button>
+            <button type="button" aria-pressed={areaLevel === 'district'} onClick={() => handleAreaLevelChange('district')}>
+              รายอำเภอ
+            </button>
+            <button type="button" aria-pressed={areaLevel === 'subdistrict'} onClick={() => handleAreaLevelChange('subdistrict')}>
+              รายตำบล
+            </button>
+          </div>
+        </div>
+
+        <label className="exec-control-select">
+          <span className="exec-ctrl-label">อำเภอ :</span>
+          <select value={districtFilter} onChange={e => handleDistrictChange(e.target.value)}>
+            <option value="all">ทุกอำเภอ</option>
+            {areaOptions.districts.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </label>
+
+        <label className="exec-control-select">
+          <span className="exec-ctrl-label">ตำบล :</span>
+          <select
+            value={subdistrictFilter}
+            onChange={e => {
+              setSubdistrictFilter(e.target.value);
+              if (e.target.value !== 'all') setAreaLevel('subdistrict');
+              setDetailPage(1);
+            }}
+          >
+            <option value="all">ทุกตำบล</option>
+            {areaOptions.subdistricts.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </label>
+
+        <div className="exec-control-actions">
+          {anomalyCount > 0 && onOpenLocationCleanup && (
+            <button type="button" className="exec-warn-btn" onClick={onOpenLocationCleanup}>
+              <AlertCircle size={15} /> แก้ชื่อพื้นที่ ({anomalyCount})
             </button>
           )}
 
-          <div className="clean-export-dropdown" ref={exportMenuRef}>
+          <button type="button" className="exec-purple-btn" onClick={openLearnerSearch}>
+            <Search size={15} /> ค้นหารายชื่อผู้เรียน
+          </button>
+
+          <div className="exec-export-wrap" ref={exportMenuRef}>
             <button
               type="button"
-              className="clean-export-trigger"
+              className="exec-green-btn"
               aria-expanded={showExportMenu}
               onClick={() => setShowExportMenu(v => !v)}
             >
-              <FileDown size={16} /> ดาวน์โหลดรายงาน (Excel / CSV) <ChevronDown size={15} />
+              <FileSpreadsheet size={15} /> ดาวน์โหลดข้อมูล <ChevronDown size={14} />
             </button>
-
             {showExportMenu && (
               <div className="clean-export-menu" role="menu">
-                <div className="clean-export-menu-head">
-                  ส่งออกตรงตามตัวกรองที่เลือกอยู่
-                </div>
+                <div className="clean-export-menu-head">ส่งออกตรงตามตัวกรองปัจจุบัน</div>
                 {[
-                  { key: 'province', label: 'ภาพรวมระดับจังหวัด', excelName: 'รายงานภาพรวมระดับจังหวัด' },
+                  { key: 'province', label: 'ข้อมูลภาพรวมระดับจังหวัด', excelName: 'รายงานภาพรวมระดับจังหวัด' },
                   { key: 'district', label: `ข้อมูลรายอำเภอ (${districtRows.length})`, excelName: 'รายงานข้อมูลรายอำเภอ' },
                   { key: 'subdistrict', label: `ข้อมูลรายตำบล (${subdistrictRows.length})`, excelName: 'รายงานข้อมูลรายตำบล' },
                   { key: 'learners', label: `รายบุคคล 4 ทักษะ (${filtered.learners.length})`, excelName: 'รายงานรายบุคคล_4ทักษะ' },
@@ -439,806 +438,530 @@ export default function AdminAnalyticsDashboard({
                   <div key={item.key} className="clean-export-row">
                     <span>{item.label}</span>
                     <div>
-                      <button type="button" className="mini-dl excel" onClick={() => exportExcel(item.key, item.excelName)}>
-                        Excel
-                      </button>
-                      <button type="button" className="mini-dl csv" onClick={() => exportCsvTarget(item.key)}>
-                        CSV
-                      </button>
+                      <button type="button" className="mini-dl excel" onClick={() => exportExcel(item.key, item.excelName)}>Excel</button>
+                      <button type="button" className="mini-dl csv" onClick={() => exportCsvTarget(item.key)}>CSV</button>
                     </div>
                   </div>
                 ))}
+                <div className="clean-export-row">
+                  <span>ประวัติผลสอบทั้งหมด ({filtered.attempts.length})</span>
+                  <div>
+                    <button type="button" className="mini-dl csv" onClick={() => exportCsvTarget('history')}>CSV</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
-      </header>
+      </section>
 
-      {/* Compact Single-Line Filter Bar + Collapsible Extra Filters */}
-      <section className="clean-filter-bar">
-        <div className="clean-filter-primary">
-          <div className="clean-field">
-            <label>ระดับข้อมูล</label>
-            <select value={areaLevel} onChange={e => handleAreaLevelChange(e.target.value)}>
-              <option value="province">ระดับจังหวัด (นราธิวาส)</option>
-              <option value="district">ระดับอำเภอ ({NARATHIWAT_DISTRICT_NAMES.length} แห่ง)</option>
-              <option value="subdistrict">ระดับตำบล ({subdistrictRows.length})</option>
-            </select>
+      {loading && <p className="admin-muted" role="status">กำลังโหลดข้อมูล...</p>}
+
+      {/* 3. 7-Card KPI Strip */}
+      <section className="exec-kpi-strip" aria-label="สรุปตัวชี้วัดหลัก">
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon purple"><Users size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>ผู้เข้ารับการประเมินทั้งหมด</span>
+            <strong>{summary.assessedLearners.toLocaleString()} <small>คน</small></strong>
           </div>
+        </div>
 
-          <div className="clean-field">
-            <label>อำเภอ</label>
-            <select value={districtFilter} onChange={e => handleDistrictChange(e.target.value)}>
-              <option value="all">ทุกอำเภอ ({areaOptions.districts.length})</option>
-              {areaOptions.districts.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon blue"><UserCheck size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>เพศชาย</span>
+            <strong>{summary.assessedMale.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.assessedMalePct)})</em>
           </div>
+        </div>
 
-          <div className="clean-field">
-            <label>ตำบล</label>
-            <select
-              value={subdistrictFilter}
-              onChange={e => {
-                setSubdistrictFilter(e.target.value);
-                if (e.target.value !== 'all') setAreaLevel('subdistrict');
-                setDetailPage(1);
-              }}
-            >
-              <option value="all">ทุกตำบล ({areaOptions.subdistricts.length})</option>
-              {areaOptions.subdistricts.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon pink"><UserRound size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>เพศหญิง</span>
+            <strong>{summary.assessedFemale.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.assessedFemalePct)})</em>
           </div>
+        </div>
 
-          <div className="clean-field clean-field-search">
-            <label>ค้นหาผู้เรียน</label>
-            <div className="clean-search-input">
-              <Search size={15} color="#94a3b8" />
-              <input
-                type="text"
-                placeholder="คำนำหน้า, ชื่อ-นามสกุล, อำเภอ, ตำบล..."
-                value={detailSearch}
-                onChange={e => {
-                  setDetailSearch(e.target.value);
-                  setDetailPage(1);
-                }}
-              />
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon green"><CheckCircle2 size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>ผ่านการประเมิน</span>
+            <strong>{summary.passedLearners.toLocaleString()} <small>คน</small></strong>
+            <em className="text-green">({fmtPct(summary.learnerPassRatePct)})</em>
+          </div>
+        </div>
+
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon rose"><XCircle size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>ไม่ผ่านการประเมิน</span>
+            <strong>{summary.notPassedLearners.toLocaleString()} <small>คน</small></strong>
+            <em className="text-rose">({fmtPct(summary.learnerFailRatePct)})</em>
+          </div>
+        </div>
+
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon indigo"><ClipboardCheck size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>ประเมินครบ 4 ทักษะ</span>
+            <strong>{summary.completed4Learners.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.completed4RatePct)})</em>
+          </div>
+        </div>
+
+        <div className="exec-kpi-card">
+          <div className="exec-kpi-icon amber"><Hourglass size={20} /></div>
+          <div className="exec-kpi-body">
+            <span>ยังไม่ครบ 4 ทักษะ</span>
+            <strong>{summary.incomplete4Learners.toLocaleString()} <small>คน</small></strong>
+            <em>({fmtPct(summary.incomplete4RatePct)})</em>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. 3-Column Charts Row */}
+      <section className="exec-charts-row">
+        {/* Chart 1: Overall Pass / Fail Donut */}
+        <div className="exec-card">
+          <div className="exec-card-title">ผลการประเมินโดยรวม</div>
+          <div className="exec-donut-layout">
+            <div className="exec-donut-canvas">
+              {summary.evaluatedLearners === 0 ? (
+                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมินครบ</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={overallPieData.filter(d => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={78}
+                      paddingAngle={2}
+                      labelLine={false}
+                    >
+                      {overallPieData.filter(d => d.value > 0).map(entry => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
+                    <text x="50%" y="47%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
+                      {summary.evaluatedLearners.toLocaleString()}
+                    </text>
+                    <text x="50%" y="58%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
+                      คน
+                    </text>
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="exec-legend-list">
+              {overallPieData.map(item => (
+                <div key={item.name} className="exec-legend-item">
+                  <span className="exec-legend-dot" style={{ background: item.color }} />
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.value.toLocaleString()} คน ({fmtPct(item.pct)})</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        </div>
 
-          <div className="clean-filter-btns">
-            <button
-              type="button"
-              className={`clean-toggle-adv ${showAdvancedFilters ? 'active' : ''}`}
-              onClick={() => setShowAdvancedFilters(v => !v)}
+        {/* Chart 2: 4-Skill 100% Stacked Bar */}
+        <div className="exec-card">
+          <div className="exec-card-title">ผลการประเมินรายทักษะ (ผ่าน/ไม่ผ่าน)</div>
+          <div className="exec-bar-canvas">
+            <ResponsiveContainer width="100%" height={210}>
+              <BarChart data={skillBarData} margin={{ top: 10, right: 8, left: -16, bottom: 0 }} barCategoryGap="24%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#334155', fontWeight: 600 }} />
+                <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <RechartsTooltip
+                  contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }}
+                  formatter={(value, name, props) => {
+                    const cnt = name === 'ผ่าน' ? props.payload.passedCount : props.payload.failedCount;
+                    return [`${Number(value).toFixed(2)}% (${cnt} คน)`, name];
+                  }}
+                />
+                <Legend verticalAlign="middle" align="right" layout="vertical" wrapperStyle={{ fontSize: '12px', paddingLeft: '6px' }} />
+                <Bar dataKey="passRatePct" name="ผ่าน" stackId="sk" fill="#6d28d9">
+                  <LabelList dataKey="passLabel" position="center" fill="#ffffff" fontSize={10.5} fontWeight={700} />
+                </Bar>
+                <Bar dataKey="failRatePct" name="ไม่ผ่าน" stackId="sk" fill="#f472b6" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="failLabel" position="center" fill="#ffffff" fontSize={10.5} fontWeight={700} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Chart 3: Gender Donut */}
+        <div className="exec-card">
+          <div className="exec-card-title">จำนวนผู้เข้ารับการประเมิน จำแนกตามเพศ</div>
+          <div className="exec-donut-layout">
+            <div className="exec-donut-canvas">
+              {summary.assessedLearners === 0 ? (
+                <p className="exec-empty-chart">ยังไม่มีข้อมูลผู้ประเมิน</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={genderPieData.filter(d => d.value > 0)}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={78}
+                      paddingAngle={2}
+                      labelLine={false}
+                    >
+                      {genderPieData.filter(d => d.value > 0).map(entry => (
+                        <Cell key={entry.name} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(v, name) => [`${Number(v).toLocaleString()} คน`, name]} />
+                    <text x="50%" y="47%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-num">
+                      {summary.assessedLearners.toLocaleString()}
+                    </text>
+                    <text x="50%" y="58%" textAnchor="middle" dominantBaseline="central" className="exec-donut-center-sub">
+                      คน
+                    </text>
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+            <div className="exec-legend-list">
+              {genderPieData.map(item => (
+                <div key={item.name} className="exec-legend-item">
+                  <span className="exec-legend-dot" style={{ background: item.color }} />
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.value.toLocaleString()} คน ({fmtPct(item.pct)})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. Side-by-Side Tables: 4-Skill Summary (Left) + Area Breakdown (Right) */}
+      <section className="exec-tables-row">
+        {/* Left: 4-Skill Summary Table */}
+        <div className="exec-panel">
+          <div className="exec-panel-head">
+            <h3>สรุปผลการประเมินรายทักษะ</h3>
+          </div>
+          <div className="exec-table-wrap">
+            <table className="exec-table exec-skill-summary-table">
+              <thead>
+                <tr>
+                  <th rowSpan={2}>ทักษะ</th>
+                  <th colSpan={3} className="group">ผู้เข้ารับการประเมิน (คน)</th>
+                  <th colSpan={3} className="group">ผ่านการประเมิน (คน)</th>
+                  <th colSpan={3} className="group">ไม่ผ่านการประเมิน (คน)</th>
+                  <th rowSpan={2} className="num">ร้อยละผ่าน</th>
+                </tr>
+                <tr>
+                  <th className="num">ชาย</th>
+                  <th className="num">หญิง</th>
+                  <th className="num">รวม</th>
+                  <th className="num">ชาย</th>
+                  <th className="num">หญิง</th>
+                  <th className="num">รวม</th>
+                  <th className="num">ชาย</th>
+                  <th className="num">หญิง</th>
+                  <th className="num">รวม</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.skillBreakdown.map(s => {
+                  const Icon = SKILL_ICONS[s.key] || BookOpen;
+                  return (
+                    <tr key={s.key}>
+                      <td className="skill-name-cell">
+                        <Icon size={15} color={s.color} />
+                        <strong>{s.shortName}</strong>
+                      </td>
+                      <td className="num">{s.assessedMale.toLocaleString()}</td>
+                      <td className="num">{s.assessedFemale.toLocaleString()}</td>
+                      <td className="num strong">{s.assessedCount.toLocaleString()}</td>
+                      <td className="num">{s.passedMale.toLocaleString()}</td>
+                      <td className="num">{s.passedFemale.toLocaleString()}</td>
+                      <td className="num strong">{s.passedCount.toLocaleString()}</td>
+                      <td className="num">{s.failedMale.toLocaleString()}</td>
+                      <td className="num">{s.failedFemale.toLocaleString()}</td>
+                      <td className="num strong">{s.failedCount.toLocaleString()}</td>
+                      <td className="num">
+                        <span className="exec-rate-pill">{fmtPct(s.passRatePct)}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right: District / Subdistrict Breakdown Table */}
+        <div className="exec-panel">
+          <div className="exec-panel-head">
+            <h3>
+              {isSubdistrictAreaView
+                ? (districtFilter !== 'all'
+                    ? `จำนวนผู้เข้ารับการประเมินรายตำบล (อ.${districtFilter})`
+                    : 'จำนวนผู้เข้ารับการประเมินรายตำบล')
+                : 'จำนวนผู้เข้ารับการประเมินรายอำเภอ'}
+            </h3>
+            {activeAreaRows.length > 5 && (
+              <button
+                type="button"
+                className="exec-see-all-btn"
+                onClick={() => setShowAllAreas(v => !v)}
+              >
+                {showAllAreas ? 'ย่อลง' : `ดูทั้งหมด (${activeAreaRows.length})`} <ChevronRight size={14} />
+              </button>
+            )}
+          </div>
+          <div className="exec-table-wrap">
+            <table className="exec-table exec-area-summary-table">
+              <thead>
+                <tr>
+                  <th>{isSubdistrictAreaView ? 'ตำบล' : 'อำเภอ'}</th>
+                  <th className="num">รวม (คน)</th>
+                  <th className="num">ชาย (คน)</th>
+                  <th className="num">หญิง (คน)</th>
+                  <th className="num">ผ่าน (คน)</th>
+                  <th className="num">ไม่ผ่าน (คน)</th>
+                  <th className="num">ร้อยละผ่าน</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleAreaRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="exec-no-rows">ไม่มีข้อมูลพื้นที่ตามตัวกรอง</td>
+                  </tr>
+                ) : (
+                  <>
+                    {visibleAreaRows.map(row => {
+                      const passVal = row.exactPassRate ?? row.passRate;
+                      return (
+                        <tr
+                          key={row.key}
+                          className="clickable-row"
+                          onClick={() => {
+                            if (isSubdistrictAreaView) {
+                              const same = subdistrictFilter === row.subdistrict;
+                              setSubdistrictFilter(same ? 'all' : row.subdistrict);
+                            } else {
+                              setDistrictFilter(row.district);
+                              setSubdistrictFilter('all');
+                              setAreaLevel('subdistrict');
+                            }
+                            setDetailPage(1);
+                          }}
+                          title={isSubdistrictAreaView ? 'คลิกเพื่อกรองตำบลนี้' : 'คลิกเพื่อดูตำบลในอำเภอนี้'}
+                        >
+                          <td className="strong">
+                            {isSubdistrictAreaView ? row.subdistrict : row.district}
+                            {isSubdistrictAreaView && districtFilter === 'all' && (
+                              <span className="area-sub-dist"> (อ.{row.district})</span>
+                            )}
+                          </td>
+                          <td className="num">{row.learnerCount.toLocaleString()}</td>
+                          <td className="num">{(row.maleCount ?? 0).toLocaleString()}</td>
+                          <td className="num">{(row.femaleCount ?? 0).toLocaleString()}</td>
+                          <td className="num">{(row.passedLearnerCount ?? 0).toLocaleString()}</td>
+                          <td className="num">{(row.failedLearnerCount ?? row.notPassedLearnerCount ?? 0).toLocaleString()}</td>
+                          <td className="num">
+                            {passVal === null ? '—' : <span className="exec-rate-pill">{fmtPct(passVal)}</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="exec-total-row">
+                      <td>{districtFilter !== 'all' ? `รวม อ.${districtFilter}` : 'รวมทั้งจังหวัด'}</td>
+                      <td className="num">{areaTotals.total.toLocaleString()}</td>
+                      <td className="num">{areaTotals.male.toLocaleString()}</td>
+                      <td className="num">{areaTotals.female.toLocaleString()}</td>
+                      <td className="num">{areaTotals.passed.toLocaleString()}</td>
+                      <td className="num">{areaTotals.failed.toLocaleString()}</td>
+                      <td className="num">{fmtPct(areaTotals.passRate)}</td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Bottom Learner Table + Expandable Search Controls */}
+      <section className="exec-panel" ref={searchSectionRef}>
+        <div className="exec-panel-head exec-learner-head">
+          <h3>รายชื่อผู้เรียน ({filtered.learners.length.toLocaleString()} คน)</h3>
+
+          <div className="exec-learner-filters">
+            <div className="exec-inline-search">
+              <Search size={14} color="#64748b" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="ค้นหาคำนำหน้า ชื่อ-นามสกุล..."
+                value={detailSearch}
+                onChange={e => { setDetailSearch(e.target.value); setDetailPage(1); }}
+              />
+            </div>
+
+            <select
+              aria-label="กรองคำนำหน้า"
+              value={prefixFilter}
+              onChange={e => { setPrefixFilter(e.target.value); setDetailPage(1); }}
             >
-              <SlidersHorizontal size={15} />
-              ตัวกรองเพิ่มเติม
-              {advancedFilterCount > 0 && <span className="adv-count">{advancedFilterCount}</span>}
-            </button>
-            {hasAnyFilter && (
-              <button type="button" className="clean-reset-icon" onClick={resetAllFilters} title="ล้างตัวกรองทั้งหมด">
-                <RotateCcw size={15} />
+              <option value="all">ทุกคำนำหน้า</option>
+              {NAME_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+
+            <select
+              aria-label="กรองเพศ"
+              value={genderFilter}
+              onChange={e => { setGenderFilter(e.target.value); setDetailPage(1); }}
+            >
+              <option value="all">ทุกเพศ</option>
+              <option value="ชาย">ชาย</option>
+              <option value="หญิง">หญิง</option>
+              <option value="ไม่ระบุ">ไม่ระบุ</option>
+            </select>
+
+            <select
+              aria-label="กรองสถานะผลประเมิน"
+              value={statusFilter}
+              onChange={e => { setStatusFilter(e.target.value); setDetailPage(1); }}
+            >
+              <option value="all">ทุกสถานะ</option>
+              <option value="passed">ผ่าน</option>
+              <option value="failed">ไม่ผ่าน</option>
+              <option value="incomplete">ยังไม่ครบ</option>
+            </select>
+
+            <select
+              aria-label="กรองกลุ่มผู้เรียน"
+              value={enrollmentFilter}
+              onChange={e => { setEnrollmentFilter(e.target.value); setDetailPage(1); }}
+            >
+              <option value="literacy">ผู้เรียนกิจกรรมรู้หนังสือ</option>
+              <option value="all">ผู้เรียนทั้งหมด</option>
+              <option value="other">ผู้เรียนทั่วไป</option>
+            </select>
+
+            {(showSearchBar || detailSearch || prefixFilter !== 'all' || genderFilter !== 'all' || statusFilter !== 'all' || enrollmentFilter !== 'literacy' || districtFilter !== 'all' || dateRange !== 'all') && (
+              <button type="button" className="exec-reset-btn" onClick={resetAllFilters} title="ล้างตัวกรองทั้งหมด">
+                <RotateCcw size={14} /> ล้างตัวกรอง
               </button>
             )}
           </div>
         </div>
 
-        {showAdvancedFilters && (
-          <div className="clean-filter-secondary">
-            <div className="clean-field">
-              <label>เพศ</label>
-              <select value={genderFilter} onChange={e => { setGenderFilter(e.target.value); setDetailPage(1); }}>
-                <option value="all">ทุกเพศ</option>
-                <option value="ชาย">ชาย</option>
-                <option value="หญิง">หญิง</option>
-                <option value="ไม่ระบุ">ไม่ระบุ</option>
-              </select>
-            </div>
+        <div className="exec-table-wrap">
+          <table className="exec-table exec-learner-table">
+            <thead>
+              <tr>
+                <th rowSpan={2} className="center">ลำดับ</th>
+                <th rowSpan={2}>คำนำหน้า</th>
+                <th rowSpan={2}>ชื่อ - นามสกุล</th>
+                <th rowSpan={2}>อำเภอ</th>
+                <th rowSpan={2}>ตำบล</th>
+                <th rowSpan={2} className="center">เพศ</th>
+                <th colSpan={4} className="group">ผลการประเมินรายทักษะ</th>
+                <th rowSpan={2} className="center">ผลรวม</th>
+                <th rowSpan={2} className="center">สถานะ</th>
+              </tr>
+              <tr>
+                <th className="center">การฟัง</th>
+                <th className="center">การพูด</th>
+                <th className="center">การอ่าน</th>
+                <th className="center">การเขียน</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedLearners.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="exec-no-rows">ไม่พบรายชื่อผู้เรียนตามเงื่อนไขที่เลือก</td>
+                </tr>
+              ) : (
+                pagedLearners.map((l, idx) => {
+                  const rowNum = (currentDetailPage - 1) * DETAIL_PAGE_SIZE + idx + 1;
+                  const statusClass =
+                    l.assessmentStatus === 'passed'
+                      ? 'pass'
+                      : (l.assessmentStatus === 'failed' ? 'fail' : 'incomplete');
+                  const overallWord =
+                    l.assessmentStatus === 'passed'
+                      ? 'ผ่าน'
+                      : (l.assessmentStatus === 'failed' ? 'ไม่ผ่าน' : 'ยังไม่ครบ');
 
-            <div className="clean-field">
-              <label>สถานะผลประเมิน</label>
-              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setDetailPage(1); }}>
-                <option value="all">ทุกสถานะ</option>
-                <option value="passed">ผ่าน (ครบ 4 ทักษะ ≥70%)</option>
-                <option value="failed">ไม่ผ่าน (ครบ 4 ทักษะ &lt;70%)</option>
-                <option value="incomplete">ยังไม่ครบ (ยังไม่ครบ 4 ทักษะ)</option>
-              </select>
-            </div>
+                  return (
+                    <tr
+                      key={l.id}
+                      className="clickable-row"
+                      onClick={() => setInspectedLearner(l)}
+                      title="คลิกเพื่อดูคะแนนและรายละเอียดทั้ง 4 ทักษะ"
+                    >
+                      <td className="center">{rowNum}</td>
+                      <td>{l.prefix || '-'}</td>
+                      <td className="strong">{l.nameWithoutPrefix || l.name || 'ไม่ระบุชื่อ'}</td>
+                      <td>{l.district}</td>
+                      <td>{l.subdistrict}</td>
+                      <td className="center">{l.gender || 'ไม่ระบุ'}</td>
+                      <td className="center"><SkillStatusIcon skill={l.skills?.listening} /></td>
+                      <td className="center"><SkillStatusIcon skill={l.skills?.speaking} /></td>
+                      <td className="center"><SkillStatusIcon skill={l.skills?.reading} /></td>
+                      <td className="center"><SkillStatusIcon skill={l.skills?.writing} /></td>
+                      <td className="center strong">{overallWord}</td>
+                      <td className="center">
+                        <span className={`exec-status-pill ${statusClass}`}>
+                          {overallWord}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            <div className="clean-field">
-              <label>คำนำหน้าชื่อ</label>
-              <select value={prefixFilter} onChange={e => { setPrefixFilter(e.target.value); setDetailPage(1); }}>
-                <option value="all">ทุกคำนำหน้า</option>
-                {NAME_PREFIXES.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-
-            <div className="clean-field">
-              <label>กลุ่มผู้เรียน</label>
-              <select value={enrollmentFilter} onChange={e => { setEnrollmentFilter(e.target.value); setDetailPage(1); }}>
-                <option value="literacy">ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</option>
-                <option value="all">ผู้เรียนทั้งหมด</option>
-                <option value="other">ไม่ใช่ผู้เรียนกิจกรรมฯ</option>
-              </select>
-            </div>
-
-            <div className="clean-field">
-              <label>ช่วงเวลาการสอบ</label>
-              <select value={dateRange} onChange={e => { setDateRange(e.target.value); setDetailPage(1); }}>
-                <option value="all">ทุกช่วงเวลา</option>
-                <option value="today">วันนี้</option>
-                <option value="week">7 วันล่าสุด</option>
-                <option value="month">30 วันล่าสุด</option>
-              </select>
+        {filtered.learners.length > DETAIL_PAGE_SIZE && (
+          <div className="admin-pagination">
+            <span>
+              แสดง {(currentDetailPage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(currentDetailPage * DETAIL_PAGE_SIZE, filtered.learners.length)} จาก {filtered.learners.length.toLocaleString()} รายการ
+            </span>
+            <div>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={currentDetailPage === 1}
+                onClick={() => setDetailPage(currentDetailPage - 1)}
+              >ก่อนหน้า</button>
+              <span>{currentDetailPage} / {detailPageCount}</span>
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={currentDetailPage === detailPageCount}
+                onClick={() => setDetailPage(currentDetailPage + 1)}
+              >ถัดไป</button>
             </div>
           </div>
         )}
       </section>
-
-      {/* Sub-Navigation Tabs: One Focused View at a Time */}
-      <nav className="clean-subtabs" aria-label="หมวดหมู่รายงานผลการประเมิน">
-        <button
-          type="button"
-          aria-pressed={sectionTab === 'overview'}
-          onClick={() => setSectionTab('overview')}
-        >
-          <BarChart2 size={16} /> ภาพรวม &amp; กราฟ
-        </button>
-        <button
-          type="button"
-          aria-pressed={sectionTab === 'skills'}
-          onClick={() => setSectionTab('skills')}
-        >
-          <Award size={16} /> ผลประเมินราย 4 ทักษะ
-        </button>
-        <button
-          type="button"
-          aria-pressed={sectionTab === 'areas'}
-          onClick={() => setSectionTab('areas')}
-        >
-          <Layers size={16} /> จำแนกพื้นที่ (อำเภอ / ตำบล)
-        </button>
-        <button
-          type="button"
-          aria-pressed={sectionTab === 'learners'}
-          onClick={() => setSectionTab('learners')}
-        >
-          <Users size={16} /> รายชื่อรายบุคคล ({filtered.learners.length})
-        </button>
-      </nav>
-
-      {loading && <p className="admin-muted" role="status">กำลังโหลดข้อมูลภาพรวม...</p>}
-
-      {/* ==================== TAB 1: OVERVIEW ==================== */}
-      {sectionTab === 'overview' && (
-        <div className="clean-section-stack">
-          {/* 4 Balanced, Spacious KPI Cards */}
-          <div className="clean-kpis">
-            <div className="clean-kpi indigo">
-              <span className="kpi-label"><Users size={15} /> ผู้เรียนเข้ารับการประเมิน</span>
-              <div className="kpi-main">
-                <strong>{summary.assessedLearners.toLocaleString()}</strong>
-                <span>คน (จาก {summary.totalLearners.toLocaleString()} คน)</span>
-              </div>
-              <p className="kpi-sub">
-                เพศชาย {summary.assessedMale} คน ({summary.assessedMalePct}%) · หญิง {summary.assessedFemale} คน ({summary.assessedFemalePct}%)
-              </p>
-            </div>
-
-            <div className="clean-kpi emerald">
-              <span className="kpi-label"><CheckCircle size={15} /> ผ่านการประเมิน (≥70%)</span>
-              <div className="kpi-main">
-                <strong>{summary.learnerPassRatePct}%</strong>
-                <span>ผ่าน {summary.passedLearners} / ไม่ผ่าน {summary.notPassedLearners} คน</span>
-              </div>
-              <p className="kpi-sub">คิดเป็นไม่ผ่าน {summary.learnerFailRatePct}% (จากผู้ประเมินครบ 4 ทักษะ)</p>
-            </div>
-
-            <div className="clean-kpi amber">
-              <span className="kpi-label"><BookOpen size={15} /> ความครบถ้วน 4 ทักษะ</span>
-              <div className="kpi-main">
-                <strong>{summary.completed4Learners.toLocaleString()}</strong>
-                <span>ครบ ({summary.completed4RatePct}%)</span>
-              </div>
-              <p className="kpi-sub">ยังทำไม่ครบ {summary.incomplete4Learners} คน ({summary.incomplete4RatePct}%)</p>
-            </div>
-
-            <div className="clean-kpi slate">
-              <span className="kpi-label"><MapPin size={15} /> พื้นที่ดำเนินการ</span>
-              <div className="kpi-main">
-                <strong>{summary.districtCount}</strong>
-                <span>อำเภอ · {summary.subdistrictCount} ตำบล</span>
-              </div>
-              <p className="kpi-sub">บันทึกการทำข้อสอบรวม {summary.totalAttempts.toLocaleString()} ครั้ง</p>
-            </div>
-          </div>
-
-          {/* 2 Clean Overview Charts Side-by-Side */}
-          <div className="clean-charts-pair">
-            <section className="clean-panel">
-              <div className="clean-panel-header">
-                <div>
-                  <h3>สรุปผลการประเมินราย 4 ทักษะ</h3>
-                  <p className="admin-muted">การฟัง การพูด การอ่าน และการเขียน (เกณฑ์ผ่าน ≥ 70%)</p>
-                </div>
-                <div className="analytics-seg">
-                  <button
-                    type="button"
-                    aria-pressed={skillChartMode === 'passFail'}
-                    onClick={() => setSkillChartMode('passFail')}
-                  >ผ่าน / ไม่ผ่าน</button>
-                  <button
-                    type="button"
-                    aria-pressed={skillChartMode === 'gender'}
-                    onClick={() => setSkillChartMode('gender')}
-                  >ชาย – หญิง</button>
-                </div>
-              </div>
-              <div className="analytics-chart-box">
-                <ResponsiveContainer width="100%" height={280}>
-                  {skillChartMode === 'passFail' ? (
-                    <BarChart data={summary.skillBreakdown} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="shortName" tick={{ fontSize: 13, fill: '#334155', fontWeight: 600 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }} />
-                      <Legend verticalAlign="top" height={32} />
-                      <Bar dataKey="passedCount" name="ผ่านเกณฑ์" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="failedCount" name="ไม่ผ่านเกณฑ์" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  ) : (
-                    <BarChart data={summary.skillBreakdown} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey="shortName" tick={{ fontSize: 13, fill: '#334155', fontWeight: 600 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }} />
-                      <Legend verticalAlign="top" height={32} />
-                      <Bar dataKey="passedMale" name="ผ่าน (ชาย)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="passedFemale" name="ผ่าน (หญิง)" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="failedMale" name="ไม่ผ่าน (ชาย)" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="failedFemale" name="ไม่ผ่าน (หญิง)" fill="#fbcfe8" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  )}
-                </ResponsiveContainer>
-              </div>
-            </section>
-
-            <section className="clean-panel">
-              <div className="clean-panel-header">
-                <div>
-                  <h3>สัดส่วนเพศ และสถานะผลการประเมิน</h3>
-                  <p className="admin-muted">ภาพรวมผู้เรียนในขอบเขตที่เลือก ({summary.totalLearners} คน)</p>
-                </div>
-              </div>
-              <div className="analytics-pies-wrap">
-                <div className="analytics-pie-item">
-                  <h4>จำแนกเพศ ({summary.assessedLearners} คน)</h4>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie
-                        data={summary.genderDistribution.filter(d => d.count > 0)}
-                        dataKey="count"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={44}
-                        outerRadius={72}
-                        paddingAngle={3}
-                      >
-                        {summary.genderDistribution.filter(d => d.count > 0).map(entry => (
-                          <Cell key={entry.name} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(v) => `${v} คน`} />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="analytics-pie-item">
-                  <h4>ผลการประเมิน ({summary.totalLearners} คน)</h4>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie
-                        data={summary.outcomeDistribution.filter(d => d.count > 0)}
-                        dataKey="count"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={44}
-                        outerRadius={72}
-                        paddingAngle={3}
-                      >
-                        {summary.outcomeDistribution.filter(d => d.count > 0).map(entry => (
-                          <Cell key={entry.name} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip formatter={(v) => `${v} คน`} />
-                      <Legend wrapperStyle={{ fontSize: '12px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          {summary.dailyTrend.length > 0 && (
-            <section className="clean-panel">
-              <div className="clean-panel-header">
-                <div>
-                  <h3>แนวโน้มการประเมินรายวัน</h3>
-                  <p className="admin-muted">จำนวนการสอบและคะแนนเฉลี่ยในแต่ละวัน</p>
-                </div>
-              </div>
-              <div className="analytics-chart-box">
-                <ResponsiveContainer width="100%" height={210}>
-                  <AreaChart data={summary.dailyTrend} margin={{ top: 8, right: 16, left: -12, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12, fill: '#64748b' }} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" domain={[0, 100]} unit="%" tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                    <Legend verticalAlign="top" height={30} />
-                    <Area yAxisId="left" type="monotone" dataKey="attempts" name="ครั้งที่สอบ" stroke="#6366f1" fill="#e0e7ff" strokeWidth={2} />
-                    <Area yAxisId="right" type="monotone" dataKey="avgPct" name="คะแนนเฉลี่ย (%)" stroke="#10b981" fill="#d1fae5" fillOpacity={0.35} strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-          )}
-
-          {/* Quick Links to Deep-Dive Tabs */}
-          <div className="clean-quick-links">
-            <button type="button" onClick={() => setSectionTab('skills')}>
-              <span>ดูตารางผล 4 ทักษะ (ชาย/หญิง/ร้อยละ)</span> <ArrowRight size={15} />
-            </button>
-            <button type="button" onClick={() => setSectionTab('areas')}>
-              <span>ดูข้อมูลรายอำเภอ 13 แห่ง &amp; รายตำบล</span> <ArrowRight size={15} />
-            </button>
-            <button type="button" onClick={() => setSectionTab('learners')}>
-              <span>ค้นหารายชื่อ &amp; ตรวจผลรายบุคคล</span> <ArrowRight size={15} />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ==================== TAB 2: 4 SKILLS ==================== */}
-      {sectionTab === 'skills' && (
-        <div className="clean-section-stack">
-          <section className="clean-panel">
-            <div className="clean-panel-header">
-              <div>
-                <h3>ตารางผลการประเมินจำแนกราย ๔ ทักษะ (ชาย–หญิง และร้อยละ)</h3>
-                <p className="admin-muted">
-                  ประเมินตามเกณฑ์ ≥ 70% ของคะแนนเต็มแต่ละทักษะ (ผู้เรียนในขอบเขต {summary.totalLearners} คน)
-                </p>
-              </div>
-              <div className="clean-panel-actions">
-                <button type="button" className="clean-btn-outline excel" onClick={() => exportExcel('province', 'รายงานภาพรวมและผลรายทักษะ')}>
-                  <FileDown size={15} /> Excel
-                </button>
-                <button type="button" className="clean-btn-outline" onClick={() => exportCsvTarget('province')}>
-                  <FileSpreadsheet size={15} /> CSV
-                </button>
-              </div>
-            </div>
-
-            <div className="clean-table-wrap">
-              <table className="clean-table analytics-skill-table">
-                <thead>
-                  <tr>
-                    <th rowSpan={2}>ทักษะการประเมิน</th>
-                    <th colSpan={3} className="group-head">เข้ารับการประเมิน (คน)</th>
-                    <th colSpan={3} className="group-head green-head">ผ่านการประเมิน (คน)</th>
-                    <th colSpan={3} className="group-head rose-head">ไม่ผ่านการประเมิน (คน)</th>
-                    <th rowSpan={2} className="num">ร้อยละผ่าน</th>
-                    <th rowSpan={2} className="num">ร้อยละไม่ผ่าน</th>
-                    <th rowSpan={2} className="num">คะแนนเฉลี่ย</th>
-                  </tr>
-                  <tr>
-                    <th className="num">รวม</th>
-                    <th className="num">ชาย</th>
-                    <th className="num">หญิง</th>
-                    <th className="num">รวม</th>
-                    <th className="num">ชาย</th>
-                    <th className="num">หญิง</th>
-                    <th className="num">รวม</th>
-                    <th className="num">ชาย</th>
-                    <th className="num">หญิง</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summary.skillBreakdown.map(s => (
-                    <tr key={s.key}>
-                      <td className="primary-cell">
-                        <span className="skill-dot" style={{ background: s.color }} /> {s.formalName}
-                      </td>
-                      <td className="num"><strong>{s.assessedCount}</strong></td>
-                      <td className="num">{s.assessedMale}</td>
-                      <td className="num">{s.assessedFemale}</td>
-                      <td className="num text-green"><strong>{s.passedCount}</strong></td>
-                      <td className="num text-green">{s.passedMale}</td>
-                      <td className="num text-green">{s.passedFemale}</td>
-                      <td className="num text-rose"><strong>{s.failedCount}</strong></td>
-                      <td className="num text-rose">{s.failedMale}</td>
-                      <td className="num text-rose">{s.failedFemale}</td>
-                      <td className="num"><strong className="text-green">{s.passRatePct}%</strong></td>
-                      <td className="num"><strong className="text-rose">{s.failRatePct}%</strong></td>
-                      <td className="num">{s.avgScore} / {s.maxScore}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="clean-panel">
-            <div className="clean-panel-header">
-              <div>
-                <h3>กราฟเปรียบเทียบผลแต่ละทักษะ</h3>
-                <p className="admin-muted">สลับมุมมองผ่าน/ไม่ผ่าน หรือแยกตามเพศชาย–หญิง</p>
-              </div>
-              <div className="analytics-seg">
-                <button
-                  type="button"
-                  aria-pressed={skillChartMode === 'passFail'}
-                  onClick={() => setSkillChartMode('passFail')}
-                >ผ่าน / ไม่ผ่าน</button>
-                <button
-                  type="button"
-                  aria-pressed={skillChartMode === 'gender'}
-                  onClick={() => setSkillChartMode('gender')}
-                >จำแนกชาย – หญิง</button>
-              </div>
-            </div>
-            <div className="analytics-chart-box">
-              <ResponsiveContainer width="100%" height={290}>
-                {skillChartMode === 'passFail' ? (
-                  <BarChart data={summary.skillBreakdown} margin={{ top: 10, right: 16, left: -10, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="shortName" tick={{ fontSize: 13, fill: '#334155', fontWeight: 600 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                    <Legend verticalAlign="top" height={32} />
-                    <Bar dataKey="passedCount" name="ผ่านการประเมิน" fill="#10b981" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="failedCount" name="ไม่ผ่านการประเมิน" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                ) : (
-                  <BarChart data={summary.skillBreakdown} margin={{ top: 10, right: 16, left: -10, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                    <XAxis dataKey="shortName" tick={{ fontSize: 13, fill: '#334155', fontWeight: 600 }} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                    <Legend verticalAlign="top" height={32} />
-                    <Bar dataKey="passedMale" name="ผ่าน (ชาย)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="passedFemale" name="ผ่าน (หญิง)" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="failedMale" name="ไม่ผ่าน (ชาย)" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="failedFemale" name="ไม่ผ่าน (หญิง)" fill="#fbcfe8" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* ==================== TAB 3: AREAS ==================== */}
-      {sectionTab === 'areas' && (
-        <div className="clean-section-stack">
-          <section className="clean-panel">
-            <div className="clean-panel-header">
-              <div>
-                <h3>
-                  {areaLevel === 'subdistrict'
-                    ? (districtFilter !== 'all' ? `กราฟเปรียบเทียบรายตำบล — อำเภอ${districtFilter}` : 'กราฟเปรียบเทียบรายตำบล (สูงสุด 15 ตำบล)')
-                    : `กราฟเปรียบเทียบรายอำเภอ (${districtRows.length} แห่ง)`}
-                </h3>
-                <p className="admin-muted">สลับมุมมองผลการประเมิน จำนวนชาย–หญิง หรือร้อยละผ่านเกณฑ์</p>
-              </div>
-              <div className="analytics-seg">
-                <button
-                  type="button"
-                  aria-pressed={areaChartMode === 'counts'}
-                  onClick={() => setAreaChartMode('counts')}
-                >ผ่าน / ไม่ครบ</button>
-                <button
-                  type="button"
-                  aria-pressed={areaChartMode === 'gender'}
-                  onClick={() => setAreaChartMode('gender')}
-                >ชาย – หญิง</button>
-                <button
-                  type="button"
-                  aria-pressed={areaChartMode === 'passRate'}
-                  onClick={() => setAreaChartMode('passRate')}
-                >อัตราผ่าน (%)</button>
-              </div>
-            </div>
-
-            <div className="analytics-chart-box">
-              {(areaLevel === 'subdistrict' ? subdistrictChartData : districtChartData).length === 0 ? (
-                <p className="admin-empty">ยังไม่มีข้อมูลพื้นที่ตามตัวกรอง</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={290}>
-                  {areaChartMode === 'counts' ? (
-                    <BarChart
-                      data={areaLevel === 'subdistrict' ? subdistrictChartData : districtChartData}
-                      margin={{ top: 10, right: 14, left: -12, bottom: 28 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey={areaLevel === 'subdistrict' ? 'subdistrict' : 'district'} tick={{ fontSize: 11, fill: '#475569' }} interval={0} angle={-20} textAnchor="end" height={58} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                      <Legend verticalAlign="top" height={32} />
-                      <Bar dataKey="passedLearnerCount" name="ผ่านเกณฑ์" stackId="a" fill="#10b981" />
-                      <Bar dataKey="failedLearnerCount" name="ไม่ผ่านเกณฑ์" stackId="a" fill="#f43f5e" />
-                      <Bar dataKey="incomplete4Count" name="ยังไม่ครบ 4 ทักษะ" stackId="a" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  ) : areaChartMode === 'gender' ? (
-                    <BarChart
-                      data={areaLevel === 'subdistrict' ? subdistrictChartData : districtChartData}
-                      margin={{ top: 10, right: 14, left: -12, bottom: 28 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey={areaLevel === 'subdistrict' ? 'subdistrict' : 'district'} tick={{ fontSize: 11, fill: '#475569' }} interval={0} angle={-20} textAnchor="end" height={58} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} />
-                      <Legend verticalAlign="top" height={32} />
-                      <Bar dataKey="maleCount" name="เพศชาย" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="femaleCount" name="เพศหญิง" fill="#ec4899" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  ) : (
-                    <BarChart
-                      data={areaLevel === 'subdistrict' ? subdistrictChartData : districtChartData}
-                      margin={{ top: 10, right: 14, left: -12, bottom: 28 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                      <XAxis dataKey={areaLevel === 'subdistrict' ? 'subdistrict' : 'district'} tick={{ fontSize: 11, fill: '#475569' }} interval={0} angle={-20} textAnchor="end" height={58} />
-                      <YAxis domain={[0, 100]} unit="%" tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <RechartsTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e2e8f0' }} formatter={(v) => `${v ?? 0}%`} />
-                      <Legend verticalAlign="top" height={32} />
-                      <Bar dataKey="exactPassRate" name="ร้อยละผ่าน (%)" fill="#10b981" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="avgPct" name="คะแนนเฉลี่ย (%)" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  )}
-                </ResponsiveContainer>
-              )}
-            </div>
-          </section>
-
-          {areaLevel !== 'subdistrict' && (
-            <AreaBreakdownTable
-              title={`ตารางสรุประดับอำเภอ (${districtRows.length} แห่ง)`}
-              subtitle="คลิกแถวอำเภอเพื่อเจาะดูรายตำบลภายในอำเภอนั้น"
-              rows={districtRows}
-              mode="district"
-              selectedDistrict={districtFilter}
-              selectedSubdistrict={subdistrictFilter}
-              onSelectRow={(row) => {
-                if (districtFilter === row.district) {
-                  setDistrictFilter('all');
-                  setSubdistrictFilter('all');
-                } else {
-                  setDistrictFilter(row.district);
-                  setSubdistrictFilter('all');
-                  setAreaLevel('subdistrict');
-                }
-                setDetailPage(1);
-              }}
-              onExportExcel={() => exportExcel('district', 'รายงานข้อมูลรายอำเภอ')}
-              onExportCsv={() => exportCsvTarget('district')}
-            />
-          )}
-
-          {(areaLevel === 'subdistrict' || areaLevel === 'province') && (
-            <AreaBreakdownTable
-              title={
-                districtFilter !== 'all'
-                  ? `ตารางสรุประดับตำบล — อำเภอ${districtFilter} (${subdistrictRows.length} ตำบล)`
-                  : `ตารางสรุประดับตำบล (${subdistrictRows.length} ตำบล)`
-              }
-              subtitle="คลิกแถวตำบลเพื่อกรองดูรายชื่อผู้เรียนในตำบลนั้น"
-              rows={subdistrictRows}
-              mode="subdistrict"
-              selectedDistrict={districtFilter}
-              selectedSubdistrict={subdistrictFilter}
-              onSelectRow={(row) => {
-                if (subdistrictFilter === row.subdistrict) {
-                  setSubdistrictFilter('all');
-                } else {
-                  if (row.district && row.district !== 'ไม่ระบุ') setDistrictFilter(row.district);
-                  setSubdistrictFilter(row.subdistrict);
-                }
-                setSectionTab('learners');
-                setDetailPage(1);
-              }}
-              onExportExcel={() => exportExcel('subdistrict', 'รายงานข้อมูลรายตำบล')}
-              onExportCsv={() => exportCsvTarget('subdistrict')}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ==================== TAB 4: LEARNERS ==================== */}
-      {sectionTab === 'learners' && (
-        <section className="clean-panel">
-          <div className="clean-panel-header">
-            <div>
-              <h3>รายชื่อผู้เรียนและผลการประเมิน 4 ทักษะ ({activeRows.length} รายการ)</h3>
-              <p className="admin-muted">คลิก "ดูรายบุคคล" เพื่อตรวจสอบคะแนนและสถานะทั้ง 4 ทักษะอย่างละเอียด</p>
-            </div>
-            <div className="clean-panel-actions">
-              <div className="analytics-seg">
-                <button
-                  type="button"
-                  aria-pressed={detailMode === 'learners'}
-                  onClick={() => { setDetailMode('learners'); setDetailPage(1); }}
-                >รายผู้เรียน ({filtered.learners.length})</button>
-                <button
-                  type="button"
-                  aria-pressed={detailMode === 'attempts'}
-                  onClick={() => { setDetailMode('attempts'); setDetailPage(1); }}
-                >รายครั้งสอบ ({filtered.attempts.length})</button>
-              </div>
-              {detailMode === 'learners' ? (
-                <>
-                  <button type="button" className="clean-btn-outline excel" onClick={() => exportExcel('learners', 'รายงานรายบุคคล_4ทักษะ')}>
-                    <FileDown size={15} /> Excel
-                  </button>
-                  <button type="button" className="clean-btn-outline" onClick={() => exportCsvTarget('learners')}>
-                    <FileSpreadsheet size={15} /> CSV
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="clean-btn-outline"
-                  onClick={() => onDownloadCsv(
-                    buildHistoryCsv({ history: filtered.attempts, users, surveys, formatDate }),
-                    `ประวัติผลสอบแยกย่อย_${dateTag}.csv`
-                  )}
-                >
-                  <FileSpreadsheet size={15} /> CSV ประวัติสอบ
-                </button>
-              )}
-            </div>
-          </div>
-
-          {pagedDetailRows.length === 0 ? (
-            <div className="admin-empty">
-              <p>ไม่พบข้อมูลผู้เรียนที่ตรงกับคำค้นหาหรือตัวกรอง</p>
-              <button type="button" className="btn-secondary" onClick={resetAllFilters}>ล้างตัวกรองทั้งหมด</button>
-            </div>
-          ) : (
-            <div className="clean-table-wrap">
-              {detailMode === 'learners' ? (
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>ชื่อ-นามสกุล (เพศ)</th>
-                      <th>พื้นที่ (ตำบล / อำเภอ)</th>
-                      <th>ผลประเมิน (ความครบถ้วน)</th>
-                      <th className="num">ฟัง (25)</th>
-                      <th className="num">พูด (15)</th>
-                      <th className="num">อ่าน (30)</th>
-                      <th className="num">เขียน (30)</th>
-                      <th>จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedDetailRows.map(l => (
-                      <tr key={l.id}>
-                        <td>
-                          <strong className="primary-cell">{l.name || 'ไม่ระบุชื่อ'}</strong>
-                          <div className="sub-meta">
-                            เพศ{l.gender || 'ไม่ระบุ'}
-                            {l.age ? ` · ${l.age} ปี` : ''}
-                            {` · @${l.username}`}
-                          </div>
-                        </td>
-                        <td>
-                          <div>ต.{l.subdistrict}</div>
-                          <div className="sub-meta">อ.{l.district}</div>
-                        </td>
-                        <td>
-                          <span className={`analytics-pill ${l.assessmentStatus === 'passed' ? 'green' : l.assessmentStatus === 'failed' ? 'red' : 'amber'}`}>
-                            {l.assessmentStatusLabel}
-                            {l.overallPct !== null ? ` (${l.overallPct}%)` : ''}
-                          </span>
-                          <div className="sub-meta">ทำแล้ว {l.assessedSkillCount}/4 ทักษะ</div>
-                        </td>
-                        <td className="num"><SkillScoreText skill={l.skills?.listening} /></td>
-                        <td className="num"><SkillScoreText skill={l.skills?.speaking} /></td>
-                        <td className="num"><SkillScoreText skill={l.skills?.reading} /></td>
-                        <td className="num"><SkillScoreText skill={l.skills?.writing} /></td>
-                        <td>
-                          <button type="button" className="analytics-mini-btn" onClick={() => setInspectedLearner(l)}>
-                            <Eye size={14} /> ดูรายบุคคล
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="clean-table">
-                  <thead>
-                    <tr>
-                      <th>วันที่สอบ</th>
-                      <th>ผู้เข้าสอบ</th>
-                      <th>ตำบล / อำเภอ</th>
-                      <th>แบบทดสอบ</th>
-                      <th className="num">คะแนน (%)</th>
-                      <th>ผลประเมิน</th>
-                      <th className="num">ฟัง</th>
-                      <th className="num">พูด</th>
-                      <th className="num">อ่าน</th>
-                      <th className="num">เขียน</th>
-                      <th>ตรวจละเอียด</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedDetailRows.map((a, idx) => (
-                      <tr key={a.id || idx}>
-                        <td style={{ whiteSpace: 'nowrap' }}>{formatDate(a.taken_at)}</td>
-                        <td>
-                          <strong className="primary-cell">{a.user?.name}</strong>
-                          <div className="sub-meta">เพศ{a.gender || 'ไม่ระบุ'} · @{a.user?.username}</div>
-                        </td>
-                        <td>
-                          <div>ต.{a.subdistrict}</div>
-                          <div className="sub-meta">อ.{a.district}</div>
-                        </td>
-                        <td>{SKILL_LABELS[a.skill] || a.skill}</td>
-                        <td className="num">
-                          <strong>{a.score}/{a.max_score}</strong>
-                          <div className="sub-meta">{a.pct}%</div>
-                        </td>
-                        <td>
-                          <span className={`analytics-pill ${a.isReviewed ? (a.passed ? 'green' : 'red') : 'amber'}`}>
-                            {a.isReviewed ? `${a.passed ? 'ผ่าน' : 'ไม่ผ่าน'} (${a.grade})` : 'รอตรวจ'}
-                          </span>
-                        </td>
-                        <td className="num">{a.breakdown?.listening?.score ?? '—'}</td>
-                        <td className="num">{a.breakdown?.speaking?.score ?? '—'}</td>
-                        <td className="num">{a.breakdown?.reading?.score ?? '—'}</td>
-                        <td className="num">{a.breakdown?.writing?.score ?? '—'}</td>
-                        <td>
-                          <button type="button" className="analytics-mini-btn" onClick={() => onInspectAttempt(a)}>
-                            <Eye size={14} /> ตรวจข้อสอบ
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-
-          {activeRows.length > DETAIL_PAGE_SIZE && (
-            <div className="admin-pagination">
-              <span>
-                แสดง {(currentDetailPage - 1) * DETAIL_PAGE_SIZE + 1}–{Math.min(currentDetailPage * DETAIL_PAGE_SIZE, activeRows.length)} จาก {activeRows.length} รายการ
-              </span>
-              <div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={currentDetailPage === 1}
-                  onClick={() => setDetailPage(currentDetailPage - 1)}
-                >ก่อนหน้า</button>
-                <span>{currentDetailPage} / {detailPageCount}</span>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={currentDetailPage === detailPageCount}
-                  onClick={() => setDetailPage(currentDetailPage + 1)}
-                >ถัดไป</button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
 
       {/* Individual Learner 4-Skill Scorecard Modal */}
       {inspectedLearner && (
@@ -1313,12 +1036,6 @@ export default function AdminAnalyticsDashboard({
                   );
                 })}
               </div>
-
-              {!inspectedLearner.completedAll4Skills && (
-                <p className="learner-modal-note">
-                  <AlertCircle size={15} /> ผู้เรียนรายนี้ยังทำแบบทดสอบไม่ครบทั้ง 4 ทักษะ
-                </p>
-              )}
 
               <div className="modal-actions">
                 <button

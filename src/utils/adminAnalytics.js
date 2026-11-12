@@ -40,6 +40,14 @@ function withinDateRange(isoStr, dateRange, now = new Date()) {
   const diffDays = (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24);
   if (dateRange === 'week') return diffDays <= 7;
   if (dateRange === 'month') return diffDays <= 30;
+  // Thai Fiscal Year: fy25XX runs from Oct 1 of (BE - 544) to Sep 30 of (BE - 543) in Asia/Bangkok (+07:00)
+  const fyMatch = /^fy(\d{4})$/.exec(String(dateRange));
+  if (fyMatch) {
+    const endGregorianYear = Number(fyMatch[1]) - 543;
+    const startMs = new Date(`${endGregorianYear - 1}-10-01T00:00:00+07:00`).getTime();
+    const endMs = new Date(`${endGregorianYear}-09-30T23:59:59.999+07:00`).getTime();
+    return d.getTime() >= startMs && d.getTime() <= endMs;
+  }
   return true;
 }
 
@@ -114,7 +122,7 @@ function extractSkillResultForLearner(learnerAttempts = [], meta) {
 
 function roundPct(part, whole) {
   if (!whole) return 0;
-  return Number(((part / whole) * 100).toFixed(1));
+  return Number(((part / whole) * 100).toFixed(2));
 }
 
 export function enrichAnalyticsData({ users = [], history = [], surveys = [] }) {
@@ -452,7 +460,7 @@ export function buildSkillEvaluationSummary(learners = [], attempts = []) {
     }
 
     const passRatePct = assessedCount > 0 ? roundPct(passedCount, assessedCount) : 0;
-    const failRatePct = assessedCount > 0 ? Number((100 - passRatePct).toFixed(1)) : 0;
+    const failRatePct = assessedCount > 0 ? Number((100 - passRatePct).toFixed(2)) : 0;
 
     return {
       key: meta.key,
@@ -658,7 +666,7 @@ export function aggregateByArea(
       const exactPassRate = denomLearners
         ? roundPct(b.passedLearnerCount, denomLearners)
         : (b.reviewedAttemptCount ? roundPct(b.passedAttemptCount, b.reviewedAttemptCount) : null);
-      const exactFailRate = exactPassRate !== null ? Number((100 - exactPassRate).toFixed(1)) : null;
+      const exactFailRate = exactPassRate !== null ? Number((100 - exactPassRate).toFixed(2)) : null;
 
       const avgSkill = (key) =>
         b.skills[key].count ? Number((b.skills[key].sum / b.skills[key].count).toFixed(1)) : null;
@@ -673,7 +681,7 @@ export function aggregateByArea(
           failed: s.failed,
           unassessed: s.unassessed,
           passRate: sPassRate,
-          failRate: sPassRate !== null ? Number((100 - sPassRate).toFixed(1)) : null,
+          failRate: sPassRate !== null ? Number((100 - sPassRate).toFixed(2)) : null,
           avgScore: s.assessed ? Number((s.sum / s.assessed).toFixed(1)) : avgSkill(meta.key),
         };
       }
@@ -766,10 +774,10 @@ export function buildAnalyticsSummary(learners = [], attempts = []) {
   const untestedLearners = totalLearners - evaluatedLearners.length;
 
   const learnerPassRatePct = evaluatedLearners.length ? roundPct(passedLearners, evaluatedLearners.length) : 0;
-  const learnerFailRatePct = evaluatedLearners.length ? Number((100 - learnerPassRatePct).toFixed(1)) : 0;
+  const learnerFailRatePct = evaluatedLearners.length ? Number((100 - learnerPassRatePct).toFixed(2)) : 0;
 
   const completed4RatePct = totalLearners ? roundPct(completed4Learners, totalLearners) : 0;
-  const incomplete4RatePct = totalLearners ? Number((100 - completed4RatePct).toFixed(1)) : 0;
+  const incomplete4RatePct = totalLearners ? Number((100 - completed4RatePct).toFixed(2)) : 0;
 
   const assessedMalePct = assessedLearners ? roundPct(assessedMale, assessedLearners) : 0;
   const assessedFemalePct = assessedLearners ? roundPct(assessedFemale, assessedLearners) : 0;
