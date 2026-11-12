@@ -50,7 +50,10 @@ router.get('/me', authenticate, async (req, res) => {
 
 // ==================== UPDATE PROFILE ====================
 router.put('/me', authenticate, async (req, res) => {
-  const { name, age, gender, address, avatar } = req.body;
+  const { name, age, gender, address, avatar, is_literacy_learner } = req.body;
+  if (is_literacy_learner !== undefined && typeof is_literacy_learner !== 'boolean') {
+    return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
+  }
   try {
     const updateFields = {
       name,
@@ -58,6 +61,7 @@ router.put('/me', authenticate, async (req, res) => {
       gender,
       address,
       avatar,
+      ...(is_literacy_learner !== undefined ? { is_literacy_learner } : {}),
       ...resolveLocationUpdates(req.body)
     };
     await User.findByIdAndUpdate(req.userId, updateFields);

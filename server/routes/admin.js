@@ -158,13 +158,17 @@ router.delete('/users/:id', authenticateAdmin, async (req, res) => {
 // ==================== UPDATE USER ====================
 router.put('/users/:id', authenticateAdmin, async (req, res) => {
   const { id } = req.params;
-  const { name, age, address, role } = req.body;
+  const { name, age, address, role, is_literacy_learner } = req.body;
+  if (is_literacy_learner !== undefined && typeof is_literacy_learner !== 'boolean') {
+    return res.status(400).json({ message: 'สถานะผู้เรียนต้องเป็นค่าติ๊กหรือไม่ติ๊กเท่านั้น' });
+  }
   try {
     const updateFields = {
       name,
       age: age || null,
       address: address || null,
       role: role || 'user',
+      ...(is_literacy_learner !== undefined ? { is_literacy_learner } : {}),
       ...resolveLocationUpdates(req.body)
     };
 

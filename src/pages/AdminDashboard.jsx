@@ -51,7 +51,7 @@ export default function AdminDashboard() {
 
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
-  const [editForm, setEditForm] = useState({ prefix: '', name: '', age: '', address: '', subdistrict: '', district: '', province: '', role: 'user' });
+  const [editForm, setEditForm] = useState({ prefix: '', name: '', age: '', address: '', subdistrict: '', district: '', province: '', role: 'user', is_literacy_learner: false });
 
   // Search and Filter State
   const [searchTerm, setSearchTerm] = useState('');
@@ -345,7 +345,8 @@ export default function AdminDashboard() {
       subdistrict: loc.subdistrict === '-' ? '' : loc.subdistrict,
       district: loc.district === '-' ? '' : loc.district,
       province: loc.province === '-' ? '' : loc.province,
-      role: u.role || 'user'
+      role: u.role || 'user',
+      is_literacy_learner: Boolean(u.is_literacy_learner)
     });
   };
 
@@ -873,6 +874,18 @@ export default function AdminDashboard() {
                   <option value="admin">ผู้ดูแลระบบ (Admin)</option>
                 </select>
               </div>
+              <label className="literacy-checkbox" htmlFor="admin-edit-is-literacy-learner">
+                <input
+                  type="checkbox"
+                  id="admin-edit-is-literacy-learner"
+                  checked={editForm.is_literacy_learner}
+                  onChange={e => setEditForm({ ...editForm, is_literacy_learner: e.target.checked })}
+                />
+                <span>
+                  <strong>ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</strong>
+                  <small>ติ๊กถูกหากเป็นผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</small>
+                </span>
+              </label>
               <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
                 <button type="button" onClick={() => setEditingUser(null)} className="btn-secondary" style={{ flex: 1, padding: '14px', borderRadius: '12px', fontWeight: '700' }}>ยกเลิก</button>
                 <button type="submit" className="btn-primary" style={{ flex: 2, padding: '14px', borderRadius: '12px', fontWeight: '700', boxShadow: '0 8px 16px rgba(168, 85, 247, 0.2)' }}>บันทึกการเปลี่ยนแปลง</button>

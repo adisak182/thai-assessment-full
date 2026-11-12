@@ -30,6 +30,7 @@ export default function EditProfile() {
     gender: user?.gender || '',
     address: user?.address || '',
     avatar: user?.avatar || '',
+    is_literacy_learner: Boolean(user?.is_literacy_learner),
   });
 
   const [history, setHistory] = useState([]);
@@ -148,6 +149,20 @@ export default function EditProfile() {
 
           <div><label style={labelStyle}>ที่อยู่ / อำเภอ / จังหวัด</label>
             <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="เช่น อ.เมืองนราธิวาส จ.นราธิวาส" style={inputStyle} /></div>
+
+          <label className="literacy-checkbox" htmlFor="profile-is-literacy-learner">
+            <input
+              type="checkbox"
+              id="profile-is-literacy-learner"
+              name="is_literacy_learner"
+              checked={formData.is_literacy_learner}
+              onChange={e => setFormData(prev => ({ ...prev, is_literacy_learner: e.target.checked }))}
+            />
+            <span>
+              <strong>ผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</strong>
+              <small>ติ๊กถูกหากเป็นผู้เรียนกิจกรรมส่งเสริมการรู้หนังสือ</small>
+            </span>
+          </label>
 
           <button type="submit" className="btn-primary" style={{ padding: '16px', fontSize: '1.1rem', width: '100%', justifyContent: 'center' }}>
             บันทึกข้อมูลส่วนตัว

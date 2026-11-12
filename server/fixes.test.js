@@ -93,3 +93,22 @@ test('literacy status rejects strings, numbers and null at the API boundary',asy
   assert.equal(res.code,400);
  }
 });
+test('profile and admin user updates toggle literacy status and validate booleans',async()=>{
+ const original=User.findByIdAndUpdate;
+ let capturedUpdate=null;
+ User.findByIdAndUpdate=(id,update)=>{capturedUpdate=update;return{select:async()=>({toJSON:()=>({id,name:update.name,is_literacy_learner:update.is_literacy_learner??false})})};};
+ try{
+  const profileHandler=users.stack.find(l=>l.route?.path==='/me'&&l.route.methods.put).route.stack.at(-1).handle;
+  const adminHandler=admin.stack.find(l=>l.route?.path==='/users/:id'&&l.route.methods.put).route.stack.at(-1).handle;
+  for(const [handler,reqBase] of [[profileHandler,{userId:'u1'}],[adminHandler,{params:{id:'u1'}}]]){
+   for(const invalid of ['true','false',1,0,null]){
+    const res=response();await handler({...reqBase,body:{name:'Test',is_literacy_learner:invalid}},res);
+    assert.equal(res.code,400);
+   }
+   const omitRes=response();await handler({...reqBase,body:{name:'Test'}},omitRes);
+   assert.equal(omitRes.code,200);assert.equal('is_literacy_learner' in capturedUpdate,false);
+   const trueRes=response();await handler({...reqBase,body:{name:'Test',is_literacy_learner:true}},trueRes);
+   assert.equal(trueRes.code,200);assert.equal(capturedUpdate.is_literacy_learner,true);
+  }
+ }finally{User.findByIdAndUpdate=original;}
+});
