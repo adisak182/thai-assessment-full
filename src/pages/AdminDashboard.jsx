@@ -5,13 +5,15 @@ import { filterUsers, summarizeLearners, summarizeAttempts } from '../utils/admi
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
-import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory, updateAdminSurvey } from '../services/api';
-import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer } from 'lucide-react';
+import { getAdminUsers, getAdminUserScores, deleteUser, updateUserByAdmin, getAdminSurveys, getAdminAllHistory, updateAdminSurvey, normalizeAdminLocations } from '../services/api';
+import { Shield, Trash2, Eye, CheckCircle, XCircle, X, Edit2, Users, Award, Search, Filter, Calendar, RefreshCw, ClipboardList, ChevronDown, ChevronUp, BarChart2, List, History, Download, FileSpreadsheet, Printer, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts';
 import { getAllQuestions } from '../data/testData';
 import ScoreDetailModal from '../components/ScoreDetailModal';
 import AdminAnalyticsDashboard from '../components/AdminAnalyticsDashboard';
-import { extractDistrictAndProvince } from '../utils/addressHelper';
+import NarathiwatLocationFields from '../components/NarathiwatLocationFields';
+import LocationCleanupModal from '../components/LocationCleanupModal';
+import { extractDistrictAndProvince, detectLocationAnomalies } from '../utils/addressHelper';
 import { buildHistoryCsv, buildSurveyCsv, buildLatestSurveyMap } from '../utils/csvExport';
 import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
 
@@ -67,6 +69,8 @@ export default function AdminDashboard() {
   // Surveys & Answer Key State
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [showAnswerKeyModal, setShowAnswerKeyModal] = useState(false);
+  const [showLocationCleanupModal, setShowLocationCleanupModal] = useState(false);
+  const [normalizingLocations, setNormalizingLocations] = useState(false);
   const [surveys, setSurveys] = useState([]);
   const [surveysLoading, setSurveysLoading] = useState(false);
   const [surveyTab, setSurveyTab] = useState('overview'); // 'overview' | 'list'
@@ -107,6 +111,24 @@ export default function AdminDashboard() {
   }, [surveys]);
 
   const surveyMap = useMemo(() => buildLatestSurveyMap(surveys), [surveys]);
+  const locationAnomalies = useMemo(() => detectLocationAnomalies(users, surveys), [users, surveys]);
+
+  const handleNormalizeLocations = async (payload) => {
+    setNormalizingLocations(true);
+    try {
+      const res = await normalizeAdminLocations(token, payload);
+      await Promise.all([
+        fetchUsers(),
+        fetchAllHistory(),
+        token ? getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {}) : Promise.resolve(),
+      ]);
+      alert(`ปรับปรุงข้อมูลสำเร็จ (ผู้ใช้ ${res.updatedUsersCount || 0} รายการ, แบบประเมิน ${res.updatedSurveysCount || 0} รายการ)`);
+    } catch (err) {
+      alert('ปรับปรุงไม่สำเร็จ: ' + err.message);
+    } finally {
+      setNormalizingLocations(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -462,6 +484,10 @@ export default function AdminDashboard() {
       <header className="admin-header">
         <div><p className="admin-eyebrow">นรารู้ไทย · พื้นที่ผู้ดูแล</p><h1>ภาพรวมการเรียนรู้</h1><p className="admin-muted">ติดตามผู้เรียน ผลการประเมิน และสถิติการสอบ</p></div>
         <div className="admin-header-actions">
+          <button onClick={() => setShowLocationCleanupModal(true)} className="btn-secondary">
+            <AlertTriangle size={16} color={locationAnomalies.length > 0 ? '#d97706' : undefined} />
+            จัดการชื่ออำเภอ/ตำบล{locationAnomalies.length > 0 ? ` (${locationAnomalies.length})` : ''}
+          </button>
           <button onClick={() => {fetchUsers();fetchAllHistory();if (token) getAdminSurveys(token).then(data => setSurveys(data || [])).catch(() => {});}} className="btn-secondary" disabled={loading || allHistoryLoading}><RefreshCw size={16}/> รีเฟรช</button>
           <button onClick={() => setShowAnswerKeyModal(true)} className="btn-secondary"><List size={16}/> เฉลยข้อสอบ</button>
           <button onClick={openSurveys} className="btn-primary"><ClipboardList size={16}/> แบบสอบถาม</button>
@@ -482,6 +508,8 @@ export default function AdminDashboard() {
           formatDate={formatDate}
           onDownloadCsv={triggerCsvDownload}
           onDownloadExcel={triggerExcelDownload}
+          anomalyCount={locationAnomalies.length}
+          onOpenLocationCleanup={() => setShowLocationCleanupModal(true)}
           onInspectUser={openScoreModal}
           onInspectAttempt={(attempt) => {
             setActiveDetailAttempt(attempt);
@@ -878,38 +906,19 @@ export default function AdminDashboard() {
                   />
                 </div>
               </div>
-              <div className="form-pair" style={{ display: 'flex', gap: '12px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>ตำบล</label>
-                  <input
-                    type="text"
-                    placeholder="ระบุตำบล"
-                    value={editForm.subdistrict}
-                    onChange={e => setEditForm({ ...editForm, subdistrict: e.target.value })}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>อำเภอ</label>
-                  <input
-                    type="text"
-                    placeholder="ระบุอำเภอ"
-                    value={editForm.district}
-                    onChange={e => setEditForm({ ...editForm, district: e.target.value })}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>จังหวัด</label>
-                  <input
-                    type="text"
-                    placeholder="ระบุจังหวัด"
-                    value={editForm.province}
-                    onChange={e => setEditForm({ ...editForm, province: e.target.value })}
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white' }}
-                  />
-                </div>
-              </div>
+              <NarathiwatLocationFields
+                province={editForm.province}
+                district={editForm.district}
+                subdistrict={editForm.subdistrict}
+                onChange={({ province, district, subdistrict }) => setEditForm(prev => ({
+                  ...prev,
+                  province,
+                  district,
+                  subdistrict,
+                }))}
+                inputStyle={{ width: '100%', padding: '12px 14px', borderRadius: '12px', border: '1.5px solid #e2e8f0', outline: 'none', background: 'white', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '0.95rem' }}
+                labelStyle={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}
+              />
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '700', color: '#475569', fontSize: '0.95rem' }}>สิทธิ์การใช้งาน (Role)</label>
                 <select 
@@ -1129,20 +1138,19 @@ export default function AdminDashboard() {
                                               />
                                             </div>
                                           </div>
-                                          <div className="form-pair" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                                            <div style={{ flex: 1, minWidth: '140px' }}>
-                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>ตำบล</label>
-                                              <input type="text" placeholder="ระบุตำบล" value={surveyEditForm.subdistrict} onChange={e => setSurveyEditForm({ ...surveyEditForm, subdistrict: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
-                                            </div>
-                                            <div style={{ flex: 1, minWidth: '140px' }}>
-                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>อำเภอ</label>
-                                              <input type="text" placeholder="ระบุอำเภอ" value={surveyEditForm.district} onChange={e => setSurveyEditForm({ ...surveyEditForm, district: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
-                                            </div>
-                                            <div style={{ flex: 1, minWidth: '140px' }}>
-                                              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>จังหวัด</label>
-                                              <input type="text" placeholder="ระบุจังหวัด" value={surveyEditForm.province} onChange={e => setSurveyEditForm({ ...surveyEditForm, province: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0' }} />
-                                            </div>
-                                          </div>
+                                          <NarathiwatLocationFields
+                                            province={surveyEditForm.province}
+                                            district={surveyEditForm.district}
+                                            subdistrict={surveyEditForm.subdistrict}
+                                            onChange={({ province, district, subdistrict }) => setSurveyEditForm(prev => ({
+                                              ...prev,
+                                              province,
+                                              district,
+                                              subdistrict,
+                                            }))}
+                                            inputStyle={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', background: 'white', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                            labelStyle={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}
+                                          />
                                           <div>
                                             <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: '#475569' }}>ข้อเสนอแนะ</label>
                                             <textarea value={surveyEditForm.suggestions} onChange={e => setSurveyEditForm({ ...surveyEditForm, suggestions: e.target.value })} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1.5px solid #e2e8f0', minHeight: '70px', fontFamily: 'inherit' }} />
@@ -1269,6 +1277,16 @@ export default function AdminDashboard() {
         />
       )}
 
+      {/* LOCATION ANOMALY / TYPO CLEANUP MODAL */}
+      {showLocationCleanupModal && (
+        <LocationCleanupModal
+          users={users}
+          surveys={surveys}
+          busy={normalizingLocations}
+          onApplyNormalization={handleNormalizeLocations}
+          onClose={() => setShowLocationCleanupModal(false)}
+        />
+      )}
 
     </div>
   );

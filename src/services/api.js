@@ -228,6 +228,20 @@ export const updateUserByAdmin = async (token, userId, data) => {
   return result;
 };
 
+export const normalizeAdminLocations = async (token, payload) => {
+  const response = await fetch(`${API_URL}/admin/locations/normalize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'ปรับปรุงชื่อพื้นที่ไม่สำเร็จ');
+  return result;
+};
+
 export const reviewAttempt = async (token, attemptId, questionId, correct) => {
   const response=await fetch(`${API_URL}/admin/attempts/${attemptId}/review`,{method:'PUT',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({questionId,correct})});
   const result=await response.json();

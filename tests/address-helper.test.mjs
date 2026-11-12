@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractDistrictAndProvince, resolveLocationUpdates } from '../src/utils/addressHelper.js';
+import {
+  NARATHIWAT_DISTRICT_NAMES,
+  NARATHIWAT_SUBDISTRICTS_BY_DISTRICT,
+  extractDistrictAndProvince,
+  resolveLocationUpdates,
+  normalizeNarathiwatDistrict,
+  normalizeNarathiwatSubdistrict,
+  detectLocationAnomalies,
+  buildNormalizedLocationPatch,
+} from '../src/utils/addressHelper.js';
 
 test('extracts district and province from standard prefix patterns', () => {
   const r1 = extractDistrictAndProvince('อ.เมืองนราธิวาส จ.นราธิวาส');
@@ -85,6 +94,73 @@ test('resolveLocationUpdates keeps explicit fields or extracts from edited addre
   assert.deepEqual(
     resolveLocationUpdates({ address: '99/1', subdistrict: ' โคกเคียน ', district: 'เมืองนราธิวาส', province: 'นราธิวาส' }),
     { subdistrict: 'โคกเคียน', district: 'เมืองนราธิวาส', province: 'นราธิวาส' }
+  );
+});
+
+test('covers all 13 Narathiwat districts and 77 official subdistricts without collisions', () => {
+  assert.equal(NARATHIWAT_DISTRICT_NAMES.length, 13);
+  const totalSubs = Object.values(NARATHIWAT_SUBDISTRICTS_BY_DISTRICT).reduce((sum, list) => sum + list.length, 0);
+  assert.equal(totalSubs, 77);
+});
+
+test('auto-corrects misspelled Narathiwat districts and subdistricts without breaking non-Narathiwat areas', () => {
+  assert.equal(normalizeNarathiwatDistrict('สุไหงโกลก'), 'สุไหงโก-ลก');
+  assert.equal(normalizeNarathiwatDistrict('ตากใบย'), 'ตากใบ');
+  assert.equal(normalizeNarathiwatDistrict('สุคีริน'), 'สุคิริน');
+  assert.equal(normalizeNarathiwatDistrict('รือเซาะ'), 'รือเสาะ');
+  assert.equal(normalizeNarathiwatDistrict('ยะรัง', 'ปัตตานี'), 'ยะรัง');
+
+  assert.deepEqual(normalizeNarathiwatSubdistrict('ปาโงสะโต', 'ระแงะ'), { subdistrict: 'บาโงสะโต', inferredDistrict: 'ระแงะ' });
+  assert.deepEqual(normalizeNarathiwatSubdistrict('โคกเคียณ', 'เมืองนราธิวาส'), { subdistrict: 'โคกเคียน', inferredDistrict: 'เมืองนราธิวาส' });
+  assert.deepEqual(normalizeNarathiwatSubdistrict('บานาค', 'เมืองนราธิวาส'), { subdistrict: 'บางนาค', inferredDistrict: 'เมืองนราธิวาส' });
+  assert.deepEqual(normalizeNarathiwatSubdistrict('เจ๊ะเหม'), { subdistrict: 'เจ๊ะเห', inferredDistrict: 'ตากใบ' });
+
+  const extracted = extractDistrictAndProvince('ต.กะลูวอ อ.เมืองนรา');
+  assert.equal(extracted.subdistrict, 'กะลุวอ');
+  assert.equal(extracted.district, 'เมืองนราธิวาส');
+  assert.equal(extracted.province, 'นราธิวาส');
+});
+
+test('detects misspelled location anomalies and builds accurate bulk normalization patches', () => {
+  const users = [
+    { id: 'u1', role: 'user', subdistrict: 'โคกเคียณ', district: 'เมืองนราธิวาส', province: 'นราธิวาส' },
+    { id: 'u2', role: 'user', address: 'ต.บานาค อ.ตากใบย จ.นราธิวาส' },
+    { id: 'u3', role: 'user', subdistrict: 'บางนาค', district: 'เมืองนราธิวาส', province: 'นราธิวาส' }, // valid
+    { id: 'u4', role: 'admin', subdistrict: 'ผิด', district: 'ผิด' }, // admin ignored
+  ];
+  const surveys = [
+    { _id: 's1', subdistrict: 'โคกเคียณ', district: 'เมืองนราธิวาส', province: 'นราธิวาส' },
+  ];
+
+  const anomalies = detectLocationAnomalies(users, surveys);
+  const khokAnomaly = anomalies.find(a => a.rawValue === 'โคกเคียณ');
+  assert.ok(khokAnomaly);
+  assert.equal(khokAnomaly.field, 'subdistrict');
+  assert.equal(khokAnomaly.userCount, 1);
+  assert.equal(khokAnomaly.surveyCount, 1);
+  assert.equal(khokAnomaly.suggestedValue, 'โคกเคียน');
+  assert.equal(khokAnomaly.suggestedDistrict, 'เมืองนราธิวาส');
+
+  const takBaiAnomaly = anomalies.find(a => a.rawValue === 'ตากใบย');
+  assert.ok(takBaiAnomaly);
+  assert.equal(takBaiAnomaly.field, 'district');
+  assert.equal(takBaiAnomaly.suggestedValue, 'ตากใบ');
+
+  const patchUser = buildNormalizedLocationPatch(users[0], {
+    field: 'subdistrict',
+    fromValue: 'โคกเคียณ',
+    toValue: 'โคกเคียน',
+    districtFilter: 'เมืองนราธิวาส',
+    targetDistrict: 'เมืองนราธิวาส',
+    targetProvince: 'นราธิวาส',
+    isUser: true,
+  });
+  assert.deepEqual(patchUser, { subdistrict: 'โคกเคียน', district: 'เมืองนราธิวาส', province: 'นราธิวาส' });
+
+  // Clean user should not be modified
+  assert.equal(
+    buildNormalizedLocationPatch(users[2], { field: 'subdistrict', fromValue: 'โคกเคียณ', toValue: 'โคกเคียน', isUser: true }),
+    null
   );
 });
 

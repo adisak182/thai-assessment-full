@@ -3,6 +3,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import SurveyResponse from '../models/SurveyResponse.js';
 import jwt from 'jsonwebtoken';
+import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 
 const router = express.Router();
 
@@ -25,7 +26,7 @@ function optionalAuth(req, res, next) {
 // ==================== SUBMIT SURVEY ====================
 router.post('/', optionalAuth, async (req, res) => {
   try {
-    const surveyData = { ...req.body };
+    const surveyData = { ...req.body, ...resolveLocationUpdates(req.body) };
     if (req.userId) {
       surveyData.user_id = req.userId;
     }
@@ -67,6 +68,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
       updates[field] = typeof value === 'string' ? value.trim() : value;
     }
   }
+  Object.assign(updates, resolveLocationUpdates(req.body));
 
   try {
     const updated = await SurveyResponse.findByIdAndUpdate(

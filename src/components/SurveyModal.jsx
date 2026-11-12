@@ -2,6 +2,8 @@ import ModalPortal from './ModalPortal';
 import React, { useState } from 'react';
 import { Send, CheckCircle } from 'lucide-react';
 import { useUser } from '../context/UserContext';
+import NarathiwatLocationFields from './NarathiwatLocationFields';
+import { extractDistrictAndProvince } from '../utils/addressHelper';
 
 const RATING_CHOICES = [
   { val: 4, label: 'ดีมาก' },
@@ -26,6 +28,7 @@ const RatingRow = ({ name, title, data, handleChange }) => (
 
 export default function SurveyModal({ onSubmit, error, submitting }) {
   const { user } = useUser();
+  const initialLoc = extractDistrictAndProvince(user?.address, user?.district, user?.province, null, user?.subdistrict);
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     gender: user?.gender || '', 
@@ -33,7 +36,9 @@ export default function SurveyModal({ onSubmit, error, submitting }) {
     status: user?.status || '',
     education_level: user?.education_level || '',
     employment_status: user?.employment_status || '',
-    subdistrict: '', district: '', province: '',
+    subdistrict: initialLoc.subdistrict === '-' ? '' : initialLoc.subdistrict,
+    district: initialLoc.district === '-' ? '' : initialLoc.district,
+    province: initialLoc.province === '-' ? 'นราธิวาส' : initialLoc.province,
     design_1: 0, design_2: 0, design_3: 0, design_4: 0,
     content_1: 0, content_2: 0, content_3: 0, content_4: 0,
     benefit_1: 0, benefit_2: 0, benefit_3: 0, benefit_4: 0,
@@ -94,19 +99,16 @@ export default function SurveyModal({ onSubmit, error, submitting }) {
               </div>
             </div>
 
-            <div className="form-pair" style={{ display: 'flex', gap: '20px', marginBottom: '32px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '170px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>4. ภูมิลำเนา (ตำบล)</label>
-                <input type="text" placeholder="ระบุตำบล" value={data.subdistrict} onChange={e => handleChange('subdistrict', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: '170px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>ภูมิลำเนา (อำเภอ)</label>
-                <input type="text" placeholder="ระบุอำเภอ" value={data.district} onChange={e => handleChange('district', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none' }} />
-              </div>
-              <div style={{ flex: 1, minWidth: '170px' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>ภูมิลำเนา (จังหวัด)</label>
-                <input type="text" placeholder="ระบุจังหวัด" value={data.province} onChange={e => handleChange('province', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none' }} />
-              </div>
+            <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: '10px', fontWeight: '600', color: '#374151' }}>4. ภูมิลำเนา</div>
+              <NarathiwatLocationFields
+                province={data.province}
+                district={data.district}
+                subdistrict={data.subdistrict}
+                onChange={({ province, district, subdistrict }) => setData(prev => ({ ...prev, province, district, subdistrict }))}
+                inputStyle={{ width: '100%', padding: '12px', borderRadius: '10px', border: '2px solid rgba(0,0,0,0.1)', outline: 'none', background: 'white', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                labelStyle={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}
+              />
             </div>
 
             <button onClick={() => setStep(2)} disabled={!canGoStep2} className="btn-primary" style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '1.1rem', opacity: canGoStep2 ? 1 : 0.5 }}>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { Camera, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { NAME_PREFIXES, combineNameWithPrefix } from '../utils/namePrefix';
+import NarathiwatLocationFields from '../components/NarathiwatLocationFields';
 
 export default function RegisterPage() {
   const { register } = useUser();
@@ -11,7 +12,8 @@ export default function RegisterPage() {
 
   const [form, setForm] = useState({
     username: '', password: '', confirmPassword: '',
-    prefix: '', name: '', age: '', gender: '', address: '', avatar: ''
+    prefix: '', name: '', age: '', gender: '',
+    subdistrict: '', district: '', province: 'นราธิวาส', address: '', avatar: ''
   });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
@@ -37,10 +39,16 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
+      const formattedAddress = [
+        form.subdistrict ? `ต.${form.subdistrict}` : '',
+        form.district ? `อ.${form.district}` : '',
+        form.province ? `จ.${form.province}` : '',
+      ].filter(Boolean).join(' ');
       await register({
         username: form.username, password: form.password,
         name: combineNameWithPrefix(form.prefix, form.name), age: form.age, gender: form.gender,
-        address: form.address, avatar: form.avatar
+        subdistrict: form.subdistrict, district: form.district, province: form.province,
+        address: formattedAddress || form.address, avatar: form.avatar
       });
       navigate('/levels');
     } catch (err) {
@@ -152,12 +160,15 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Address */}
-            <div>
-              <label style={labelStyle}>ที่อยู่ / อำเภอ / จังหวัด</label>
-              <input type="text" name="address" value={form.address} onChange={handleChange}
-                placeholder="เช่น อ.เมืองนราธิวาส จ.นราธิวาส" style={inputStyle} />
-            </div>
+            {/* Location Selector */}
+            <NarathiwatLocationFields
+              province={form.province}
+              district={form.district}
+              subdistrict={form.subdistrict}
+              onChange={({ province, district, subdistrict }) => setForm(prev => ({ ...prev, province, district, subdistrict }))}
+              inputStyle={inputStyle}
+              labelStyle={labelStyle}
+            />
 
             <button type="submit" disabled={loading} className="btn-primary"
               style={{ padding: '16px', fontSize: '1.1rem', justifyContent: 'center', width: '100%', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px', opacity: loading ? 0.7 : 1 }}>

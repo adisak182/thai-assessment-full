@@ -169,6 +169,8 @@ export default function AdminAnalyticsDashboard({
   formatDate,
   onDownloadCsv,
   onDownloadExcel,
+  anomalyCount = 0,
+  onOpenLocationCleanup,
   onInspectUser,
   onInspectAttempt,
 }) {
@@ -482,6 +484,21 @@ export default function AdminAnalyticsDashboard({
             </button>
           </div>
         </div>
+
+        {anomalyCount > 0 && onOpenLocationCleanup && (
+          <div className="analytics-anomaly-notice">
+            <div>
+              <AlertCircle size={17} color="#b45309" />
+              <span>
+                พบชื่อ <strong>อำเภอ / ตำบล</strong> ในฐานข้อมูลที่อาจพิมพ์ผิดหรือไม่อยู่ในรายชื่อมาตรฐาน จำนวน <strong>{anomalyCount}</strong> รายการ
+                (ระบบแดชบอร์ดช่วยจัดกลุ่มอัตโนมัติแล้วบางส่วน — กดเพื่อแก้ไขให้ถูกต้องถาวร)
+              </span>
+            </div>
+            <button type="button" className="analytics-anomaly-btn" onClick={onOpenLocationCleanup}>
+              ตรวจสอบและรวมคำผิด
+            </button>
+          </div>
+        )}
 
         {/* Dual Export Bar: Excel (.xlsx) & CSV matching current filters */}
         <div className="analytics-export-bar">

@@ -7,7 +7,7 @@ import User from '../models/User.js';
 import ScoreHistory from '../models/ScoreHistory.js';
 import LevelProgress from '../models/LevelProgress.js';
 import SurveyResponse from '../models/SurveyResponse.js';
-import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
+import { resolveLocationUpdates, buildNormalizedLocationPatch } from '../../src/utils/addressHelper.js';
 
 const router = express.Router();
 
@@ -204,6 +204,102 @@ router.put('/users/:id', authenticateAdmin, async (req, res) => {
   } catch (err) {
     console.error('Update user error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+// ==================== BULK NORMALIZE MISSPELLED LOCATIONS ====================
+router.post('/locations/normalize', authenticateAdmin, async (req, res) => {
+  const operations = Array.isArray(req.body?.operations)
+    ? req.body.operations
+    : (req.body?.field ? [req.body] : []);
+
+  if (!operations.length) {
+    return res.status(400).json({ message: 'กรุณาระบุข้อมูลอำเภอหรือตำบลที่ต้องการปรับปรุง' });
+  }
+
+  for (const op of operations) {
+    if (!['district', 'subdistrict'].includes(op?.field) || !String(op?.fromValue || '').trim() || !String(op?.toValue || '').trim()) {
+      return res.status(400).json({ message: 'ข้อมูลรายการปรับปรุงชื่อพื้นที่ไม่ถูกต้อง' });
+    }
+  }
+
+  try {
+    const [allUsers, allSurveys] = await Promise.all([
+      User.find({ role: { $ne: 'admin' } }).select('_id address subdistrict district province').lean(),
+      SurveyResponse.find().select('_id subdistrict district province').lean(),
+    ]);
+
+    const userBulkOps = [];
+    for (const u of allUsers) {
+      let mergedPatch = null;
+      const working = { ...u };
+      for (const op of operations) {
+        const patch = buildNormalizedLocationPatch(working, {
+          field: op.field,
+          fromValue: op.fromValue,
+          toValue: op.toValue,
+          districtFilter: op.districtFilter || '',
+          targetDistrict: op.targetDistrict || '',
+          targetProvince: op.targetProvince || 'นราธิวาส',
+          isUser: true,
+        });
+        if (patch) {
+          mergedPatch = { ...(mergedPatch || {}), ...patch };
+          Object.assign(working, patch);
+        }
+      }
+      if (mergedPatch) {
+        userBulkOps.push({
+          updateOne: {
+            filter: { _id: u._id },
+            update: { $set: mergedPatch },
+          },
+        });
+      }
+    }
+
+    const surveyBulkOps = [];
+    for (const s of allSurveys) {
+      let mergedPatch = null;
+      const working = { ...s };
+      for (const op of operations) {
+        const patch = buildNormalizedLocationPatch(working, {
+          field: op.field,
+          fromValue: op.fromValue,
+          toValue: op.toValue,
+          districtFilter: op.districtFilter || '',
+          targetDistrict: op.targetDistrict || '',
+          targetProvince: op.targetProvince || 'นราธิวาส',
+          isUser: false,
+        });
+        if (patch) {
+          mergedPatch = { ...(mergedPatch || {}), ...patch };
+          Object.assign(working, patch);
+        }
+      }
+      if (mergedPatch) {
+        surveyBulkOps.push({
+          updateOne: {
+            filter: { _id: s._id },
+            update: { $set: mergedPatch },
+          },
+        });
+      }
+    }
+
+    const [userRes, surveyRes] = await Promise.all([
+      userBulkOps.length ? User.bulkWrite(userBulkOps) : Promise.resolve({ modifiedCount: 0 }),
+      surveyBulkOps.length ? SurveyResponse.bulkWrite(surveyBulkOps) : Promise.resolve({ modifiedCount: 0 }),
+    ]);
+
+    return res.json({
+      message: 'ปรับปรุงชื่อพื้นที่เป็นมาตรฐานสำเร็จ',
+      updatedUsersCount: userRes.modifiedCount ?? userBulkOps.length,
+      updatedSurveysCount: surveyRes.modifiedCount ?? surveyBulkOps.length,
+    });
+  } catch (err) {
+    console.error('Normalize locations error:', err);
+    return res.status(500).json({ message: 'ปรับปรุงข้อมูลพื้นที่ไม่สำเร็จ' });
   }
 });
 

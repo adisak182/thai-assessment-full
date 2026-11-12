@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { Camera, LogOut, BookOpen, Volume2, MessageCircle, PenTool, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { NAME_PREFIXES, splitNamePrefix, combineNameWithPrefix } from '../utils/namePrefix';
+import NarathiwatLocationFields from '../components/NarathiwatLocationFields';
+import { extractDistrictAndProvince } from '../utils/addressHelper';
 
 const SKILL_LABELS = {
   listening: { label: 'ทักษะการฟัง', icon: <Volume2 size={16} />, color: '#8b5cf6' },
@@ -22,12 +24,16 @@ export default function EditProfile() {
   const fileInputRef = useRef(null);
 
   const initialName = splitNamePrefix(user?.name || '');
+  const initialLoc = extractDistrictAndProvince(user?.address, user?.district, user?.province, null, user?.subdistrict);
 
   const [formData, setFormData] = useState({
     prefix: initialName.prefix,
     name: initialName.nameWithoutPrefix,
     age: user?.age || '',
     gender: user?.gender || '',
+    subdistrict: initialLoc.subdistrict === '-' ? '' : initialLoc.subdistrict,
+    district: initialLoc.district === '-' ? '' : initialLoc.district,
+    province: initialLoc.province === '-' ? 'นราธิวาส' : initialLoc.province,
     address: user?.address || '',
     avatar: user?.avatar || '',
     is_literacy_learner: Boolean(user?.is_literacy_learner),
@@ -65,8 +71,14 @@ export default function EditProfile() {
     setError('');
     try {
       const { prefix, name, ...rest } = formData;
+      const formattedLoc = [
+        rest.subdistrict ? `ต.${rest.subdistrict}` : '',
+        rest.district ? `อ.${rest.district}` : '',
+        rest.province ? `จ.${rest.province}` : '',
+      ].filter(Boolean).join(' ');
       await updateUser({
         ...rest,
+        address: formattedLoc || rest.address,
         name: combineNameWithPrefix(prefix, name),
       });
       setSaved(true);
@@ -147,8 +159,14 @@ export default function EditProfile() {
               </select></div>
           </div>
 
-          <div><label style={labelStyle}>ที่อยู่ / อำเภอ / จังหวัด</label>
-            <input type="text" name="address" value={formData.address} onChange={handleChange} placeholder="เช่น อ.เมืองนราธิวาส จ.นราธิวาส" style={inputStyle} /></div>
+          <NarathiwatLocationFields
+            province={formData.province}
+            district={formData.district}
+            subdistrict={formData.subdistrict}
+            onChange={({ province, district, subdistrict }) => setFormData(prev => ({ ...prev, province, district, subdistrict }))}
+            inputStyle={inputStyle}
+            labelStyle={labelStyle}
+          />
 
           <label className="literacy-checkbox" htmlFor="profile-is-literacy-learner">
             <input
