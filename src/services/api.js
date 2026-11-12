@@ -171,6 +171,15 @@ export const getAdminAllHistory = async (token) => {
   return result;
 };
 
+export const getAdminAttemptDetail = async (token, attemptId) => {
+  const response = await fetch(`${API_URL}/admin/attempts/${attemptId}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'ดึงรายละเอียดคำตอบไม่สำเร็จ');
+  return result;
+};
+
 
 export const getAdminSurveys = async (token) => {
   const response = await fetch(`${API_URL}/survey`, {

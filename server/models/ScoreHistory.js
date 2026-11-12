@@ -39,6 +39,7 @@ const scoreHistorySchema = new mongoose.Schema({
 });
 
 scoreHistorySchema.index({ user_id: 1, submission_id: 1 }, { unique: true, partialFilterExpression: { submission_id: { $type: 'string' } } });
+scoreHistorySchema.index({ taken_at: -1 });
 
 scoreHistorySchema.set('toJSON', {
   transform: (document, returnedObject) => {

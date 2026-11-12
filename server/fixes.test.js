@@ -114,15 +114,19 @@ test('profile and admin user updates toggle literacy status and validate boolean
  }finally{User.findByIdAndUpdate=original;}
 });
 test('admin history endpoint returns all exam records without a 300-row cap',async()=>{
- const original=[ScoreHistory.find,SurveyResponse.find];
+ const original=[ScoreHistory.find,ScoreHistory.findById,SurveyResponse.find];
  const sampleRows=Array.from({length:350},(_,i)=>({_id:`h${i}`,user_id:{_id:'u1',name:'สมชาย',username:'u1'},level:1,skill:'full_test',score:80,max_score:100,taken_at:new Date()}));
- let limited=false;
- const historyChain={populate(){return this;},sort(){return this;},limit(){limited=true;return this;},lean:async()=>sampleRows};
+ let limited=false,selected='';
+ const historyChain={select(fields){selected=fields;return this;},populate(){return this;},sort(){return this;},limit(){limited=true;return this;},lean:async()=>sampleRows};
  ScoreHistory.find=()=>historyChain;
  SurveyResponse.find=()=>({select(){return this;},sort(){return this;},lean:async()=>[]});
+ ScoreHistory.findById=async id=>({toJSON:()=>({id,detailed_results:[{id:1,is_correct:true}]})});
  try{
   const res=response();
   await admin.stack.find(l=>l.route?.path==='/history'&&l.route.methods.get).route.stack.at(-1).handle({},res);
-  assert.equal(res.code,200);assert.equal(limited,false);assert.equal(res.body.length,350);
- }finally{[ScoreHistory.find,SurveyResponse.find]=original;}
+  assert.equal(res.code,200);assert.equal(limited,false);assert.equal(selected,'-detailed_results');assert.equal(res.body.length,350);assert.equal(res.body[0].detailed_results,undefined);
+  const detailRes=response();
+  await admin.stack.find(l=>l.route?.path==='/attempts/:id'&&l.route.methods.get).route.stack.at(-1).handle({params:{id:'507f1f77bcf86cd799439011'}},detailRes);
+  assert.equal(detailRes.code,200);assert.equal(detailRes.body.detailed_results.length,1);
+ }finally{[ScoreHistory.find,ScoreHistory.findById,SurveyResponse.find]=original;}
 });

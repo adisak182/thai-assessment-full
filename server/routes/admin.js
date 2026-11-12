@@ -1,5 +1,6 @@
 import SpeakingAudio from '../models/SpeakingAudio.js';
 import express from 'express';
+import mongoose from 'mongoose';
 import authenticateAdmin from '../authenticateAdmin.js';
 import { summarizeResults } from '../grading.js';
 import User from '../models/User.js';
@@ -52,6 +53,7 @@ router.get('/users', authenticateAdmin, async (req, res) => {
 router.get('/history', authenticateAdmin, async (req, res) => {
   try {
     const history = await ScoreHistory.find()
+      .select('-detailed_results')
       .populate('user_id', 'username name age address subdistrict district province role')
       .sort({ taken_at: -1 })
       .lean();
@@ -86,14 +88,31 @@ router.get('/history', authenticateAdmin, async (req, res) => {
         max_score: h.max_score,
         taken_at: h.taken_at,
         breakdown: h.breakdown || {},
-        pending_count: h.pending_count || 0,
-        detailed_results: h.detailed_results || []
+        pending_count: h.pending_count || 0
       };
     });
 
     return res.json(formatted);
   } catch (err) {
     console.error('Get all history error:', err);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
+  }
+});
+
+// ==================== GET SINGLE ATTEMPT WITH DETAILS ====================
+router.get('/attempts/:id', authenticateAdmin, async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: 'ไม่พบข้อมูลผลสอบ' });
+  }
+  try {
+    const attempt = await ScoreHistory.findById(id);
+    if (!attempt) {
+      return res.status(404).json({ message: 'ไม่พบข้อมูลผลสอบ' });
+    }
+    return res.json(attempt.toJSON());
+  } catch (err) {
+    console.error('Get attempt detail error:', err);
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดจากเซิร์ฟเวอร์' });
   }
 });

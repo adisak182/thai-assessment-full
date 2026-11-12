@@ -2,8 +2,8 @@ import SpeakingAudioPlayer from './SpeakingAudioPlayer';
 import ModalPortal from './ModalPortal';
 import { historyLabels } from '../utils/historyLabels';
 import { useUser } from '../context/UserContext';
-import { reviewAttempt } from '../services/api';
-import { useState } from 'react';
+import { reviewAttempt, getAdminAttemptDetail } from '../services/api';
+import { useState, useEffect } from 'react';
 import {
   X, CheckCircle, XCircle, Printer, Search, Filter,
   Calendar, Trophy, Award, BookOpen, Volume2, MessageCircle,
@@ -24,10 +24,27 @@ function formatDate(isoStr) {
 
 export default function ScoreDetailModal({ attempt: initialAttempt, user, onClose }) {
   const {user:viewer,token}=useUser();
+  const [loadedAttempt,setLoadedAttempt]=useState(null);
+  const [loadingDetails,setLoadingDetails]=useState(false);
+  const [detailError,setDetailError]=useState('');
   const [reviewedAttempt,setReviewedAttempt]=useState(null);
   const [reviewError,setReviewError]=useState('');
   const [reviewing,setReviewing]=useState(false);
-  const attempt=reviewedAttempt?.id===initialAttempt?.id?reviewedAttempt:initialAttempt;
+
+  useEffect(()=>{
+    let cancelled=false;
+    if(!initialAttempt?.id || initialAttempt.detailed_results!==undefined || viewer?.role!=='admin' || !token)return;
+    setLoadingDetails(true);setDetailError('');
+    getAdminAttemptDetail(token,initialAttempt.id)
+      .then(detail=>{if(!cancelled)setLoadedAttempt(detail);})
+      .catch(err=>{if(!cancelled)setDetailError(err.message || 'ดึงรายละเอียดคำตอบไม่สำเร็จ');})
+      .finally(()=>{if(!cancelled)setLoadingDetails(false);});
+    return ()=>{cancelled=true;};
+  },[initialAttempt?.id,initialAttempt?.detailed_results,viewer?.role,token]);
+
+  const attempt=reviewedAttempt?.id===initialAttempt?.id
+    ? reviewedAttempt
+    : (loadedAttempt?.id===initialAttempt?.id ? {...initialAttempt,...loadedAttempt} : initialAttempt);
   const pendingCount=(attempt?.detailed_results || []).filter(r=>r.is_correct===null).length;
   const handleReview=async(questionId,correct)=>{
     if(reviewing)return;
@@ -497,7 +514,34 @@ export default function ScoreDetailModal({ attempt: initialAttempt, user, onClos
               )}
             </div>
 
-            {hasDetailedResults ? (
+            {loadingDetails ? (
+              <div
+                style={{
+                  padding: '32px 20px',
+                  background: '#f8fafc',
+                  borderRadius: '16px',
+                  border: '1.5px dashed #cbd5e1',
+                  textAlign: 'center',
+                  color: '#64748b'
+                }}
+              >
+                กำลังโหลดรายละเอียดคำตอบรายข้อ...
+              </div>
+            ) : detailError ? (
+              <div
+                role="alert"
+                style={{
+                  padding: '20px',
+                  background: '#fef2f2',
+                  borderRadius: '16px',
+                  border: '1.5px solid #fecaca',
+                  textAlign: 'center',
+                  color: '#b91c1c'
+                }}
+              >
+                {detailError}
+              </div>
+            ) : hasDetailedResults ? (
               <>
                 {/* Filters & Search Toolbar */}
                 <div
