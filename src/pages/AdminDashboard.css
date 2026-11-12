@@ -149,8 +149,13 @@
 .exec-panel { background:#ffffff; border:1px solid #e2e8f0; border-radius:16px; overflow:hidden; box-shadow:0 3px 12px rgba(15,23,42,.04); min-width:0; display:flex; flex-direction:column; }
 .exec-panel-head { background:linear-gradient(90deg,#e9d5ff,#f3e8ff); padding:9px 16px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border-bottom:1px solid #d8b4fe; }
 .exec-panel-head h3 { margin:0; font-size:.96rem; font-weight:800; color:#2e1065; }
+.exec-panel-title-group { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.exec-panel-count { font-size:.76rem; font-weight:700; color:#5b21b6; background:#ffffff; border:1px solid #ddd6fe; padding:2px 9px; border-radius:999px; }
+.exec-panel-head-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-left:auto; }
 .exec-see-all-btn { display:inline-flex; align-items:center; gap:3px; padding:4px 10px; border-radius:8px; border:1px solid #c084fc; background:#ffffff; color:#5b21b6; font:inherit; font-size:.76rem; font-weight:700; cursor:pointer; }
 .exec-see-all-btn:hover { background:#f5f3ff; }
+.exec-area-standalone { min-width:780px; }
+.exec-area-standalone th,.exec-area-standalone td { padding:10px 11px; font-size:.84rem; }
 
 .exec-table-wrap { overflow-x:auto; flex:1; }
 .exec-table { width:100%; border-collapse:collapse; font-size:.79rem; }

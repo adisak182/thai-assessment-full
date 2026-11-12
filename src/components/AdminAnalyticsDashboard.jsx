@@ -81,6 +81,138 @@ function SkillStatusBadge({ skill }) {
   );
 }
 
+/**
+ * Shared District / Subdistrict summary table used both side-by-side in Province Overview
+ * and full-width when inspecting District-only or Subdistrict-only views.
+ */
+function AreaBreakdownPanel({
+  title,
+  isSubdistrict,
+  rows,
+  totals,
+  districtFilter,
+  standalone = false,
+  showAllAreas = false,
+  onToggleShowAll,
+  onRowClick,
+  onClearDistrict,
+  onBackToDistricts,
+}) {
+  const displayRows = standalone || showAllAreas ? rows : rows.slice(0, 5);
+  const colCount = standalone ? 11 : 7;
+
+  return (
+    <div className="exec-panel">
+      <div className="exec-panel-head">
+        <div className="exec-panel-title-group">
+          <h3>{title}</h3>
+          {standalone && (
+            <span className="exec-panel-count">{rows.length.toLocaleString()} รายการ</span>
+          )}
+        </div>
+        <div className="exec-panel-head-actions">
+          {standalone && isSubdistrict && onBackToDistricts && (
+            <button type="button" className="exec-see-all-btn" onClick={onBackToDistricts}>
+              ดูรายอำเภอ
+            </button>
+          )}
+          {standalone && districtFilter !== 'all' && onClearDistrict && (
+            <button type="button" className="exec-see-all-btn" onClick={onClearDistrict}>
+              <RotateCcw size={13} /> แสดงทุกอำเภอ
+            </button>
+          )}
+          {!standalone && rows.length > 5 && onToggleShowAll && (
+            <button type="button" className="exec-see-all-btn" onClick={onToggleShowAll}>
+              {showAllAreas ? 'ย่อลง' : 'ดูทั้งหมด'} <ChevronRight size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="exec-table-wrap">
+        <table className={`exec-table exec-area-summary-table ${standalone ? 'exec-area-standalone' : ''}`}>
+          <thead>
+            <tr>
+              {standalone && <th className="center">ลำดับ</th>}
+              <th>{isSubdistrict ? 'ตำบล' : 'อำเภอ'}</th>
+              {standalone && (
+                <th className={isSubdistrict ? '' : 'num'}>
+                  {isSubdistrict ? 'อำเภอ' : 'ตำบล (แห่ง)'}
+                </th>
+              )}
+              <th className="num">รวม (คน)</th>
+              <th className="num">ชาย (คน)</th>
+              <th className="num">หญิง (คน)</th>
+              {standalone && <th className="num">ครบ 4 ทักษะ</th>}
+              {standalone && <th className="num">ยังไม่ครบ</th>}
+              <th className="num">ผ่าน (คน)</th>
+              <th className="num">ไม่ผ่าน (คน)</th>
+              <th className="center">ร้อยละผ่าน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.length === 0 ? (
+              <tr>
+                <td colSpan={colCount} className="exec-no-rows">ไม่มีข้อมูลพื้นที่ตามตัวกรอง</td>
+              </tr>
+            ) : (
+              <>
+                {displayRows.map((row, idx) => {
+                  const passVal = row.exactPassRate ?? row.passRate;
+                  return (
+                    <tr
+                      key={row.key}
+                      className="clickable-row"
+                      onClick={() => onRowClick(row)}
+                      title={isSubdistrict ? 'คลิกเพื่อกรองตำบลนี้' : 'คลิกเพื่อดูตำบลในอำเภอนี้'}
+                    >
+                      {standalone && <td className="center">{idx + 1}</td>}
+                      <td className="strong">
+                        {isSubdistrict ? row.subdistrict : row.district}
+                        {!standalone && isSubdistrict && districtFilter === 'all' && (
+                          <span className="area-sub-dist"> (อ.{row.district})</span>
+                        )}
+                      </td>
+                      {standalone && (
+                        <td className={isSubdistrict ? '' : 'num'}>
+                          {isSubdistrict ? row.district : (row.subdistrictCount ?? 0).toLocaleString()}
+                        </td>
+                      )}
+                      <td className="num">{row.learnerCount.toLocaleString()}</td>
+                      <td className="num">{(row.maleCount ?? 0).toLocaleString()}</td>
+                      <td className="num">{(row.femaleCount ?? 0).toLocaleString()}</td>
+                      {standalone && <td className="num">{(row.completed4Count ?? 0).toLocaleString()}</td>}
+                      {standalone && <td className="num">{(row.incomplete4Count ?? 0).toLocaleString()}</td>}
+                      <td className="num">{(row.passedLearnerCount ?? 0).toLocaleString()}</td>
+                      <td className="num">{(row.failedLearnerCount ?? row.notPassedLearnerCount ?? 0).toLocaleString()}</td>
+                      <td className="center rate-col-cell">
+                        {passVal === null ? '—' : <span className="exec-rate-text">{fmtPct(passVal)}</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="exec-total-row">
+                  {standalone && <td />}
+                  <td>{districtFilter !== 'all' ? `รวม อ.${districtFilter}` : 'รวมทั้งจังหวัด'}</td>
+                  {standalone && <td />}
+                  <td className="num">{totals.total.toLocaleString()}</td>
+                  <td className="num">{totals.male.toLocaleString()}</td>
+                  <td className="num">{totals.female.toLocaleString()}</td>
+                  {standalone && <td className="num">{totals.completed4.toLocaleString()}</td>}
+                  {standalone && <td className="num">{totals.incomplete4.toLocaleString()}</td>}
+                  <td className="num">{totals.passed.toLocaleString()}</td>
+                  <td className="num">{totals.failed.toLocaleString()}</td>
+                  <td className="center">{fmtPct(totals.passRate)}</td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminAnalyticsDashboard({
   users = [],
   history = [],
@@ -203,23 +335,44 @@ export default function AdminAnalyticsDashboard({
     [filtered.learners, filtered.attempts]
   );
 
-  const isSubdistrictAreaView = areaLevel === 'subdistrict' || districtFilter !== 'all';
+  const isStandaloneAreaView = areaLevel === 'district' || areaLevel === 'subdistrict';
+  const isSubdistrictAreaView =
+    areaLevel === 'subdistrict' || (areaLevel === 'province' && districtFilter !== 'all');
   const activeAreaRows = isSubdistrictAreaView ? subdistrictRows : districtRows;
-  const visibleAreaRows = showAllAreas ? activeAreaRows : activeAreaRows.slice(0, 5);
 
   const areaTotals = useMemo(() => {
     const sum = activeAreaRows.reduce((acc, r) => {
       acc.total += r.learnerCount || 0;
       acc.male += r.maleCount || 0;
       acc.female += r.femaleCount || 0;
+      acc.completed4 += r.completed4Count || 0;
+      acc.incomplete4 += r.incomplete4Count || 0;
       acc.passed += r.passedLearnerCount || 0;
       acc.failed += r.failedLearnerCount ?? r.notPassedLearnerCount ?? 0;
       return acc;
-    }, { total: 0, male: 0, female: 0, passed: 0, failed: 0 });
+    }, { total: 0, male: 0, female: 0, completed4: 0, incomplete4: 0, passed: 0, failed: 0 });
     const denom = sum.passed + sum.failed;
     const passRate = denom > 0 ? Number(((sum.passed / denom) * 100).toFixed(2)) : 0;
     return { ...sum, passRate };
   }, [activeAreaRows]);
+
+  const areaTableTitle = isSubdistrictAreaView
+    ? (districtFilter !== 'all'
+        ? `จำนวนผู้เข้ารับการประเมินรายตำบล (อ.${districtFilter})`
+        : 'จำนวนผู้เข้ารับการประเมินรายตำบล')
+    : 'จำนวนผู้เข้ารับการประเมินรายอำเภอ';
+
+  const handleAreaRowClick = (row) => {
+    if (isSubdistrictAreaView) {
+      const same = subdistrictFilter === row.subdistrict;
+      setSubdistrictFilter(same ? 'all' : row.subdistrict);
+    } else {
+      setDistrictFilter(row.district);
+      setSubdistrictFilter('all');
+      setAreaLevel('subdistrict');
+    }
+    setDetailPage(1);
+  };
 
   // Unified percentages over summary.totalLearners so KPI cards, donuts, and tables share one exact total base.
   const overallPassTotalPct = summary.totalLearners > 0
@@ -280,15 +433,11 @@ export default function AdminAnalyticsDashboard({
   const handleDistrictChange = (val) => {
     setDistrictFilter(val);
     setSubdistrictFilter('all');
-    if (val !== 'all' && areaLevel === 'province') {
-      setAreaLevel('subdistrict');
-    } else if (val === 'all' && areaLevel === 'subdistrict') {
-      setAreaLevel('district');
-    }
     setDetailPage(1);
   };
 
   const openLearnerSearch = () => {
+    setAreaLevel('province');
     setShowLearnerFilters(true);
     setTimeout(() => {
       searchSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -550,6 +699,22 @@ export default function AdminAnalyticsDashboard({
 
       {loading && <p className="admin-muted" role="status">กำลังโหลดข้อมูล...</p>}
 
+      {isStandaloneAreaView ? (
+        <section className="exec-standalone-area" aria-label={areaTableTitle}>
+          <AreaBreakdownPanel
+            title={areaTableTitle}
+            isSubdistrict={isSubdistrictAreaView}
+            rows={activeAreaRows}
+            totals={areaTotals}
+            districtFilter={districtFilter}
+            standalone
+            onRowClick={handleAreaRowClick}
+            onClearDistrict={() => handleDistrictChange('all')}
+            onBackToDistricts={() => handleAreaLevelChange('district')}
+          />
+        </section>
+      ) : (
+        <>
       {/* 3. 7-Card KPI Strip */}
       <section className="exec-kpi-strip" aria-label="สรุปตัวชี้วัดหลัก">
         <div className="exec-kpi-card exec-kpi-first">
@@ -814,96 +979,16 @@ export default function AdminAnalyticsDashboard({
         </div>
 
         {/* Right: District / Subdistrict Breakdown Table */}
-        <div className="exec-panel">
-          <div className="exec-panel-head">
-            <h3>
-              {isSubdistrictAreaView
-                ? (districtFilter !== 'all'
-                    ? `จำนวนผู้เข้ารับการประเมินรายตำบล (อ.${districtFilter})`
-                    : 'จำนวนผู้เข้ารับการประเมินรายตำบล')
-                : 'จำนวนผู้เข้ารับการประเมินรายอำเภอ'}
-            </h3>
-            {activeAreaRows.length > 5 && (
-              <button
-                type="button"
-                className="exec-see-all-btn"
-                onClick={() => setShowAllAreas(v => !v)}
-              >
-                {showAllAreas ? 'ย่อลง' : 'ดูทั้งหมด'} <ChevronRight size={14} />
-              </button>
-            )}
-          </div>
-          <div className="exec-table-wrap">
-            <table className="exec-table exec-area-summary-table">
-              <thead>
-                <tr>
-                  <th>{isSubdistrictAreaView ? 'ตำบล' : 'อำเภอ'}</th>
-                  <th className="num">รวม (คน)</th>
-                  <th className="num">ชาย (คน)</th>
-                  <th className="num">หญิง (คน)</th>
-                  <th className="num">ผ่าน (คน)</th>
-                  <th className="num">ไม่ผ่าน (คน)</th>
-                  <th className="center">ร้อยละผ่าน</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleAreaRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="exec-no-rows">ไม่มีข้อมูลพื้นที่ตามตัวกรอง</td>
-                  </tr>
-                ) : (
-                  <>
-                    {visibleAreaRows.map(row => {
-                      const passVal = row.exactPassRate ?? row.passRate;
-                      return (
-                        <tr
-                          key={row.key}
-                          className="clickable-row"
-                          onClick={() => {
-                            if (isSubdistrictAreaView) {
-                              const same = subdistrictFilter === row.subdistrict;
-                              setSubdistrictFilter(same ? 'all' : row.subdistrict);
-                            } else {
-                              setDistrictFilter(row.district);
-                              setSubdistrictFilter('all');
-                              setAreaLevel('subdistrict');
-                            }
-                            setDetailPage(1);
-                          }}
-                          title={isSubdistrictAreaView ? 'คลิกเพื่อกรองตำบลนี้' : 'คลิกเพื่อดูตำบลในอำเภอนี้'}
-                        >
-                          <td className="strong">
-                            {isSubdistrictAreaView ? row.subdistrict : row.district}
-                            {isSubdistrictAreaView && districtFilter === 'all' && (
-                              <span className="area-sub-dist"> (อ.{row.district})</span>
-                            )}
-                          </td>
-                          <td className="num">{row.learnerCount.toLocaleString()}</td>
-                          <td className="num">{(row.maleCount ?? 0).toLocaleString()}</td>
-                          <td className="num">{(row.femaleCount ?? 0).toLocaleString()}</td>
-                          <td className="num">{(row.passedLearnerCount ?? 0).toLocaleString()}</td>
-                          <td className="num">{(row.failedLearnerCount ?? row.notPassedLearnerCount ?? 0).toLocaleString()}</td>
-                          <td className="center rate-col-cell">
-                            {passVal === null ? '—' : <span className="exec-rate-text">{fmtPct(passVal)}</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="exec-total-row">
-                      <td>{districtFilter !== 'all' ? `รวม อ.${districtFilter}` : 'รวมทั้งจังหวัด'}</td>
-                      <td className="num">{areaTotals.total.toLocaleString()}</td>
-                      <td className="num">{areaTotals.male.toLocaleString()}</td>
-                      <td className="num">{areaTotals.female.toLocaleString()}</td>
-                      <td className="num">{areaTotals.passed.toLocaleString()}</td>
-                      <td className="num">{areaTotals.failed.toLocaleString()}</td>
-                      <td className="center">{fmtPct(areaTotals.passRate)}</td>
-                    </tr>
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <AreaBreakdownPanel
+          title={areaTableTitle}
+          isSubdistrict={isSubdistrictAreaView}
+          rows={activeAreaRows}
+          totals={areaTotals}
+          districtFilter={districtFilter}
+          showAllAreas={showAllAreas}
+          onToggleShowAll={() => setShowAllAreas(v => !v)}
+          onRowClick={handleAreaRowClick}
+        />
       </section>
 
       {/* 6. Bottom Learner Table */}
@@ -1077,6 +1162,8 @@ export default function AdminAnalyticsDashboard({
           </div>
         )}
       </section>
+        </>
+      )}
 
       {/* Individual Learner 4-Skill Scorecard Modal */}
       {inspectedLearner && (
