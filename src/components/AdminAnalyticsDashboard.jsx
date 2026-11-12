@@ -685,7 +685,6 @@ export default function AdminAnalyticsDashboard({
                       <Legend verticalAlign="top" height={32} />
                       <Bar dataKey="passedCount" name="ผ่านเกณฑ์" fill="#10b981" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="failedCount" name="ไม่ผ่านเกณฑ์" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="unassessedCount" name="ยังไม่ประเมิน" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   ) : (
                     <BarChart data={summary.skillBreakdown} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}>
@@ -832,7 +831,6 @@ export default function AdminAnalyticsDashboard({
                     <th colSpan={3} className="group-head">เข้ารับการประเมิน (คน)</th>
                     <th colSpan={3} className="group-head green-head">ผ่านการประเมิน (คน)</th>
                     <th colSpan={3} className="group-head rose-head">ไม่ผ่านการประเมิน (คน)</th>
-                    <th rowSpan={2} className="num">ยังไม่ประเมิน / ไม่มีผล</th>
                     <th rowSpan={2} className="num">ร้อยละผ่าน</th>
                     <th rowSpan={2} className="num">ร้อยละไม่ผ่าน</th>
                     <th rowSpan={2} className="num">คะแนนเฉลี่ย</th>
@@ -864,10 +862,6 @@ export default function AdminAnalyticsDashboard({
                       <td className="num text-rose"><strong>{s.failedCount}</strong></td>
                       <td className="num text-rose">{s.failedMale}</td>
                       <td className="num text-rose">{s.failedFemale}</td>
-                      <td className="num">
-                        {s.unassessedCount}
-                        {s.pendingCount > 0 && <div className="sub-meta">(รอตรวจ {s.pendingCount})</div>}
-                      </td>
                       <td className="num"><strong className="text-green">{s.passRatePct}%</strong></td>
                       <td className="num"><strong className="text-rose">{s.failRatePct}%</strong></td>
                       <td className="num">{s.avgScore} / {s.maxScore}</td>
@@ -908,7 +902,6 @@ export default function AdminAnalyticsDashboard({
                     <Legend verticalAlign="top" height={32} />
                     <Bar dataKey="passedCount" name="ผ่านการประเมิน" fill="#10b981" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="failedCount" name="ไม่ผ่านการประเมิน" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="unassessedCount" name="ยังไม่ได้ประเมิน" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 ) : (
                   <BarChart data={summary.skillBreakdown} margin={{ top: 10, right: 16, left: -10, bottom: 8 }}>

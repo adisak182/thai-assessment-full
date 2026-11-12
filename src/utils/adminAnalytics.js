@@ -931,7 +931,7 @@ export function buildSkillSummarySheetRows(skillBreakdown = []) {
     'เข้ารับการประเมิน (รวม)', 'เข้ารับการประเมิน (ชาย)', 'เข้ารับการประเมิน (หญิง)',
     'ผ่านการประเมิน (รวม)', 'ผ่านการประเมิน (ชาย)', 'ผ่านการประเมิน (หญิง)',
     'ไม่ผ่านการประเมิน (รวม)', 'ไม่ผ่านการประเมิน (ชาย)', 'ไม่ผ่านการประเมิน (หญิง)',
-    'ยังไม่ได้ประเมิน/ไม่มีผล', 'ร้อยละผ่าน (%)', 'ร้อยละไม่ผ่าน (%)', 'คะแนนเฉลี่ย', 'คะแนนเต็ม'
+    'ร้อยละผ่าน (%)', 'ร้อยละไม่ผ่าน (%)', 'คะแนนเฉลี่ย', 'คะแนนเต็ม'
   ];
 
   const rows = skillBreakdown.map(s => [
@@ -939,7 +939,7 @@ export function buildSkillSummarySheetRows(skillBreakdown = []) {
     s.assessedCount, s.assessedMale, s.assessedFemale,
     s.passedCount, s.passedMale, s.passedFemale,
     s.failedCount, s.failedMale, s.failedFemale,
-    s.unassessedCount, s.passRatePct, s.failRatePct, s.avgScore, s.maxScore,
+    s.passRatePct, s.failRatePct, s.avgScore, s.maxScore,
   ]);
 
   return [headers, ...rows];
