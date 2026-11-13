@@ -12,10 +12,23 @@ const PREFIX_PATTERNS = [
 ];
 
 /**
+ * Remove any trailing literacy suffix such as "(ส่งเสริมการรู้หนังสือ)",
+ * "(ส่งเสริมการเรียนรู้หนังสือ)", "ส่งเสริมการรู้หนังสือ", etc. from a name.
+ */
+export function stripLiteracySuffix(raw = '') {
+  if (!raw) return '';
+  let s = String(raw).trim();
+  s = s.replace(/\s*[(（]+[^()]*?(?:หนังสือ|ส่งเสริม|ส่งเกริม|ส่งเสรืม)[^()]*?[)）]+\s*$/gi, '');
+  s = s.replace(/\s*ส่ง[^\s()]*\s*(?:การ)?(?:เรียน)?(?:รู้)?[^\s()]*หนังสือ\s*$/gi, '');
+  s = s.replace(/\s*[(（]?\s*ส่ง[^\s()]*\s*(?:การ)?.*หนังสือ\s*[)）]*\s*$/gi, '');
+  return s.trim();
+}
+
+/**
  * Split a stored Thai full name into its known prefix and base name.
  */
 export function splitNamePrefix(fullName = '') {
-  const trimmed = String(fullName || '').trim();
+  const trimmed = stripLiteracySuffix(String(fullName || '').trim());
   if (!trimmed) return { prefix: '', nameWithoutPrefix: '' };
 
   for (const { prefix, regex } of PREFIX_PATTERNS) {
@@ -34,7 +47,7 @@ export function splitNamePrefix(fullName = '') {
  */
 export function combineNameWithPrefix(prefix = '', rawName = '') {
   const cleanPrefix = String(prefix || '').trim();
-  const cleanName = String(rawName || '').trim();
+  const cleanName = stripLiteracySuffix(String(rawName || '').trim());
   if (!cleanName) return '';
   if (!cleanPrefix) return cleanName;
 

@@ -12,6 +12,7 @@ import mongoose from 'mongoose';
 import ExamSettings from '../models/ExamSettings.js';
 import { resolveLocationUpdates } from '../../src/utils/addressHelper.js';
 import { evaluateExamWindow } from '../../src/utils/examSchedule.js';
+import { stripLiteracySuffix } from '../../src/utils/namePrefix.js';
 
 
 const router = express.Router();
@@ -58,7 +59,7 @@ router.put('/me', authenticate, async (req, res) => {
   }
   try {
     const updateFields = {
-      name,
+      name: name ? stripLiteracySuffix(name) : name,
       age,
       gender,
       address,

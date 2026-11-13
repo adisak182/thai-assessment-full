@@ -10,6 +10,7 @@ import SurveyResponse from '../models/SurveyResponse.js';
 import ExamSettings from '../models/ExamSettings.js';
 import { resolveLocationUpdates, buildNormalizedLocationPatch } from '../../src/utils/addressHelper.js';
 import { validateExamScheduleInput, evaluateExamWindow } from '../../src/utils/examSchedule.js';
+import { stripLiteracySuffix } from '../../src/utils/namePrefix.js';
 
 const router = express.Router();
 
@@ -186,7 +187,7 @@ router.put('/users/:id', authenticateAdmin, async (req, res) => {
   }
   try {
     const updateFields = {
-      name,
+      name: name ? stripLiteracySuffix(name) : name,
       age: age || null,
       address: address || null,
       role: role || 'user',
